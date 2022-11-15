@@ -78,6 +78,7 @@ class UserFormDataServiceTest
         map.put("abc","abc");
         map.put("id",1);
         map.put("userId",1);
+        map.put("userName","nandini");
         list.add(map);
         userDefinition.setFirstName(USER_STRING);
         userDefinition.setCreatedById(BigInteger.valueOf(234234234));
