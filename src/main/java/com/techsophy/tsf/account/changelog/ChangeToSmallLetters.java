@@ -1,8 +1,8 @@
 package com.techsophy.tsf.account.changelog;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.MongoClient;
 import com.techsophy.tsf.account.entity.UserDefinition;
-import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import io.mongock.api.annotations.ChangeUnit;
@@ -11,9 +11,12 @@ import io.mongock.api.annotations.RollbackExecution;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.AggregationUpdate;
+import org.springframework.data.mongodb.core.aggregation.StringOperators;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import java.io.IOException;
-import java.util.List;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.EXCEUTION_IS_FAILED;
 
@@ -21,27 +24,19 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.EXCEUTION_IS_FA
 @AllArgsConstructor(onConstructor_ = {@Autowired})
 @Slf4j
 public class ChangeToSmallLetters {
-
+    private final MongoTemplate template;
     private final ObjectMapper objectMapper;
     private final UserFormDataDefinitionRepository userFormDataRepository;
     private final UserDefinitionRepository userDefinitionRepository;
+    private final MongoClient mongoClient;
+
 
     @Execution
     public void changeSetFormDefinition() throws IOException {
-       List<UserFormDataDefinition> list = userFormDataRepository.findAll(Sort.by(DESCENDING));
-        list.stream().forEach(data -> {
-            String userName = data.getUserData().get(USER_DATA_NAME).toString().toLowerCase();
-            data.getUserData().put(USER_DATA_NAME,userName);
-            UserFormDataDefinition userFormDataDefinition = objectMapper.convertValue(data,UserFormDataDefinition.class);
-            userFormDataRepository.save(userFormDataDefinition);
-        });
-        List<UserDefinition> userData = userDefinitionRepository.findAllUsers(Sort.by(DESCENDING));
-        userData.stream().forEach(data -> {
-            String userName = data.getUserName().toString().toLowerCase();
-            data.setUserName(userName);
-            UserDefinition userDefinition = objectMapper.convertValue(data,UserDefinition.class);
-            userDefinitionRepository.save(userDefinition);
-        });
+        template.updateMulti(Query.query(Criteria.where(USER_NAME_DATA).ne(null)),
+                AggregationUpdate.update().set(USER_NAME_DATA).toValue(StringOperators.ToLower.lowerValueOf(USER_NAME_DATA)),UserDefinition.class,TP_USER_COLLECTION);
+        template.updateMulti(Query.query(Criteria.where(USER_DATA_USER_NAME).ne(null)),
+                AggregationUpdate.update().set(USER_DATA_USER_NAME).toValue(StringOperators.ToLower.lowerValueOf(USER_DATA_USER_NAME)),UserDefinition.class,TP_FORM_DATA_USER_COLLECTION);
     }
 
     @RollbackExecution
