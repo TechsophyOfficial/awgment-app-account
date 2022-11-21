@@ -288,7 +288,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         totalRoles.put(DEFAULT_ROLES,rolesSchemas);
         try
         {
-            response = webClientWrapper.webclientRequest(client,keyCloakApi+GET_ALL_CLIENTS_URL,GET,null);
+            response = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext())+GET_ALL_CLIENTS_URL,GET,null);
         }
         catch(Exception e)
         {
