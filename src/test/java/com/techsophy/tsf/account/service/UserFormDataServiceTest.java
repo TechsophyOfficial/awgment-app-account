@@ -137,8 +137,10 @@ class UserFormDataServiceTest
         when(mockObjectMapper.convertValue(any(),eq(UserData.class))).thenReturn(userSchema);
         when(mockObjectMapper.convertValue(userFormDataDefinition,UserFormDataSchema.class)).thenReturn(userFormDataSchema1);
         when(mockUserFormDataDefinitionRepository.save(any())).thenReturn(userFormDataDefinition);
-        System.out.println("username="+map.get("userName"));
         UserFormDataSchema response=userFormDataService.saveUserFormData(userFormDataSchema);
+        ArgumentCaptor<UserFormDataDefinition> argumentCaptor = ArgumentCaptor.forClass(UserFormDataDefinition.class);
+        verify(mockUserFormDataDefinitionRepository).save(argumentCaptor.capture());
+        Assertions.assertEquals("nandini",argumentCaptor.getValue().getUserData().get("userName"));
         Assertions.assertNotEquals(response.getUserData().get("userName"),"Nandini");
     }
 

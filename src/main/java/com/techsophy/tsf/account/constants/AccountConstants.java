@@ -279,9 +279,9 @@ public class AccountConstants
  public static final String DEFAULT_GROUPS="defaultGroups";
  public static final String DESCENDING="desc";
  public static final String DEFAULT_ROLES="defaultRoles";
- public static final String GET_ALL_CLIENTS_URL="techsophy-platform/clients";
+ public static final String GET_ALL_CLIENTS_URL="/clients";
  public static final String CLIENT_ID="clientId";
- public static final String GET_CLIENT_ROLES_URL="techsophy-platform/clients/";
+ public static final String GET_CLIENT_ROLES_URL="/clients/";
  public static final String USERCREDENTIALS="User Credentials - username : ";
  public static final String USERNAME="username";
  public static final String PASSWORD=",  password : ";
