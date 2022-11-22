@@ -416,6 +416,7 @@ import static org.mockito.Mockito.*;
 
     @Test
     void assignUserRoleTest() throws JsonProcessingException {
+
         List<Map<String,Object>> list = new ArrayList<>();
         Map<String,Object> map2 = new HashMap<>();
         map2.put("clientId","camunda-identity-service");
@@ -442,14 +443,9 @@ import static org.mockito.Mockito.*;
         when(this.mockObjectMapper.convertValue(any(),eq(HashMap.class))).thenReturn(hashMap);
         when(this.mockObjectMapper.convertValue(any(),eq(RolesSchema.class))).thenReturn(rolesSchema);
         Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(map3);
-        //when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), any())).thenReturn(response);
-        //when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), anyString())).thenReturn(response);
-        //when(this.mockObjectMapper.readValue(response, new TypeReference<HashMap<String, Object>>() {})).thenReturn((HashMap<String, Object>) map);
-        //when(this.mockObjectMapper.readValue(anyString(), eq(new TypeReference<>() {}))).thenReturn((HashMap<String, Object>) map).thenReturn(List.of(map1));
-        //when(mockObjectMapper.readValue(anyString(),(TypeReference<HashMap<String, Object>>) any())).thenReturn((HashMap<String, Object>) map);
         when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(),anyString(), any())).thenReturn(response).thenReturn(response).thenReturn(null).thenReturn(response);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.assignUserRole(userRolesSchema));
-        verify(mockTokenUtils,times(2)).getTokenFromContext();
+        verify(mockTokenUtils,times(6)).getTokenFromContext();
     }
 
     @Test
