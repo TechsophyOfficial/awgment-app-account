@@ -257,7 +257,7 @@ public class TokenUtils
     {
         List<String> totalList = null;
         var client = webClientWrapper.createWebClient(token);
-        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext())+USER_INFO_URL,GET,null);
+        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(token)+USER_INFO_URL,GET,null);
         if(userInfoResponse.isEmpty())
         {
             logger.info(TOKEN_VERIFICATION_FAILED);
