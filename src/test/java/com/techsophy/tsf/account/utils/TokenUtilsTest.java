@@ -30,6 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.util.*;
 
+import static com.techsophy.tsf.account.constants.AccountConstants.CLIENT_ROLES;
 import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.GroupsDataServiceConstants.RESPONSE;
 import com.techsophy.tsf.account.constants.AccountConstants;
@@ -203,7 +204,10 @@ class TokenUtilsTest {
         when(this.mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(list1);
         InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
         String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
-        tokenUtils.getClientRoles(result);
+        Map<String,Object> userInformationMap=mockObjectMapper.readValue(response,Map.class);
+        List<String> expectedOutput = mockObjectMapper.convertValue(userInformationMap.get(CLIENT_ROLES), List.class);
+        List<String> actualOutput = tokenUtils.getClientRoles(result);
+        Assertions.assertEquals(expectedOutput, actualOutput);
     }
     @Test
     void getClientRolesTest3() throws IOException {
@@ -220,6 +224,6 @@ class TokenUtilsTest {
         when(this.mockObjectMapper.readValue(anyString(),eq(Map.class))).thenReturn(map);
         InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
         String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
-        tokenUtils.getClientRoles(result);
+        Assertions.assertNull(tokenUtils.getClientRoles(result));
     }
 }

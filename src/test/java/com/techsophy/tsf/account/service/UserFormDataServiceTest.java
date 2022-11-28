@@ -141,7 +141,7 @@ class UserFormDataServiceTest
         ArgumentCaptor<UserFormDataDefinition> argumentCaptor = ArgumentCaptor.forClass(UserFormDataDefinition.class);
         verify(mockUserFormDataDefinitionRepository).save(argumentCaptor.capture());
         Assertions.assertEquals("nandini",argumentCaptor.getValue().getUserData().get("userName"));
-        Assertions.assertNotEquals(response.getUserData().get("userName"),"Nandini");
+        Assertions.assertNotEquals("Nandini", response.getUserData().get("userName"));
     }
 
 
