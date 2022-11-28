@@ -167,10 +167,8 @@ public class GroupsDataServiceImpl implements GroupsDataService
                 GroupDefinition groupDefinition = this.objectMapper.convertValue(groupsDataSchema, GroupDefinition.class);
                 groupDefinition.setCreatedOn(Instant.now());
                 groupDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-                groupDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
                 groupDefinition.setUpdatedOn(Instant.now());
                 groupDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-                groupDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
                 groupRepository.save(groupDefinition);
                 return this.objectMapper.convertValue(groupDefinition, GroupsDataSchema.class)
                         .withCreatedOn(groupDefinition.getCreatedOn());
@@ -191,10 +189,8 @@ public class GroupsDataServiceImpl implements GroupsDataService
                 GroupDefinition groupDefinition = this.objectMapper.convertValue(groupsDataSchema, GroupDefinition.class);
                 groupDefinition.setCreatedOn(existingDetails.getCreatedOn());
                 groupDefinition.setCreatedById(existingDetails.getCreatedById());
-                groupDefinition.setCreatedByName(existingDetails.getCreatedByName());
                 groupDefinition.setUpdatedOn(Instant.now());
                 groupDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-                groupDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
                 groupRepository.save(groupDefinition);
                 return this.objectMapper.convertValue(groupDefinition, GroupsDataSchema.class)
                         .withUpdatedOn(groupDefinition.getUpdatedOn());

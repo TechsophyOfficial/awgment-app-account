@@ -63,7 +63,6 @@ public class UserServiceImpl implements UserService
                 userDefinition.setId(idGenerator.nextId());
                 userDefinition.setCreatedOn(Instant.now());
                 userDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-                userDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
             }
             else
             {
@@ -71,7 +70,6 @@ public class UserServiceImpl implements UserService
                 UserDefinition existingUserDefinition = getUserById(userDefinition.getId());
                 userDefinition.setCreatedOn(existingUserDefinition.getCreatedOn());
                 userDefinition.setCreatedById(existingUserDefinition.getCreatedById());
-                userDefinition.setCreatedByName(existingUserDefinition.getFirstName()+SPACE+existingUserDefinition.getLastName());
                 /*cannot change userName and emailId*/
                 if (!existingUserDefinition.getUserName().equalsIgnoreCase(userDefinition.getUserName()))
                 {
@@ -85,7 +83,6 @@ public class UserServiceImpl implements UserService
             /*cannot change userName and emailId*/
             userDefinition.setUpdatedOn(Instant.now());
             userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-            userDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
             userDefinition=this.userDefinitionRepository.save(userDefinition);
             return userDefinition;
         }

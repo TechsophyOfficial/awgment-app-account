@@ -77,7 +77,6 @@ public class ThemesServiceImplementation implements ThemesService
             themesDefinition.setId(idGenerator.nextId());
             themesDefinition.setCreatedById(loggedInUserId);
             themesDefinition.setCreatedOn(Instant.now());
-            themesDefinition.setCreatedByName(loggedInUserDetails.get(FIRST_NAME)+SPACE+loggedInUserDetails.get(LAST_NAME));
         }
         else
         {
@@ -86,11 +85,9 @@ public class ThemesServiceImplementation implements ThemesService
            ThemesDefinition existingThemesDefinition=themesDefinitionRepository.findById(BigInteger.valueOf(Long.parseLong(id))).orElseThrow(()->new ThemesNotFoundByIdException(THEME_NOT_FOUND_EXCEPTION,globalMessageSource.get(THEME_NOT_FOUND_EXCEPTION,id)));
            themesDefinition.setCreatedById(existingThemesDefinition.getCreatedById());
            themesDefinition.setCreatedOn(existingThemesDefinition.getCreatedOn());
-           themesDefinition.setCreatedByName(existingThemesDefinition.getCreatedByName());
         }
         themesDefinition.setUpdatedById(loggedInUserId);
         themesDefinition.setUpdatedOn(Instant.now());
-        themesDefinition.setUpdatedByName(loggedInUserDetails.get(FIRST_NAME)+SPACE+loggedInUserDetails.get(LAST_NAME));
         this.themesDefinitionRepository.save(themesDefinition);
         return this.objectMapper.convertValue(themesDefinition,ThemesResponse.class);
     }
@@ -197,7 +194,6 @@ public class ThemesServiceImplementation implements ThemesService
                themesDefinition.setName(name);
                themesDefinition.setCreatedById(loggedInUserId);
                themesDefinition.setCreatedOn(Instant.now());
-               themesDefinition.setCreatedByName(loggedInUserDetails.get(FIRST_NAME)+SPACE+loggedInUserDetails.get(LAST_NAME));
        }
        else
        {
@@ -212,7 +208,6 @@ public class ThemesServiceImplementation implements ThemesService
        }
        themesDefinition.setUpdatedById(loggedInUserId);
        themesDefinition.setUpdatedOn(Instant.now());
-       themesDefinition.setUpdatedByName(loggedInUserDetails.get(FIRST_NAME)+SPACE+loggedInUserDetails.get(LAST_NAME));
        this.themesDefinitionRepository.save(themesDefinition);
        return new ThemesResponse(id);
     }

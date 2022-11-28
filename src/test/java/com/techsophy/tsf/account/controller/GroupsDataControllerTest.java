@@ -60,7 +60,7 @@ class GroupsDataControllerTest
     GroupsData groupsData = new GroupsData("123", "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880");
     GroupsData groupsData1 = new GroupsData(null, "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880");
     GroupsDataSchema groupsDataSchema = new GroupsDataSchema("123", "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880",
-           roles ,"123", Instant.now(),"createdByName","123",Instant.now(),"updatedByName");
+           roles ,"123", Instant.now(),"123",Instant.now());
 
     @BeforeEach
     void setUp()

@@ -57,7 +57,6 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userFormDataDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
                 userFormDataDefinition.setVersion(1);
 
-                userFormDataDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
             }
             else
             {
@@ -67,13 +66,11 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userFormDataDefinition.setId(existingFormDataDefinition.getId());
                 userFormDataDefinition.setCreatedOn(existingFormDataDefinition.getCreatedOn());
                 userFormDataDefinition.setCreatedById(existingFormDataDefinition.getCreatedById());
-                userFormDataDefinition.setCreatedByName(existingFormDataDefinition.getCreatedByName());
                 userFormDataDefinition.setVersion(existingFormDataDefinition.getVersion() + 1);
                 userData.setId(userId);
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
             userFormDataDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-            userFormDataDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
             userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());
@@ -178,10 +175,8 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userMap.put("version",userFormDataDefinition.getVersion());
             userMap.put(CREATED_BY_ID,userFormDataDefinition.getCreatedById());
             userMap.put(CREATED_ON,userFormDataDefinition.getCreatedOn());
-            userMap.put(CREATED_BY_NAME,userFormDataDefinition.getCreatedByName());
             userMap.put(UPDATED_BY_ID,userFormDataDefinition.getUpdatedById());
             userMap.put(UPDATED_ON,userFormDataDefinition.getUpdatedOn());
-            userMap.put(UPDATED_BY_NAME,userFormDataDefinition.getUpdatedByName());
             userFormDataList.add(userMap);
         }
         return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage,userFormDataList);
