@@ -50,7 +50,6 @@ public class MenuRoleAssignServiceImpl implements MenuRoleAssignService
             menuRoleAssignDefinition.setVersion(1);
             menuRoleAssignDefinition.setCreatedOn(Instant.now());
             menuRoleAssignDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-            menuRoleAssignDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
         }
         else
         {
@@ -60,12 +59,10 @@ public class MenuRoleAssignServiceImpl implements MenuRoleAssignService
             menuRoleAssignDefinition.setId(menuRoleAssignDefinitionData.getId());
             menuRoleAssignDefinition.setCreatedOn(menuRoleAssignDefinitionData.getCreatedOn());
             menuRoleAssignDefinition.setCreatedById(menuRoleAssignDefinitionData.getCreatedById());
-            menuRoleAssignDefinition.setCreatedByName(menuRoleAssignDefinitionData.getCreatedByName());
             menuRoleAssignDefinition.setVersion(menuRoleAssignDefinitionData.getVersion() + 1);
         }
         menuRoleAssignDefinition.setUpdatedOn(Instant.now());
         menuRoleAssignDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-        menuRoleAssignDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
         MenuRoleAssignDefinition menuDefinitionResponse = this.menuRoleAssignRepository.save(menuRoleAssignDefinition);
         MenuRoleAssignResponseSchema responseDto=new MenuRoleAssignResponseSchema();
         responseDto.setId(menuDefinitionResponse.getId().toString());

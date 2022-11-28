@@ -9,9 +9,7 @@ import java.time.Instant;
 public class AuditableData
 {
     private String createdById;
-    private String createdByName;
     private Instant createdOn;
     private String updatedById;
-    private String updatedByName;
     private Instant updatedOn;
 }

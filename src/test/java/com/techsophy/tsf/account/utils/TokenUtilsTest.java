@@ -24,6 +24,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
@@ -56,6 +57,8 @@ class TokenUtilsTest {
     WebClientWrapper mockWebClientWrapper;
     @Mock
     ObjectMapper mockObjectMapper;
+    @Mock
+    TokenUtils tokenUtils1;
 
     @Order(1)
     @Test
@@ -141,7 +144,7 @@ class TokenUtilsTest {
     }
 
     @Test
-    void getClientRolesTest() throws JsonProcessingException {
+    void getClientRolesTest() throws IOException {
         List<String> list = new ArrayList<>();
         list.add("admin");
         list.add("user");
@@ -149,14 +152,21 @@ class TokenUtilsTest {
         map.put("name", "role");
         map.put(AccountConstants.CLIENT_ROLES,List.of("abc"));
         String response = RESPONSE;
+        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
+        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
         WebClient webClient = WebClient.builder().build();
         when(mockWebClientWrapper.createWebClient(any())).thenReturn(webClient);
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        SecurityContextHolder.setContext(securityContext);
+        Jwt jwt = mock(Jwt.class);
+//        when(tokenUtils.getIssuerFromToken(anyString())).thenReturn("techsophy-platform");
+//        when(tokenUtils.getTokenFromContext()).thenReturn("techsophy-platform");
         when(mockWebClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), eq(null))).thenReturn(response).thenReturn(" ");
         when(this.mockObjectMapper.readValue(anyString(),eq(Map.class))).thenReturn(map);
         when(this.mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(list);
         List<String> response1 = tokenUtils.getClientRoles("token");
         Assertions.assertNotNull(response1);
-        //Assertions.assertThrows(AccessDeniedException.class,()->tokenUtils.getClientRoles("token"));
     }
     @Test
     void getClientRolesTest1() throws JsonProcessingException {

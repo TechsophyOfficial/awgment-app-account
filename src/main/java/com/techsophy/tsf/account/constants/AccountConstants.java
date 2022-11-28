@@ -10,10 +10,12 @@ public class AccountConstants
  public static final String ORDER_1="1";
  public static final String ORDER_2="100";
  public static final String ORDER_3="101";
+ public static final String ORDER_4="102";
  public static final String ORDER_5="103";
  public static final String SYSTEM_VERSION_1="1";
  public static final String ADD_ADMIN_USER= "add-admin-user01";
- public static final String ADD_SYSTEM_USER= "add-system-user01";
+ public static final String CHANGE_ALL_USER_NAMES_TO_LOWER= "change-user-names-to-lowercase";
+ public static final String ADD_SYSTEM_USER= "add-system-user02";
  public static final String ADD_FORM_SYSTEM_USER= "add-form_system-user01";
  public static final String ADD_FORMDATA_ADMIN_USER= "add-formdata-admin-user01";
  public static final String TP_FORMDATA_USER_JSON ="TP_FORMDATA_USER.json";
@@ -31,7 +33,7 @@ public class AccountConstants
 
  //JWTRoleConverter
  public static final String CLIENT_ROLES="clientRoles";
- public static final String USER_INFO_URL= "techsophy-platform/protocol/openid-connect/userinfo";
+ public static final String USER_INFO_URL= "/protocol/openid-connect/userinfo";
  public static final String TOKEN_VERIFICATION_FAILED="Token verification failed";
  public static final String AWGMENT_ROLES_MISSING_IN_CLIENT_ROLES ="AwgmentRoles are missing in clientRoles";
  public static final String CLIENT_ROLES_MISSING_IN_USER_INFORMATION="ClientRoles are missing in the userInformation";
@@ -277,9 +279,9 @@ public class AccountConstants
  public static final String DEFAULT_GROUPS="defaultGroups";
  public static final String DESCENDING="desc";
  public static final String DEFAULT_ROLES="defaultRoles";
- public static final String GET_ALL_CLIENTS_URL="techsophy-platform/clients";
+ public static final String GET_ALL_CLIENTS_URL="/clients";
  public static final String CLIENT_ID="clientId";
- public static final String GET_CLIENT_ROLES_URL="techsophy-platform/clients/";
+ public static final String GET_CLIENT_ROLES_URL="/clients/";
  public static final String USERCREDENTIALS="User Credentials - username : ";
  public static final String USERNAME="username";
  public static final String PASSWORD=",  password : ";
