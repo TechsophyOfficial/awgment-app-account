@@ -3,7 +3,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: account-app
-  namespace: dev
 spec:
   replicas: 1
   selector:
@@ -15,24 +14,20 @@ spec:
         name: account-app
     spec:
       containers:
-      - image: tsdevopsteam/platform:account-app-dmp$BUILD_NUMBER
+      - image: techsophyofficial/awgment-app-account:$IMAGE_VERSION
         name: account-app
+        imagePullPolicy: Always
         envFrom:
         - configMapRef:
-            name: accountapp-env
+            name: $CONFIG_MAP
+
         ports:
         - containerPort: 8080
-      imagePullSecrets:
-      - name: ts-platform
-
-
-
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: account-app
-  namespace: dev
 spec:
   type: ClusterIP
   ports:
