@@ -17,7 +17,7 @@ import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PR
 
 @ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith(MockitoExtension.class)
-public class GroupsCustomRepoTest
+class GroupsCustomRepoTest
 {
     @Mock
     MongoTemplate mockMongoTemplate;

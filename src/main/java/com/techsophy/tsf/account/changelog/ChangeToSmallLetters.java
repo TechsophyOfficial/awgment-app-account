@@ -32,7 +32,7 @@ public class ChangeToSmallLetters {
 
 
     @Execution
-    public void changeSetFormDefinition() throws IOException {
+    public void changeSetFormDefinition() {
         template.updateMulti(Query.query(Criteria.where(USER_NAME_DATA).ne(null)),
                 AggregationUpdate.update().set(USER_NAME_DATA).toValue(StringOperators.ToLower.lowerValueOf(USER_NAME_DATA)),UserDefinition.class,TP_USER_COLLECTION);
         template.updateMulti(Query.query(Criteria.where(USER_DATA_USER_NAME).ne(null)),

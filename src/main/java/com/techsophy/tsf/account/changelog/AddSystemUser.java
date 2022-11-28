@@ -27,7 +27,7 @@ public class AddSystemUser {
     private final ObjectMapper objectMapper;
     public static  int count =0;
     @Execution
-    public void changeSetFormDefinition() throws IOException, ParseException {
+    public void changeSetFormDefinition() throws IOException {
         String pathUser =TP_SYSTEM_USER_JSON ;
         String pathFormData =TP_FORMDATA_SYSTEM_USER_JSON ;
         InputStream inputStreamUser = new ClassPathResource(pathUser).getInputStream();
