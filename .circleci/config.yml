@@ -1,21 +1,50 @@
 # Use the latest 2.1 version of CircleCI pipeline process engine.
 # See: https://circleci.com/docs/2.0/configuration-reference
 version: 2.1
+orbs:
+  kubernetes: circleci/kubernetes@1.3.1
+  envsubst: sawadashota/envsubst@1.1.0
+# Invoke jobs via workflows
+# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
+workflows:
+  commit-flow:
+    # when: 
+    #   not: << pipeline.git.tag >>
+    jobs:
+      - buildMS:
+          context: ossContext
+      - publishMS:
+          context: ossContext
+          requires: 
+            - buildMS
+      - deployMS:
+          context: 
+            - ossContext
+            - deployment
+            - devAppEnv
+          requires:
+            - publishMS
+          filters:
+            branches:
+              only: /220927_cibuild/
+      - testMS:
+          context: ossContext
+          requires:
+            - deployMS
+
 
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/2.0/configuration-reference/#jobs
 jobs:
 
-  releaseMS:
-    docker:
+  buildMS:
+    docker: 
       - image: cimg/openjdk:11.0.11
     steps:
       - checkout
       - run:
           name: fix permission denied
           command: chmod +x ./gradlew
-      - setup_remote_docker:
-          docker_layer_caching: false
       - restore_cache:
           key: v1-gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
       - restore_cache:
@@ -23,8 +52,9 @@ jobs:
       - run:
           name: Install dependencies
           command: ./gradlew clean build
-      # - attach_workspace:
-      #     at: build
+      # - run:
+      #     name: Analyze on sonarcloud
+      #     command: ./gradlew sonarqube
       - save_cache:
           paths:
             - ~/.gradle/wrapper
@@ -33,40 +63,127 @@ jobs:
           paths:
             - ~/.gradle/caches
           key: v1-gradle-cache-{{ checksum "build.gradle" }}
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "build"
 
+  publishMS:
+    docker: 
+      - image: cimg/openjdk:11.0.11
+    steps:
+      - checkout          
+      - attach_workspace:
+          at: .
+      - setup_remote_docker:
+          docker_layer_caching: false
+      - run:
+          name: "Build docker image"
+          command: |
+            REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
+            docker build . -t $REPONAME:latest
+
+      - run:
+          name: "Push docker image"
+          command: |
+            if [[ -z "$CIRCLE_TAG" ]] ; 
+            then  if [[ "$CIRCLE_BRANCH" == "dev" ]] ; then TAG="v0.0.0-alpha"; fi 
+            else 
+              TAG=$CIRCLE_TAG; 
+            fi 
+            if [[ -z "$TAG" ]]; then exit 0; fi
+            echo $TS_DOCKER_PUB_PASS | docker login -u $TS_DOCKER_PUB_USR --password-stdin
+            REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
+            docker tag $REPONAME:latest $REPONAME:$TAG
+            docker push $REPONAME:$TAG
+
+
+  deployMS:
+    docker:
+      - image: cimg/base:stable
+    parameters:
+      run-deploy:
+        type: env_var_name
+        default: ENABLE_DEPLOYMENT    
+    steps:
+      - checkout      
+      - envsubst/install
+      - kubernetes/install-kubectl:
+          kubectl-version: $KUBECTL_VERSION
+      - kubernetes/install-kubeconfig 
+      - run:
+          name: prepare deployment
+          command: | 
+            if [[ -z "$STOP_DEPLOYMENT" ]]; then echo "Going to deploy MS";
+            else 
+              echo "Stop deployment - $STOP_DEPLOYMENT";
+              circleci-agent step halt;
+              exit 0;
+            fi    
+            if [[ -z "$NAMESPACE" ]]; then NAMESAPCE=default; fi            
+            export CONFIG_MAP=`echo  $CIRCLE_PROJECT_REPONAME | cut -c 9-`-env
+            envsubst < docker.env > config-map.env            
+            kubectl create configmap $CONFIG_MAP --from-env-file=config-map.env -o yaml --dry-run=client | kubectl apply -n ${NAMESPACE} -f -
+            envsubst < cluster-deployment.yaml > env-cluster-deployment.yaml
+
+      - kubernetes/create-or-update-resource:
+          resource-file-path: env-cluster-deployment.yaml
+          namespace: $NAMESPACE
+          show-kubectl-command: true
+
+
+
+  testMS:
+    docker: 
+      - image: cimg/openjdk:11.0.11
+    steps:
       - run: |
-          if [[ -z "$CIRCLE_TAG" ]] ;  then exit 1; fi
-          TAG=$CIRCLE_TAG
-          echo $TS_DOCKER_PUB_PASS | docker login -u $TS_DOCKER_PUB_USR --password-stdin
-          REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
-          docker build . -t $REPONAME:$TAG
-          #docker tag $REPONAME:latest $REPONAME:$TAG
-          docker push $REPONAME:$TAG
+          echo "test MS"
 
 
-# Invoke jobs via workflows
-# See: https://circleci.com/docs/2.0/configuration-reference/#workflows
-workflows:
-  tagged-release:
-    jobs:
-      - releaseMS:
-          context: ossContext
-          filters:
-            tags:
-              only: /^v.*/
-            branches:
-              ignore: /.*/
-
-  # tagged-build:
+  # tagged-release:
+  #   when: << pipeline.git.tag >>
   #   jobs:
-  #     - buildMS:
+  #     - releaseMS:
+  #         context: ossContext
   #         filters:
   #           tags:
-  #             only: /v*.*/
-  # main-build:
-  #   jobs:
-  #     - buildMS:
-  #         filters:
+  #             only: /^v.*/
   #           branches:
-  #             only:
-  #               - main
+  #             ignore: /.*/
+  # releaseMS:
+  #   docker:
+  #     - image: cimg/openjdk:11.0.11
+  #   steps:
+  #     - checkout
+  #     - run:
+  #         name: fix permission denied
+  #         command: chmod +x ./gradlew 
+  #     - setup_remote_docker:
+  #         docker_layer_caching: false
+  #     - restore_cache:
+  #         key: v1-gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+  #     - restore_cache:
+  #         key: v1-gradle-cache-{{ checksum "build.gradle" }}
+  #     - run:
+  #         name: Install dependencies
+  #         command: ./gradlew clean build
+  #     # - attach_workspace:
+  #     #     at: build
+  #     - save_cache:
+  #         paths:
+  #           - ~/.gradle/wrapper
+  #         key: v1-gradle-wrapper-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+  #     - save_cache:
+  #         paths:
+  #           - ~/.gradle/caches
+  #         key: v1-gradle-cache-{{ checksum "build.gradle" }}
+
+  #     - run: |
+  #         if [[ -z "$CIRCLE_TAG" ]] ;  then exit 1; fi
+  #         TAG=$CIRCLE_TAG
+  #         echo $TS_DOCKER_PUB_PASS | docker login -u $TS_DOCKER_PUB_USR --password-stdin
+  #         REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
+  #         docker build . -t $REPONAME:$TAG
+  #         #docker tag $REPONAME:latest $REPONAME:$TAG
+  #         docker push $REPONAME:$TAG
