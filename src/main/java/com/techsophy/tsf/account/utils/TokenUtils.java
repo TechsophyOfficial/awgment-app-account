@@ -43,7 +43,7 @@ public class TokenUtils
 
     ObjectMapper objectMapper;
     WebClientWrapper webClientWrapper;
-    TokenUtils tokenUtils;
+    TokenUtils tokenUtilsObj;
 
     private static final Logger logger = LoggerFactory.getLogger(TokenUtils.class);
 
@@ -257,7 +257,7 @@ public class TokenUtils
     {
         List<String> totalList = null;
         var client = webClientWrapper.createWebClient(token);
-        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(token)+USER_INFO_URL,GET,null);
+        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtilsObj.getIssuerFromToken(token)+USER_INFO_URL,GET,null);
         if(userInfoResponse.isEmpty())
         {
             logger.info(TOKEN_VERIFICATION_FAILED);
