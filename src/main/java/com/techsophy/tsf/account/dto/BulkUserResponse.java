@@ -4,12 +4,11 @@ import com.techsophy.tsf.account.entity.Auditable;
 import lombok.Value;
 import lombok.With;
 
-import java.io.Serializable;
 import java.util.Map;
 
 @With
 @Value
-public class BulkUserResponse extends Auditable implements Serializable
+public class BulkUserResponse extends Auditable
 {
     String id;
     Map<String,Object> userData;
