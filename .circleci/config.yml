@@ -17,6 +17,12 @@ workflows:
           context: ossContext
           requires: 
             - buildMS
+          filters:
+            branches:
+              only: /220927_cibuild/
+              # only: /dev/              
+            tags:
+              only: /^v.*/
       - deployMS:
           context: 
             - ossContext
