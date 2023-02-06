@@ -7,6 +7,7 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserData;
+import com.techsophy.tsf.account.dto.UserPreferencesSchema;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
 import com.techsophy.tsf.account.exception.InvalidInputException;
@@ -17,6 +18,8 @@ import com.techsophy.tsf.account.service.UserService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,10 +29,7 @@ import org.springframework.util.StringUtils;
 import javax.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.*;
@@ -45,6 +45,8 @@ public class UserServiceImpl implements UserService
     private final IdGeneratorImpl idGenerator;
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
+
+    private final UserPreferencesThemeServiceImplementation userPreferencesThemeServiceImplementation;
 
     public UserDefinition saveUser(UserData userData)
     {
@@ -84,6 +86,11 @@ public class UserServiceImpl implements UserService
             userDefinition.setUpdatedOn(Instant.now());
             userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             userDefinition=this.userDefinitionRepository.save(userDefinition);
+            Map<String,Object> map = new HashMap<>();
+            map.put(ID,DEFAULT_THEME_ID);
+            map.put(USER_ID,userDefinition.getId());
+            UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map,UserPreferencesSchema.class);
+            userPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema);
             return userDefinition;
         }
         catch (ConstraintViolationException e)

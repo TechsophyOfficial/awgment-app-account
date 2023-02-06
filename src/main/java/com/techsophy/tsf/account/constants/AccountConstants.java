@@ -299,6 +299,7 @@ public class AccountConstants
  public static final String SPACE=" ";
  public static final String LOGIN_ID="LOGINID";
  public static final String SERVICE_ACCOUNT="service-account";
+ public static final String DEFAULT_THEME_ID="979654592245444123";
 
  //GroupsCustomRepositoryConstants
  public static final String GROUP_DEFINITION_NAME ="name";
