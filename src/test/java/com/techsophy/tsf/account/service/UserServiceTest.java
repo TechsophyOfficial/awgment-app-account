@@ -1,15 +1,15 @@
 package com.techsophy.tsf.account.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.constants.ThemesConstants;
-import com.techsophy.tsf.account.dto.AuditableData;
-import com.techsophy.tsf.account.dto.PaginationResponsePayload;
-import com.techsophy.tsf.account.dto.UserData;
+import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
+import com.techsophy.tsf.account.service.impl.UserPreferencesThemeServiceImplementation;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
@@ -26,6 +26,8 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import java.math.BigInteger;
 import java.util.*;
+
+import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -46,6 +48,8 @@ import static org.mockito.Mockito.*;
     WebClientWrapper webClientWrapper;
     @Mock
     UserDefinitionRepository accountRepository;
+    @Mock
+    UserPreferencesThemeServiceImplementation userPreferencesThemeServiceImplementation;
     @InjectMocks
     UserServiceImpl mockUserServiceImpl;
 
@@ -79,20 +83,27 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void saveUserWithNullIdTest(){
+    void saveUserWithNullIdTest() throws JsonProcessingException {
         UserData userSchema = new UserData(null,"name","name","last","12","ab","cse");
         UserDefinition userDefinition = new UserDefinition(BigInteger.ONE,"abc","abc","abc","1","abc","abc");
+        Map<String,Object> map = new HashMap<>();
+        map.put(ID,DEFAULT_THEME_ID);
+        map.put(USER_ID,userDefinition.getId());
+        UserPreferencesResponse userPreferencesResponse = new UserPreferencesResponse("1","1","1");
+        UserPreferencesSchema userPreferencesSchema = new UserPreferencesSchema("1","12",DEFAULT_THEME_ID,"abc");
         Mockito.when(mockObjectMapper.convertValue(any(),eq(UserDefinition.class))).thenReturn(userDefinition).thenReturn(userDefinition);
         Mockito.when(accountUtils.getLoggedInUserId()).thenReturn("service-account");
         Mockito.when(accountRepository.findByEmailIdOrUserName(anyString(),anyString())).thenReturn(Optional.of(userDefinition));
         Mockito.when(mockObjectMapper.convertValue(any(), eq(UserData.class))).thenReturn(userSchema);
+        Mockito.when(mockObjectMapper.convertValue(any(), eq(UserPreferencesSchema.class))).thenReturn(userPreferencesSchema);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(map);
         Mockito.when(accountRepository.existsByUserName(any())).thenReturn(false);
         Mockito.when(accountRepository.existsByEmailId(any())).thenReturn(false);
+        Mockito.when(userPreferencesThemeServiceImplementation.saveUserPreferencesTheme(any())).thenReturn(userPreferencesResponse);
         Mockito.when(mockIdGenerator.nextId()).thenReturn(BigInteger.ONE);
         Mockito.when(accountRepository.save(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(Long.parseLong(ThemesConstants.ID))));
         UserDefinition response = mockUserServiceImpl.saveUser(userSchema);
-        Assertions.assertNotNull(response);
+        verify(userPreferencesThemeServiceImplementation,times(1)).saveUserPreferencesTheme(any());
     }
     @Test
     void getUserById()
