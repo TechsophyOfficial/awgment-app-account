@@ -216,6 +216,7 @@ public class AccountConstants
 
  /*ThemesDefinitionConstants*/
  public static final String TP_THEME_COLLECTION ="tp_theme";
+ public static final String THEME_ID ="themeId";
  public static final String THEME_NAME_NOT_BLANK="name cannot be blank";
 
  /*UserDefinitionConstants*/
@@ -357,7 +358,7 @@ public class AccountConstants
  //UserDetailsConstants
  public static final String TOKEN_NOT_NULL="token should not be null";
  public static final String ACCOUNT_URL = "/accounts/v1/users";
- public static final String FILTER_COLUMN="?filter-column=loginId&filter-value=";
+ public static final String FILTER_COLUMN="?filter-column=userName&filter-value=";
  public static final String  ONLY_MANDATORY_FIELDS_TRUE="&only-mandatory-fields=true";
 
  //WebClientWrapperConstants
