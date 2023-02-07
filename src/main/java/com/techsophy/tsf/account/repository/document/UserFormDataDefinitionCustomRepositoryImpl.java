@@ -105,7 +105,7 @@ public class UserFormDataDefinitionCustomRepositoryImpl implements UserFormDataD
     @Override
     public List<UserFormDataDefinition> findByFilterColumnAndValue(Sort sort, String filterColumn, String filterValue)
     {
-        filterValue=Character.isWhitespace(filterValue.charAt(0))&&filterValue.trim().matches("[0-9]+")?"+"+filterValue.trim():filterValue;
+        filterValue=Character.isWhitespace(filterValue.charAt(0))&&filterValue.trim().matches("\\d")?"+"+filterValue.trim():filterValue;
         Query query=new Query();
         Collation collation = Collation.of(COLLATION_EN).strength(1);
         query.addCriteria(new Criteria().andOperator(where(USER_DATA+DOT+filterColumn).is(filterValue)

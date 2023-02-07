@@ -19,10 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.*;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import java.math.BigInteger;
 import java.util.*;
@@ -99,11 +97,11 @@ import static org.mockito.Mockito.*;
         Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(map);
         Mockito.when(accountRepository.existsByUserName(any())).thenReturn(false);
         Mockito.when(accountRepository.existsByEmailId(any())).thenReturn(false);
-        Mockito.when(userPreferencesThemeServiceImplementation.saveUserPreferencesTheme(any())).thenReturn(userPreferencesResponse);
+        Mockito.when(userPreferencesThemeServiceImplementation.saveUserWithTheme(any())).thenReturn(userPreferencesResponse);
         Mockito.when(mockIdGenerator.nextId()).thenReturn(BigInteger.ONE);
         Mockito.when(accountRepository.save(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(Long.parseLong(ThemesConstants.ID))));
         UserDefinition response = mockUserServiceImpl.saveUser(userSchema);
-        verify(userPreferencesThemeServiceImplementation,times(1)).saveUserPreferencesTheme(any());
+        verify(userPreferencesThemeServiceImplementation,times(1)).saveUserWithTheme(any());
     }
     @Test
     void getUserById()

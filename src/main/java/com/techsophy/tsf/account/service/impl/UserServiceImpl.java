@@ -14,12 +14,11 @@ import com.techsophy.tsf.account.exception.InvalidInputException;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UserNotFoundException;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
+import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import com.techsophy.tsf.account.service.UserService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -46,7 +45,7 @@ public class UserServiceImpl implements UserService
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
 
-    private final UserPreferencesThemeServiceImplementation userPreferencesThemeServiceImplementation;
+    private final UserPreferencesThemeService userPreferencesThemeService;
 
     public UserDefinition saveUser(UserData userData)
     {
@@ -90,7 +89,7 @@ public class UserServiceImpl implements UserService
             map.put(ID,DEFAULT_THEME_ID);
             map.put(USER_ID,userDefinition.getId());
             UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map,UserPreferencesSchema.class);
-            userPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema);
+            userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
             return userDefinition;
         }
         catch (ConstraintViolationException e)
@@ -191,7 +190,7 @@ public class UserServiceImpl implements UserService
             }
             else if (validFilterFields().contains(filterColumn.toUpperCase()))
             {
-                filterValue=Character.isWhitespace(filterValue.charAt(0))&&filterValue.trim().matches("[0-9]+")?"+"+filterValue.trim():filterValue;
+                filterValue=Character.isWhitespace(filterValue.charAt(0))&&filterValue.trim().matches("\\d")?"+"+filterValue.trim():filterValue;
                 Optional<UserDefinition> userDefinitionOptional = this.userDefinitionRepository.findByEmailIdOrUserName(filterValue, filterValue);
                 if (userDefinitionOptional.isPresent())
                 {

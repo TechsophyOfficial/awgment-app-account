@@ -29,6 +29,7 @@ public class UserPreferencesControllerImplementation implements UserPreferencesC
         return new ApiResponse<>(data,true, globalMessageSource.get(USER_PREFERENCE_THEME_SAVED_SUCCESS));
     }
 
+
     @Override
     public ApiResponse<UserPreferencesSchema> getUserPreferencesThemesDataByUserId() throws IOException
     {

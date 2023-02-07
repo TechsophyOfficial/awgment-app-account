@@ -20,11 +20,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -33,7 +31,7 @@ import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PR
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 //@SpringBootTest
 @ExtendWith(MockitoExtension.class)
@@ -79,6 +77,16 @@ class UserPreferencesServiceTest
         userList.add(map);
     }
 
+    @Test
+    void saveUserWithDefaultTheme() throws JsonProcessingException {
+        UserPreferencesSchema userPreferencesSchema = new UserPreferencesSchema(null,"1","1","abc");
+        when(mockIdGeneratorImpl.nextId()).thenReturn(BigInteger.ONE);
+        UserPreferencesDefinition userPreferencesDefinition = new UserPreferencesDefinition(BigInteger.ONE,BigInteger.ONE,BigInteger.ONE,null);
+        when(mockUserPreferencesDefinitionRepository.save(userPreferencesDefinition)).thenReturn(userPreferencesDefinition);
+        UserPreferencesResponse response = mockUserPreferencesThemeServiceImplementation.saveUserWithTheme(userPreferencesSchema);
+        verify(mockUserPreferencesDefinitionRepository,times(1)).save(userPreferencesDefinition);
+
+    }
     @Test
     void getUserPreferencesThemeByUserIdTest() throws IOException
     {
@@ -173,20 +181,12 @@ class UserPreferencesServiceTest
     @Test
     void saveUserPrefrenceTheme() throws Exception
     {
-        int i1 = 0b101;
-        UserPreferencesResponse userPreferencesResponse = new UserPreferencesResponse("1","1","1");
-        UserPreferencesDefinition userPreferencesDefinition = new UserPreferencesDefinition(BigInteger.ONE,BigInteger.ONE,BigInteger.ONE,null);
-        UserPreferencesSchema userPreferencesSchema = new UserPreferencesSchema("1","1","1","abc");
-        UserPreferencesSchema userPreferencesSchema1 = new UserPreferencesSchema(null,"1","1","abc");
+
+        UserPreferencesSchema userPreferencesSchema = new UserPreferencesSchema(null,"1","1","abc");
         when(mockUserDetails.getUserDetails()).thenReturn(userList);
-        when(mockUserPreferencesDefinitionRepository.existsByUserId(BigInteger.valueOf(Long.parseLong(USER_ID)))).thenReturn(true).thenReturn(true).thenReturn(false);
-        when(mockUserPreferencesDefinitionRepository.save(userPreferencesDefinition)).thenReturn(userPreferencesDefinition);
-        when(mockUserPreferencesDefinitionRepository.findByUserId(BigInteger.valueOf(Long.parseLong(USER_ID)))).thenReturn(Optional.of(userPreferencesDefinition));
         when(mockIdGeneratorImpl.nextId()).thenReturn(BigInteger.ONE);
-        when(mockObjectMapper.convertValue(any(),eq(UserPreferencesResponse.class))).thenReturn(userPreferencesResponse);
-        mockUserPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema);
-        UserPreferencesResponse response = mockUserPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema1);
-        Assertions.assertNotNull(response);
+        UserPreferencesResponse response = mockUserPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema);
+       verify(mockUserDetails,times(1)).getUserDetails();
     }
 }
 
