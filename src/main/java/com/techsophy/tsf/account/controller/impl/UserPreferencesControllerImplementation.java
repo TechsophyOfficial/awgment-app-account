@@ -29,11 +29,6 @@ public class UserPreferencesControllerImplementation implements UserPreferencesC
         return new ApiResponse<>(data,true, globalMessageSource.get(USER_PREFERENCE_THEME_SAVED_SUCCESS));
     }
 
-    @Override
-    public ApiResponse<UserPreferencesResponse> saveUserWithDefaultTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException {
-        UserPreferencesResponse data= userPreferencesThemeService.saveUserWithDefaultTheme(preferencesSchema);
-        return new ApiResponse<>(data,true, globalMessageSource.get(USER_PREFERENCE_THEME_SAVED_SUCCESS));
-    }
 
     @Override
     public ApiResponse<UserPreferencesSchema> getUserPreferencesThemesDataByUserId() throws IOException

@@ -229,11 +229,11 @@ class UserFormDataServiceTest
         map.put("id","userId");
         map.put("userId","userId");
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(null,map,null,1);
-        when(this.mockObjectMapper.convertValue(userFormDataDefinition,Map.class)).thenReturn(map);
-        when(this.mockUserFormDataDefinitionRepository.findByFilterColumnAndValue(any(),any(),any())).thenReturn(List.of(userFormDataDefinition));
+//        when(this.mockObjectMapper.convertValue(userFormDataDefinition,Map.class)).thenReturn(map);
+//        when(this.mockUserFormDataDefinitionRepository.findByFilterColumnAndValue(any(),any(),any())).thenReturn(List.of(userFormDataDefinition));
         when(mockUserServiceImpl.getAllUsersByFilter(any(),any())).thenReturn(List.of(auditableData));
         userFormDataService.getAllUsersByFilter(false,"abc","abc", (Sort) null,"");
         userFormDataService.getAllUsersByFilter(true,"abc","abc", (Sort) null,"q");
-        verify(mockUserFormDataDefinitionRepository,times(1)).findByFilterColumnAndValue(any(),any(),any());
+        verify(mockUserServiceImpl,times(2)).getAllUsersByFilter(any(),any());
     }
 }
