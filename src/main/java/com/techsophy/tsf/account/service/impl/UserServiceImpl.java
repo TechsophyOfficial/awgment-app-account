@@ -86,7 +86,7 @@ public class UserServiceImpl implements UserService
             userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             userDefinition=this.userDefinitionRepository.save(userDefinition);
             Map<String,Object> map = new HashMap<>();
-            map.put(ID,DEFAULT_THEME_ID);
+            map.put(THEME_ID,DEFAULT_THEME_ID);
             map.put(USER_ID,userDefinition.getId());
             UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map,UserPreferencesSchema.class);
             userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);

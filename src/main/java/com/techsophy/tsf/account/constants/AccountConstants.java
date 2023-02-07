@@ -216,6 +216,7 @@ public class AccountConstants
 
  /*ThemesDefinitionConstants*/
  public static final String TP_THEME_COLLECTION ="tp_theme";
+ public static final String THEME_ID ="themeId";
  public static final String THEME_NAME_NOT_BLANK="name cannot be blank";
 
  /*UserDefinitionConstants*/
