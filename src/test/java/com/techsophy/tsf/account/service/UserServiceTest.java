@@ -99,11 +99,11 @@ import static org.mockito.Mockito.*;
         Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(map);
         Mockito.when(accountRepository.existsByUserName(any())).thenReturn(false);
         Mockito.when(accountRepository.existsByEmailId(any())).thenReturn(false);
-        Mockito.when(userPreferencesThemeServiceImplementation.saveUserPreferencesTheme(any())).thenReturn(userPreferencesResponse);
+        Mockito.when(userPreferencesThemeServiceImplementation.saveUserWithDefaultTheme(any())).thenReturn(userPreferencesResponse);
         Mockito.when(mockIdGenerator.nextId()).thenReturn(BigInteger.ONE);
         Mockito.when(accountRepository.save(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(Long.parseLong(ThemesConstants.ID))));
         UserDefinition response = mockUserServiceImpl.saveUser(userSchema);
-        verify(userPreferencesThemeServiceImplementation,times(1)).saveUserPreferencesTheme(any());
+        verify(userPreferencesThemeServiceImplementation,times(1)).saveUserWithDefaultTheme(any());
     }
     @Test
     void getUserById()

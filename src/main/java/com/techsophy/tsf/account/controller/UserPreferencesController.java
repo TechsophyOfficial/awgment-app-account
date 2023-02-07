@@ -20,7 +20,7 @@ public interface UserPreferencesController
     @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesResponse> saveUserPreferencesTheme(@RequestBody @Validated UserPreferencesSchema themesSchema) throws JsonProcessingException;
 
-    @PostMapping
+    @PostMapping(DEFAULT_THEME)
     @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesResponse> saveUserWithDefaultTheme(@RequestBody @Validated UserPreferencesSchema themesSchema) throws JsonProcessingException;
 
