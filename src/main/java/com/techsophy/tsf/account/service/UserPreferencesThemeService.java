@@ -10,6 +10,7 @@ import java.io.IOException;
 public interface UserPreferencesThemeService
 {
     UserPreferencesResponse saveUserPreferencesTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException;
+    UserPreferencesResponse saveUserWithDefaultTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException;
 
     UserPreferencesSchema getUserPreferencesThemeByUserId() throws IOException;
 

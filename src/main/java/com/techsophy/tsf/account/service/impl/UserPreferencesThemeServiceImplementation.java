@@ -85,6 +85,24 @@ public class UserPreferencesThemeServiceImplementation implements UserPreference
     }
 
     @Override
+    public UserPreferencesResponse saveUserWithDefaultTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException {
+
+        UserPreferencesDefinition userPreferenceData = new UserPreferencesDefinition();
+        if(preferencesSchema.getId()==null) {
+            userPreferenceData.setId(idGenerator.nextId());
+            userPreferenceData.setUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())));
+            userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
+        }
+        else {
+            UserPreferencesDefinition userPreferencesDefinitionDbData = this.userPreferencesDefinitionRepository.findById(Long.valueOf(preferencesSchema.getId())).orElseThrow(() -> new UserPreferencesNotFoundByLoggedInUserIdException(USER_PREFERENCE_THEME_NOT_FOUND, globalMessageSource.get(USER_PREFERENCE_THEME_NOT_FOUND, preferencesSchema.getId())));
+            userPreferenceData.setId(userPreferencesDefinitionDbData.getId());
+            userPreferenceData.setUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())));
+            userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
+        }
+        this.userPreferencesDefinitionRepository.save(userPreferenceData);
+        return this.objectMapper.convertValue(userPreferenceData, UserPreferencesResponse.class);
+    }
+    @Override
     public UserPreferencesSchema getUserPreferencesThemeByUserId() throws IOException
     {
         String profilePicture=null;

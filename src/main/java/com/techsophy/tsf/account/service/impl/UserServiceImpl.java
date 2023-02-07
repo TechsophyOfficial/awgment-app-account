@@ -90,7 +90,7 @@ public class UserServiceImpl implements UserService
             map.put(ID,DEFAULT_THEME_ID);
             map.put(USER_ID,userDefinition.getId());
             UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map,UserPreferencesSchema.class);
-            userPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema);
+            userPreferencesThemeServiceImplementation.saveUserWithDefaultTheme(userPreferencesSchema);
             return userDefinition;
         }
         catch (ConstraintViolationException e)
