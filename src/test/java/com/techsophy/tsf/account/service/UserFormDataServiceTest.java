@@ -234,6 +234,6 @@ class UserFormDataServiceTest
         when(mockUserServiceImpl.getAllUsersByFilter(any(),any())).thenReturn(List.of(auditableData));
         userFormDataService.getAllUsersByFilter(false,"abc","abc", (Sort) null,"");
         userFormDataService.getAllUsersByFilter(true,"abc","abc", (Sort) null,"q");
-        verify(mockUserServiceImpl,times(2)).getAllUsersByFilter(any(),any());
+        verify(mockUserServiceImpl,times(1)).getAllUsersByFilter(any(),any());
     }
 }

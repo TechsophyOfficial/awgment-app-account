@@ -146,7 +146,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
     @Override
     public List getAllUsersByFilter(Boolean onlyMandatoryFields, String filterColumn,String filterValue,Sort sort,String q)
     {
-        if(Boolean.TRUE.equals(onlyMandatoryFields)&&isEmpty(q))
+        if(Boolean.FALSE.equals(onlyMandatoryFields)&&isEmpty(q))
         {
                 return this.userFormDataRepository.findByFilterColumnAndValue(sort,filterColumn,filterValue).stream()
                         .map(this::convertEntityToMap).collect(Collectors.toList());
