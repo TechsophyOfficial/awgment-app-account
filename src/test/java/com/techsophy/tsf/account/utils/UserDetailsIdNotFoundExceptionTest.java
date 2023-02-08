@@ -13,7 +13,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +46,7 @@ class SUserDetailsIdNotFoundExceptionTest
         ObjectMapper objectMapper=new ObjectMapper();
         ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
         Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
-        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
+        Mockito.when(mockTokenUtils.getLoggedInUserName()).thenReturn(ABC);
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
         Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
                 (

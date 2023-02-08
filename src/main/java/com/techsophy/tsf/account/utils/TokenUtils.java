@@ -46,7 +46,7 @@ public class TokenUtils
 
     private static final Logger logger = LoggerFactory.getLogger(TokenUtils.class);
 
-    public String getLoggedInUserId()
+    public String getLoggedInUserName()
     {
         SecurityContext context = SecurityContextHolder.getContext();
         if (context != null)
