@@ -1,11 +1,8 @@
 package com.techsophy.tsf.account.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.exception.InvalidInputException;
-import com.techsophy.tsf.account.repository.GroupRepository;
-import com.techsophy.tsf.account.utils.WebClientWrapper;
 import io.micrometer.core.instrument.util.IOUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
@@ -21,7 +17,6 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.IOException;

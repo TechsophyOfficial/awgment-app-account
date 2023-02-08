@@ -40,7 +40,7 @@ public class UserDetails
         String loggedInUserId = tokenUtils.getLoggedInUserId();
         if (StringUtils.isEmpty(loggedInUserId))
         {
-            throw new InvalidInputException(LOGGED_IN_USER_NOT_FOUND,globalMessageSource.get(LOGGED_IN_USER_NOT_FOUND,loggedInUserId));        }
+            throw new InvalidInputException(LOGGED_IN_USER_NOT_FOUND,globalMessageSource.get(LOGGED_IN_USER_NOT_FOUND, loggedInUserId));        }
         String token = tokenUtils.getTokenFromContext();
         if (StringUtils.isNotEmpty(token))
         {
@@ -48,9 +48,9 @@ public class UserDetails
         }
         else
         {
-            throw new InvalidInputException(TOKEN_NOT_NULL,globalMessageSource.get(TOKEN_NOT_NULL,loggedInUserId));
+            throw new InvalidInputException(TOKEN_NOT_NULL,globalMessageSource.get(TOKEN_NOT_NULL, loggedInUserId));
         }
-        String userDetails = webClientWrapper.webclientRequest(webClient,gatewayApi + ACCOUNT_URL + FILTER_COLUMN+ loggedInUserId+ONLY_MANDATORY_FIELDS_TRUE,GET,null);
+        String userDetails = webClientWrapper.webclientRequest(webClient,gatewayApi + ACCOUNT_URL + FILTER_COLUMN+ loggedInUserId +ONLY_MANDATORY_FIELDS_TRUE,GET,null);
         if ( StringUtils.isEmpty(userDetails) || userDetails.isEmpty())
         {
             throw new InvalidInputException(USER_DETAILS_NOT_FOUND,globalMessageSource.get(USER_DETAILS_NOT_FOUND,userDetails));
@@ -64,7 +64,7 @@ public class UserDetails
             userDetailsResponse = this.objectMapper.convertValue(response.get(DATA), List.class);
             return userDetailsResponse;
         }
-        throw new UserDetailsIdNotFoundException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,loggedInUserId));
+        throw new UserDetailsIdNotFoundException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID, loggedInUserId));
     }
 }
 
