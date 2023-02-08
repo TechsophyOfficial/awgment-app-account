@@ -84,7 +84,7 @@ class UserDetailsTest
         ObjectMapper objectMapper=new ObjectMapper();
         ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
         Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
-        Mockito.when(mockTokenUtils.getLoggedInUserName()).thenReturn(ABC);
+        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
         Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
                 (
@@ -102,7 +102,7 @@ class UserDetailsTest
         ObjectMapper objectMapper=new ObjectMapper();
         ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
         Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
-        Mockito.when(mockTokenUtils.getLoggedInUserName()).thenReturn(null);
+        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(null);
 //        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
 //        Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
 //                (

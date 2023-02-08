@@ -217,7 +217,7 @@ public class UserServiceImpl implements UserService
 
     public List<Map<String,Object>> getCurrentlyLoggedInUserId() throws JsonProcessingException
     {
-        String loginId = tokenUtils.getLoggedInUserName();
+        String loginId = tokenUtils.getLoggedInUserId();
         if (loginId.startsWith(SERVICE_ACCOUNT))
         {
             return List.of(convertSchemaToMap(getUserByLoginId(SYSTEM)));

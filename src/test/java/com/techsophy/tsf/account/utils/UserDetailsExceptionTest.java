@@ -37,7 +37,7 @@ class UserDetailsExceptionTest
     void getUserDetailsTest() throws JsonProcessingException
     {
         ApiResponse apiResponse=new ApiResponse(null,true,USER_DETAILS_RETRIEVED_SUCCESS);
-        Mockito.when(mockTokenUtils.getLoggedInUserName()).thenReturn(ABC);
+        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
 //        Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<ApiResponse>) any()))
 //                .thenReturn

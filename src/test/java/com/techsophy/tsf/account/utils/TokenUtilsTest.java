@@ -109,7 +109,7 @@ class TokenUtilsTest {
     void getLoggedInUserIdTest() {
 //        Mockito.when(securityContext.getAuthentication()).thenReturn(null);
         assertThatExceptionOfType(SecurityException.class)
-                .isThrownBy(() -> tokenUtils.getLoggedInUserName());
+                .isThrownBy(() -> tokenUtils.getLoggedInUserId());
     }
 
     @Test
