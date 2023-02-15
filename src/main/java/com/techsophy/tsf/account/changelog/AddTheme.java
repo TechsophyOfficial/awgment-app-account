@@ -28,7 +28,7 @@ public class AddTheme {
     private final ObjectMapper objectMapper;
 
     @Execution
-    public void changeSetFormDefinition() throws IOException, ParseException {
+    public void changeSetFormDefinition() throws IOException {
         String pathTheme = TP_THEME_JSON;
         String pathThemeUser = TP_USER_THEME_JSON;
         InputStream inputStreamTest = new ClassPathResource(pathTheme).getInputStream();

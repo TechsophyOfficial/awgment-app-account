@@ -159,10 +159,8 @@ public class OtpServiceImpl implements OtpService
         Map<String,Object> loggedInUser = userService.getCurrentlyLoggedInUserId().get(0);
         otpDefinition.setCreatedOn(Instant.now());
         otpDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-        otpDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
         otpDefinition.setUpdatedOn(Instant.now());
         otpDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-        otpDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
         return otpDefinition;
     }
 

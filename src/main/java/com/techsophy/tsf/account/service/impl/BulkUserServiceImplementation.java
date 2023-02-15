@@ -92,7 +92,6 @@ public class BulkUserServiceImplementation implements BulkUserService
                 bulkUserDefinition.setStatus(CREATED);
                 bulkUserDefinition.setCreatedOn(Instant.now());
                 bulkUserDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-                bulkUserDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME) + SPACE + loggedInUser.get(USER_DEFINITION_LAST_NAME));
             }
             else
             {
@@ -108,11 +107,9 @@ public class BulkUserServiceImplementation implements BulkUserService
                 bulkUserDefinition.setStatus(UPDATED);
                 bulkUserDefinition.setCreatedOn(existingBulkDefinition.getCreatedOn());
                 bulkUserDefinition.setCreatedById(existingBulkDefinition.getCreatedById());
-                bulkUserDefinition.setCreatedByName(existingBulkDefinition.getCreatedByName());
             }
             bulkUserDefinition.setUpdatedOn(Instant.now());
             bulkUserDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-            bulkUserDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME) + SPACE + loggedInUser.get(USER_DEFINITION_LAST_NAME));
             BulkUserData bulkUserData = this.objectMapper.convertValue(bulkUserDefinition, BulkUserData.class);
             bulkUsersList.add(bulkUserData);
         });
@@ -230,10 +227,8 @@ public class BulkUserServiceImplementation implements BulkUserService
         bulkUserDefinition.setDocumentId(existingBulkDefinition.getDocumentId());
         bulkUserDefinition.setCreatedOn(existingBulkDefinition.getCreatedOn());
         bulkUserDefinition.setCreatedById(existingBulkDefinition.getCreatedById());
-        bulkUserDefinition.setCreatedByName(existingBulkDefinition.getCreatedByName());
         bulkUserDefinition.setUpdatedOn(Instant.now());
         bulkUserDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-        bulkUserDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME) + SPACE + loggedInUser.get(USER_DEFINITION_LAST_NAME));
         this.bulkUploadDefinintionRepository.save(bulkUserDefinition);
         return new BulkUploadResponse(String.valueOf(existingBulkDefinition.getDocumentId()));
     }

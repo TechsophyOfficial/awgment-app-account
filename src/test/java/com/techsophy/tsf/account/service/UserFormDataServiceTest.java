@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.util.*;
 
 import static com.techsophy.tsf.account.constants.UserConstants.USER_STRING;
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -69,8 +70,8 @@ class UserFormDataServiceTest
 
     UserDefinition userDefinition=new UserDefinition();
 
-    List<Map<String,Object>> list = new ArrayList<>();
-    Map<String,Object> map = new HashMap<>();
+    private List<Map<String,Object>> list = new ArrayList<>();
+     private Map<String,Object> map = new HashMap<>();
     @BeforeEach
     public void init()
     {
@@ -78,6 +79,7 @@ class UserFormDataServiceTest
         map.put("abc","abc");
         map.put("id",1);
         map.put("userId",1);
+        map.put("userName","Nandini");
         list.add(map);
         userDefinition.setFirstName(USER_STRING);
         userDefinition.setCreatedById(BigInteger.valueOf(234234234));
@@ -113,6 +115,35 @@ class UserFormDataServiceTest
         userFormDataService.saveUserFormData(userFormDataSchema1);
         verify(mockUserFormDataDefinitionRepository,times(2)).save(any());
     }
+    @Test
+    void saveUserTestWithName() throws IOException
+    {
+        ObjectMapper objectMapper=new ObjectMapper();
+        InputStream stream = new ClassPathResource(USER_DATA).getInputStream();
+        String userData= new String(stream.readAllBytes());
+        UserFormDataSchema userFormDataSchema= objectMapper.readValue(userData,UserFormDataSchema.class);
+        UserFormDataSchema userFormDataSchema1 = new UserFormDataSchema(map,"1","1");
+        UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.valueOf(1),map,BigInteger.valueOf(1),1);
+        UserFormDataDefinition userFormDataDefinition1 = new UserFormDataDefinition(null,map,null,1);
+        UserData userSchema=objectMapper.convertValue(userFormDataSchema.getUserData(), UserData.class);
+        UserDefinition userDefinition=new UserDefinition();
+        userDefinition.setFirstName("user");
+        userDefinition.setCreatedById(BigInteger.valueOf(234234234));
+        userDefinition.setId(BigInteger.valueOf(345345));
+        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
+        when(mockUserServiceImpl.saveUser(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(1234)));
+        when(mockObjectMapper.convertValue(any(),eq(UserFormDataDefinition.class))).thenReturn(userFormDataDefinition).thenReturn(userFormDataDefinition1);
+        when(mockObjectMapper.convertValue(any(),eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema1);
+        when(mockObjectMapper.convertValue(any(),eq(UserData.class))).thenReturn(userSchema);
+        when(mockObjectMapper.convertValue(userFormDataDefinition,UserFormDataSchema.class)).thenReturn(userFormDataSchema1);
+        when(mockUserFormDataDefinitionRepository.save(any())).thenReturn(userFormDataDefinition);
+        UserFormDataSchema response=userFormDataService.saveUserFormData(userFormDataSchema);
+        ArgumentCaptor<UserFormDataDefinition> argumentCaptor = ArgumentCaptor.forClass(UserFormDataDefinition.class);
+        verify(mockUserFormDataDefinitionRepository).save(argumentCaptor.capture());
+        Assertions.assertEquals("nandini",argumentCaptor.getValue().getUserData().get("userName"));
+        Assertions.assertNotEquals("Nandini", response.getUserData().get("userName"));
+    }
+
 
     @Test
     void getFormByUserId() throws IOException
@@ -198,11 +229,11 @@ class UserFormDataServiceTest
         map.put("id","userId");
         map.put("userId","userId");
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(null,map,null,1);
-        when(this.mockObjectMapper.convertValue(userFormDataDefinition,Map.class)).thenReturn(map);
-        when(this.mockUserFormDataDefinitionRepository.findByFilterColumnAndValue(any(),any(),any())).thenReturn(List.of(userFormDataDefinition));
+//        when(this.mockObjectMapper.convertValue(userFormDataDefinition,Map.class)).thenReturn(map);
+//        when(this.mockUserFormDataDefinitionRepository.findByFilterColumnAndValue(any(),any(),any())).thenReturn(List.of(userFormDataDefinition));
         when(mockUserServiceImpl.getAllUsersByFilter(any(),any())).thenReturn(List.of(auditableData));
         userFormDataService.getAllUsersByFilter(false,"abc","abc", (Sort) null,"");
         userFormDataService.getAllUsersByFilter(true,"abc","abc", (Sort) null,"q");
-        verify(mockUserFormDataDefinitionRepository,times(1)).findByFilterColumnAndValue(any(),any(),any());
+        verify(mockUserServiceImpl,times(1)).getAllUsersByFilter(any(),any());
     }
 }

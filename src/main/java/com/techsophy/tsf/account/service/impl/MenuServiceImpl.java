@@ -43,7 +43,6 @@ public class MenuServiceImpl implements MenuService
             menuDefinition.setVersion(1);
             menuDefinition.setCreatedOn(Instant.now());
             menuDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-            menuDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
         }
         else
         {
@@ -52,12 +51,10 @@ public class MenuServiceImpl implements MenuService
             menuDefinition.setId(menuDefinition.getId());
             menuDefinition.setCreatedOn(menuDefinitionData.getCreatedOn());
             menuDefinition.setCreatedById(menuDefinitionData.getCreatedById());
-            menuDefinition.setCreatedByName(menuDefinitionData.getCreatedByName());
             menuDefinition.setVersion(menuDefinitionData.getVersion() + 1);
         }
         menuDefinition.setUpdatedOn(Instant.now());
         menuDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-        menuDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
         MenuDefinition menuDefinitionResponse = this.menuRepository.save(menuDefinition);
         MenuResponseSchema responseDto=new MenuResponseSchema();
         responseDto.setId(menuDefinitionResponse.getId().toString());

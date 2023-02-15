@@ -48,6 +48,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
                     .convertValue(userFormDataSchema,UserFormDataDefinition.class);
             UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(),UserData.class);
             String userId = userFormDataSchema.getUserId();
+            userData.setUserName(userData.getUserName().toLowerCase());
             Map<String,Object> loggedInUser = userServiceImpl.getCurrentlyLoggedInUserId().get(0);
             if (userId == null)
             {
@@ -55,7 +56,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userFormDataDefinition.setCreatedOn(Instant.now());
                 userFormDataDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
                 userFormDataDefinition.setVersion(1);
-                userFormDataDefinition.setCreatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
+
             }
             else
             {
@@ -65,15 +66,14 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userFormDataDefinition.setId(existingFormDataDefinition.getId());
                 userFormDataDefinition.setCreatedOn(existingFormDataDefinition.getCreatedOn());
                 userFormDataDefinition.setCreatedById(existingFormDataDefinition.getCreatedById());
-                userFormDataDefinition.setCreatedByName(existingFormDataDefinition.getCreatedByName());
                 userFormDataDefinition.setVersion(existingFormDataDefinition.getVersion() + 1);
                 userData.setId(userId);
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
             userFormDataDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-            userFormDataDefinition.setUpdatedByName(loggedInUser.get(USER_DEFINITION_FIRST_NAME)+SPACE+loggedInUser.get(USER_DEFINITION_LAST_NAME));
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
+            userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());
             userFormDataDefinition = this.userFormDataRepository.save(userFormDataDefinition);
             return this.objectMapper.convertValue(userFormDataDefinition, UserFormDataSchema.class);
         }
@@ -146,7 +146,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
     @Override
     public List getAllUsersByFilter(Boolean onlyMandatoryFields, String filterColumn,String filterValue,Sort sort,String q)
     {
-        if(!onlyMandatoryFields&&isEmpty(q))
+        if(Boolean.FALSE.equals(onlyMandatoryFields)&&isEmpty(q))
         {
                 return this.userFormDataRepository.findByFilterColumnAndValue(sort,filterColumn,filterValue).stream()
                         .map(this::convertEntityToMap).collect(Collectors.toList());
@@ -175,10 +175,8 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userMap.put("version",userFormDataDefinition.getVersion());
             userMap.put(CREATED_BY_ID,userFormDataDefinition.getCreatedById());
             userMap.put(CREATED_ON,userFormDataDefinition.getCreatedOn());
-            userMap.put(CREATED_BY_NAME,userFormDataDefinition.getCreatedByName());
             userMap.put(UPDATED_BY_ID,userFormDataDefinition.getUpdatedById());
             userMap.put(UPDATED_ON,userFormDataDefinition.getUpdatedOn());
-            userMap.put(UPDATED_BY_NAME,userFormDataDefinition.getUpdatedByName());
             userFormDataList.add(userMap);
         }
         return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage,userFormDataList);

@@ -1,11 +1,8 @@
 package com.techsophy.tsf.account.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.exception.InvalidInputException;
-import com.techsophy.tsf.account.repository.GroupRepository;
-import com.techsophy.tsf.account.utils.WebClientWrapper;
 import io.micrometer.core.instrument.util.IOUtils;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,7 +10,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
@@ -21,14 +17,15 @@ import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.util.*;
 
+import static com.techsophy.tsf.account.constants.AccountConstants.CLIENT_ROLES;
 import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.GroupsDataServiceConstants.RESPONSE;
 import com.techsophy.tsf.account.constants.AccountConstants;
@@ -56,6 +53,8 @@ class TokenUtilsTest {
     WebClientWrapper mockWebClientWrapper;
     @Mock
     ObjectMapper mockObjectMapper;
+    @Mock
+    TokenUtils tokenUtils1;
 
     @Order(1)
     @Test
@@ -141,7 +140,7 @@ class TokenUtilsTest {
     }
 
     @Test
-    void getClientRolesTest() throws JsonProcessingException {
+    void getClientRolesTest() throws IOException {
         List<String> list = new ArrayList<>();
         list.add("admin");
         list.add("user");
@@ -149,17 +148,24 @@ class TokenUtilsTest {
         map.put("name", "role");
         map.put(AccountConstants.CLIENT_ROLES,List.of("abc"));
         String response = RESPONSE;
+        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
+        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
         WebClient webClient = WebClient.builder().build();
         when(mockWebClientWrapper.createWebClient(any())).thenReturn(webClient);
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        SecurityContextHolder.setContext(securityContext);
+        Jwt jwt = mock(Jwt.class);
+//        when(tokenUtils.getIssuerFromToken(anyString())).thenReturn("techsophy-platform");
+//        when(tokenUtils.getTokenFromContext()).thenReturn("techsophy-platform");
         when(mockWebClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), eq(null))).thenReturn(response).thenReturn(" ");
         when(this.mockObjectMapper.readValue(anyString(),eq(Map.class))).thenReturn(map);
         when(this.mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(list);
-        List<String> response1 = tokenUtils.getClientRoles("token");
+        List<String> response1 = tokenUtils.getClientRoles(result);
         Assertions.assertNotNull(response1);
-        //Assertions.assertThrows(AccessDeniedException.class,()->tokenUtils.getClientRoles("token"));
     }
     @Test
-    void getClientRolesTest1() throws JsonProcessingException {
+    void getClientRolesTest1() throws IOException {
         String abc = "";
         List<String> list = new ArrayList<>();
         list.add("admin");
@@ -171,10 +177,12 @@ class TokenUtilsTest {
         WebClient webClient = WebClient.builder().build();
         when(mockWebClientWrapper.createWebClient(any())).thenReturn(webClient);
         when(mockWebClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), eq(null))).thenReturn(abc);
-        Assertions.assertThrows(AccessDeniedException.class,()->tokenUtils.getClientRoles("token"));
+        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
+        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
+        Assertions.assertThrows(AccessDeniedException.class,()->tokenUtils.getClientRoles(result));
     }
     @Test
-    void getClientRolesTest2() throws JsonProcessingException {
+    void getClientRolesTest2() throws IOException {
         String abc = "";
         List<String> list = new ArrayList<>();
         List<String> list1 = new ArrayList<>();
@@ -189,10 +197,15 @@ class TokenUtilsTest {
         when(mockWebClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), eq(null))).thenReturn(response).thenReturn(" ");
         when(this.mockObjectMapper.readValue(anyString(),eq(Map.class))).thenReturn(map);
         when(this.mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(list1);
-        tokenUtils.getClientRoles("token");
+        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
+        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
+        Map<String,Object> userInformationMap=mockObjectMapper.readValue(response,Map.class);
+        List<String> expectedOutput = mockObjectMapper.convertValue(userInformationMap.get(CLIENT_ROLES), List.class);
+        List<String> actualOutput = tokenUtils.getClientRoles(result);
+        Assertions.assertEquals(expectedOutput, actualOutput);
     }
     @Test
-    void getClientRolesTest3() throws JsonProcessingException {
+    void getClientRolesTest3() throws IOException {
         List<String> list = new ArrayList<>();
         list.add("admin");
         list.add("user");
@@ -204,6 +217,8 @@ class TokenUtilsTest {
         when(mockWebClientWrapper.createWebClient(any())).thenReturn(webClient);
         when(mockWebClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), eq(null))).thenReturn(response).thenReturn(" ");
         when(this.mockObjectMapper.readValue(anyString(),eq(Map.class))).thenReturn(map);
-        tokenUtils.getClientRoles("token");
+        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
+        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
+        Assertions.assertNull(tokenUtils.getClientRoles(result));
     }
 }

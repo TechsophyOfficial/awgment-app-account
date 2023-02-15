@@ -53,37 +53,27 @@ public class UserPreferencesThemeServiceImplementation implements UserPreference
             throw new EntityIdNotFoundException(LOGGED_IN_USER_NOT_NULL,globalMessageSource.get(LOGGED_IN_USER_NOT_NULL, userId));
         }
         BigInteger loggedInUserId = BigInteger.valueOf(Long.parseLong(userId));
+        preferencesSchema.setUserId(String.valueOf(loggedInUserId));
+        return saveUserWithTheme(preferencesSchema);
+    }
+
+    @Override
+    public UserPreferencesResponse saveUserWithTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException {
         UserPreferencesDefinition userPreferenceData = new UserPreferencesDefinition();
-        if (!userPreferencesDefinitionRepository.existsByUserId(loggedInUserId))
-        {
-            if (preferencesSchema.getId() == null)
-            {
-                userPreferenceData.setId(idGenerator.nextId());
-                userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
-                userPreferenceData.setUserId(loggedInUserId);
-            }
+        if(!userPreferencesDefinitionRepository.existsByUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())))) {
+            userPreferenceData.setId(idGenerator.nextId());
+            userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
+            userPreferenceData.setUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())));
         }
         else
         {
-            UserPreferencesDefinition userPreferencesDefinition;
-            if (userPreferencesDefinitionRepository.existsByUserId(loggedInUserId))
-            {
-                userPreferencesDefinition = this.userPreferencesDefinitionRepository.findByUserId(loggedInUserId)
-                        .orElseThrow(() -> new UserPreferencesNotFoundByLoggedInUserIdException(USER_PREFERENCE_THEME_NOT_FOUND,globalMessageSource.get(USER_PREFERENCE_THEME_NOT_FOUND, loggedInUserId)));
-            }
-            else
-            {
-                userPreferencesDefinition = this.userPreferencesDefinitionRepository.findById(BigInteger.valueOf(Long.parseLong(preferencesSchema.getId())))
-                        .orElseThrow(() -> new UserPreferencesNotFoundByLoggedInUserIdException(USER_PREFERENCE_THEME_NOT_FOUND,globalMessageSource.get(USER_PREFERENCE_THEME_NOT_FOUND, loggedInUserId)));
-            }
-            userPreferenceData.setId(userPreferencesDefinition.getId());
-            userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
-            userPreferenceData.setUserId(userPreferencesDefinition.getUserId());
+            userPreferenceData=userPreferencesDefinitionRepository.findByUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId()))).orElseThrow(()->new UserPreferencesNotFoundByLoggedInUserIdException(USER_PREFERENCE_THEME_NOT_FOUND,globalMessageSource.get(USER_PREFERENCE_THEME_NOT_FOUND, preferencesSchema.getUserId())));
+           userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
         }
+
         this.userPreferencesDefinitionRepository.save(userPreferenceData);
         return this.objectMapper.convertValue(userPreferenceData, UserPreferencesResponse.class);
     }
-
     @Override
     public UserPreferencesSchema getUserPreferencesThemeByUserId() throws IOException
     {
