@@ -9,36 +9,31 @@ import com.techsophy.tsf.account.dto.OtpVerifyPayload;
 import com.techsophy.tsf.account.dto.SMSMessage;
 import com.techsophy.tsf.account.entity.OtpDefinition;
 import com.techsophy.tsf.account.exception.InvalidDataException;
-import com.techsophy.tsf.account.exception.MailException;
 import com.techsophy.tsf.account.repository.OtpDefinitionRepository;
 import com.techsophy.tsf.account.service.impl.OtpServiceImpl;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import java.math.BigInteger;
 import java.util.*;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith({SpringExtension.class})
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
- class OtpServiceImplTest {
+ class OtpServiceImplTest
+{
     @Mock
     WebClientWrapper webClientWrapper;
     @Mock
@@ -102,7 +97,7 @@ import static org.mockito.Mockito.when;
         OtpRequestPayload otpRequestPayload1 = new OtpRequestPayload("mobile","abc","abc","abc","abc","abc","1", map);
         when(environment.getProperty(anyString())).thenReturn(String.valueOf(true));
         OtpDefinition otpDefinition = new OtpDefinition(BigInteger.ONE,"email","abc",null, date);
-        OtpDefinition otpDefinition1 = new OtpDefinition();
+//        OtpDefinition otpDefinition1 = new OtpDefinition();
         String json = objectMapper.writeValueAsString(list);
         WebClient webClient= WebClient.builder().build();
         when(webClientWrapper.createWebClient(any())).thenReturn(webClient);

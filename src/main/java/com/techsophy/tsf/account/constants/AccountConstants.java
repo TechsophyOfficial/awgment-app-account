@@ -27,8 +27,6 @@ public class AccountConstants
  public static final String EMAIL_ID= "emailId";
  public static final String ID_VALUE= "821024382412341232";
 
-
-
  //JWTRoleConverter
  public static final String CLIENT_ROLES="clientRoles";
  public static final String USER_INFO_URL= "techsophy-platform/protocol/openid-connect/userinfo";
@@ -67,6 +65,17 @@ public class AccountConstants
  public static final String CREATE_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+ AWGMENT_ACCOUNT_CREATE_OR_UPDATE +HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
  public static final String READ_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+ AWGMENT_ACCOUNT_READ +HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
  public static final String DELETE_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_DELETE+HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
+ public static final String AWGMENT_ACL_CREATE_OR_UPDATE="awgment-acl-create-or-update";
+ public static final String AWGMENT_ACL_READ="awgment-acl-read";
+ public static final String CREATE_ACL_ACCESS=HAS_ANY_AUTHORITY+AWGMENT_ACL_CREATE_OR_UPDATE+HAS_ANY_AUTHORITY_ENDING;
+ public static final String READ_ACL_ACCESS=HAS_ANY_AUTHORITY+AWGMENT_ACL_READ+HAS_ANY_AUTHORITY_ENDING;
+ public static final String TP_ACL="tp_acl";
+ public static final String SAVE_ACL="Save Access Control";
+ public static final String GET_ALL_ACLS="Get All Access Controls";
+ public static final String REQUIRES_ROLE="Requires role ";
+ public static final String GET_ACL_BY_ID="Get Access Control By Id";
+ public static final String CHECKS_ACL= "Check Access Control ";
+ public static final String DOES_NOT_REQUIRES_ROLE="Does not require any role";
 
  /*TenantAuthenticationManagerConstants*/
  public static final String KEYCLOAK_ISSUER_URI = "${keycloak.issuer-uri}";
@@ -86,7 +95,6 @@ public class AccountConstants
  public static final String USER_NAME="username";
  public static final String USER_NAME_DATA="userName";
  public static final String OLD_USER_NAME="oldUserName";
-
  public static final String SAVE_USER_SUCCESS="SAVE.USER.SUCCESS";
  public static final String ROLE_USER_SUCCESS="ROLE.USER.SUCCESS";
  public static final String GET_ROLE_SUCCESS="GET.ROLE.SUCCESS";
@@ -95,6 +103,19 @@ public class AccountConstants
  public static final String PASSWORD_UPDATED_SUCCESSFULLY="PASSWORD.UPDATED.SUCCESS";
  public static final String PASSWORD_SET_SUCCESSFULLY="PASSWORD.SET.SUCCESS";
 
+//ACL Constants
+ public static final String ACL="/acl";
+ public static final String CREATE_URL="/create";
+ public static final String ID_URL="/{id}";
+ public static final String UPDATE_URL="/update";
+ public static final String CHECK_ACCESS_URL="/{id}/evaluate";
+ public static final String ACL_SAVED_SUCCESSFULLY="ACL.SAVED.SUCCESS";
+ public static final String ACL_RETRIEVE_SUCCESS="ACL.RETRIEVE.SUCCESS";
+ public static final String ACL_UPDATE_SUCCESS="ACL.UPDATE.SUCCESS";
+ public static final String ACL_EVALUATION_SUCCESS="ACL.EVALUATE.SUCCESS";
+ public static final String ALLOW="allow";
+ public static final String DENY="deny";
+ public static final String UNDEFINED="undefined";
 
  /*GroupsControllerConstants*/
  public static final String VERSION_V1="/v1";
@@ -107,6 +128,9 @@ public class AccountConstants
  public static final String SORT_ORDER="sort-order";
  public static final String ID="id";
  public static final String QUERY ="q";
+
+ //RoleConstants
+ public static final String ROLE="/role";
 
  /*GroupsDataControllerConstants*/
  public static final String GROUP_BY_ID_ROLES_URL ="/groups/{id}/roles";
@@ -138,7 +162,6 @@ public class AccountConstants
  public static final String DOCUMENT_ID ="documentId";
  public static final String WORKFLOW_START_URL="/workflow/v1/process/start";
  public static final String COMMA=",";
- public static final String DELETE_FORM_SUCCESS="DELETE.FORM.SUCCESS";
  public static final String SAVE_FORM_SUCCESS="SAVE.FORM.SUCCESS";
 
  //GroupsControllerConstants
@@ -173,7 +196,6 @@ public class AccountConstants
  public static final String USER_GROUPS_URL="/users/groups";
  public static final String CHANGE_PASSWORD="/users/changePassword";
  public static final String SET_PASSWORD="/users/setPassword";
-
 
  /*UserPreferencesControllerConstants*/
  public static final String USER_PREFERENCES_URL="/users/preferences";
@@ -235,7 +257,6 @@ public class AccountConstants
  public static final String DEFAULT_PAGE_LIMIT= "${default.pagelimit}";
  public static final String EMAIL_VALIDITY= "${email.validity}";
  public static final String CLIENTS="${clients}";
-
 
  /*ThemesServiceImplConstants*/
  public static final String FIRST_NAME="firstName";
@@ -341,6 +362,7 @@ public class AccountConstants
  public static final String AUTHENTICATION_FAILED="Authentication failed";
  public static final String UNABLE_GET_TOKEN="Unable to get token";
  public static final String PREFERED_USERNAME="preferred_username";
+ public static final String SYSTEM_USER_NAME="service-account";
  public static final String CREATED_ON="createdOn";
  public static final String CREATED_BY_ID="createById";
  public static final String CREATED_BY_NAME="createdByName";

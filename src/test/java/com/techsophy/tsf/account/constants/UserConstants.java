@@ -15,6 +15,7 @@ public class UserConstants
     public final static String ROLE_ID ="5aa92c95-310e-4411-a031-d0d0f6c5b30d";
     public final static String ROLE_NAME="test";
     public final static String USER_STRING="user";
+
     //GlobalMessageSourceConstants
     public static final String  KEY="key";
     public static final String ARGS="args";

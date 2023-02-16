@@ -9,17 +9,12 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.io.IOException;
 import java.util.stream.Stream;
@@ -28,13 +23,10 @@ import static com.techsophy.tsf.account.constants.MenuControllerConstant.*;
 import static com.techsophy.tsf.account.constants.UserConstants.ID;
 
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith(MockitoExtension.class)
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@AutoConfigureMockMvc(addFilters = false)
-class MenuControllerImplTest {
+class MenuControllerImplTest
+{
     @InjectMocks
     MenuControllerImpl menuControllerImpl;
     @Mock
@@ -66,5 +58,4 @@ class MenuControllerImplTest {
         ApiResponse<Stream<MenuSchema>> response = menuControllerImpl.getAllMenus();
         Assertions.assertNotNull(response);
     }
-
 }

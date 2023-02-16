@@ -14,32 +14,26 @@ import com.techsophy.tsf.account.repository.UserPreferencesDefinitionRepository;
 import com.techsophy.tsf.account.service.impl.UserPreferencesThemeServiceImplementation;
 import com.techsophy.tsf.account.utils.UserDetails;
 import org.bson.types.Binary;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.*;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@ExtendWith({SpringExtension.class})
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserPreferencesServiceTest
 {
     @Mock
@@ -171,9 +165,8 @@ class UserPreferencesServiceTest
                 mockUserPreferencesThemeServiceImplementation.deleteUserPreferencesThemeByUserId());
     }
     @Test
-    void saveUserPrefrenceTheme() throws Exception
+    void saveUserPreferenceTheme() throws Exception
     {
-        int i1 = 0b101;
         UserPreferencesResponse userPreferencesResponse = new UserPreferencesResponse("1","1","1");
         UserPreferencesDefinition userPreferencesDefinition = new UserPreferencesDefinition(BigInteger.ONE,BigInteger.ONE,BigInteger.ONE,null);
         UserPreferencesSchema userPreferencesSchema = new UserPreferencesSchema("1","1","1","abc");

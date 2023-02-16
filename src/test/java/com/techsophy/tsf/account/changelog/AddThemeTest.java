@@ -10,29 +10,24 @@ import com.techsophy.tsf.account.repository.UserPreferencesDefinitionRepository;
 import org.bson.Document;
 import org.bson.types.Binary;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
-
 import static com.techsophy.tsf.account.constants.AccountConstants.TP_THEME_COLLECTION;
 import static com.techsophy.tsf.account.constants.UserFormDataConstants.ANYSTRING;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.ONE;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class AddThemeTest {
     @InjectMocks
     AddTheme addTheme;
@@ -46,7 +41,7 @@ class AddThemeTest {
     UserPreferencesDefinitionRepository userPreferencesDefinitionRepository;
 
     @Test
-    void SystemUserTest() throws IOException, ParseException {
+    void SystemUserTest() {
         Assertions.assertThrows(NullPointerException.class,()->addTheme.changeSetFormDefinition());
     }
 

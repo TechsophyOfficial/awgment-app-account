@@ -8,25 +8,17 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import java.util.HashMap;
 import java.util.Map;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith({MockitoExtension.class, SpringExtension.class})
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserFormDataControllerTest
 {
     @Mock

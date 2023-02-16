@@ -12,12 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
+
 import java.io.IOException;
 import java.io.InputStream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
-import static com.techsophy.tsf.account.constants.ErrorConstants.EXCEUTION_IS_FAILED;
+import static com.techsophy.tsf.account.constants.ErrorConstants.EXECUTION_IS_FAILED;
 
 @ChangeUnit(id = ADD_SYSTEM_USER, order = ORDER_2, systemVersion = SYSTEM_VERSION_1)
 @AllArgsConstructor(onConstructor_ = {@Autowired})
@@ -44,6 +43,6 @@ public class AddSystemUser {
     @RollbackExecution
     public void rollback()
     {
-        log.info(EXCEUTION_IS_FAILED);
+        log.info(EXECUTION_IS_FAILED);
     }
 }

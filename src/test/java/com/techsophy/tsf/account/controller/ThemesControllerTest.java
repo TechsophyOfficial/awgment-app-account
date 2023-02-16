@@ -9,39 +9,37 @@ import com.techsophy.tsf.account.dto.ThemesResponseSchema;
 import com.techsophy.tsf.account.dto.ThemesSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.ThemesService;
-import org.junit.jupiter.api.MethodOrderer;
+import com.techsophy.tsf.account.utils.TokenUtils;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.UserConstants.ID;
 import static com.techsophy.tsf.account.constants.UserConstants.NAME;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ThemesControllerTest
 {
     @InjectMocks
     ThemesControllerImplementation themesControllerImplementation;
     @Mock
     ThemesService themesService;
+    @Mock
+    TokenUtils tokenUtils;
     @Mock
     GlobalMessageSource globalMessageSource;
     @Mock
@@ -57,8 +55,6 @@ class ThemesControllerTest
         Mockito.when(themesService.saveThemesData(themesSchema))
                 .thenReturn(new ThemesResponse(ID));
         ApiResponse<ThemesResponse> responseEntity = themesControllerImplementation.saveThemesData(themesSchema);
-        //ThemesResponse data= themesService.saveThemesData(themesSchema);
-        //assertNotEquals(null,data);
         assertEquals(true,responseEntity.getSuccess());
         verify(themesService, times(1)).saveThemesData(themesSchema);
     }
@@ -67,11 +63,22 @@ class ThemesControllerTest
     void getThemesDataByIdTest()
     {
         Mockito.when(themesService.getThemesDataById(ID)).thenReturn(new ThemesResponseSchema(ID,NAME,CONTENT,CREATED_BY_ID,CREATED_ON, CREATEDBYNAME,UPDATED_BY_ID,UPDATED_ON,UPDATED_BY_NAME));
-//        ThemesResponseSchema data= themesService.getThemesDataById(ID);
-//        assertNotEquals(null,data);
         ApiResponse<ThemesResponseSchema> responseEntity=themesControllerImplementation.getThemesDataById(ID);
         assertEquals(true,responseEntity.getSuccess());
         verify(themesService, times(2)).getThemesDataById(ID);
+    }
+
+    @Test
+    void getAllThemesListTest()
+    {
+        Assertions.assertNotNull(themesControllerImplementation.getAllThemesData("abc","theme1", null,null,new String[0]));
+    }
+
+
+    @Test
+    void getAllThemesPaginationTest()
+    {
+        Assertions.assertNotNull(themesControllerImplementation.getAllThemesData("abc","theme1", 0,5,new String[0]));
     }
 
     @Test
@@ -90,8 +97,6 @@ class ThemesControllerTest
                 .header("Content-Disposition", "attachment; filename=\"" + fileName +".json" + "\"")
                 .body(inputStreamResource));
         ResponseEntity<Resource> responseEntity=themesControllerImplementation.downloadTheme(ThemesConstants.ID);
-//        ResponseEntity<Resource> data= themesService.downloadTheme(ThemesConstants.ID);
-//        assertNotEquals(null,data);
         assertNotNull(responseEntity);
         verify(themesService, times(1)).downloadTheme(ThemesConstants.ID);
     }
@@ -101,7 +106,6 @@ class ThemesControllerTest
     {
         String themeName = "name";
         ApiResponse responseEntity=themesControllerImplementation.uploadTheme(file1, themeName);
-        //themesService.uploadTheme(file1, themeName);
         assertEquals(true,responseEntity.getSuccess());
         verify(themesService, times(1)).uploadTheme(file1, themeName);
     }

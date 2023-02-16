@@ -10,17 +10,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.context.request.WebRequest;
-import javax.validation.ConstraintViolationException;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@SpringBootTest
-  @ExtendWith(MockitoExtension.class)
+import javax.validation.ConstraintViolationException;
+
+@ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest
 {
   @Mock
@@ -201,5 +197,19 @@ class GlobalExceptionHandlerTest
     FileSizeLimitExceededException fileSizeLimitExceededException = new FileSizeLimitExceededException("args",actual,permitted);
     ResponseEntity<ApiErrorResponse> response = globalExceptionHandler.handleProfilePictureNotPresentException(fileSizeLimitExceededException,webRequest);
     Assertions.assertNotNull(response);
+  }
+
+  @Test
+  void handleUserNameExceptionTest()
+  {
+    UserNameValidationException userNameValidationException=new UserNameValidationException("errorCode","userName should not start with service-account");
+   Assertions.assertNotNull(globalExceptionHandler.handleUserName(userNameValidationException,webRequest));
+  }
+
+  @Test
+  void handleEntityIdNotFoundExceptionTest()
+  {
+    EntityIdNotFoundException entityIdNotFoundException=new EntityIdNotFoundException("errorCode","userName should not start with service-account");
+    Assertions.assertNotNull(globalExceptionHandler.handleEntityException(entityIdNotFoundException,webRequest));
   }
 }

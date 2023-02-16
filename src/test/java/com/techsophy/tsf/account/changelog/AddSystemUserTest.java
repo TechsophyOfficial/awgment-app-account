@@ -14,22 +14,19 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
-
 import static com.techsophy.tsf.account.constants.AccountConstants.TP_FORM_DATA_USER_COLLECTION;
 import static com.techsophy.tsf.account.constants.AccountConstants.TP_USER_COLLECTION;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class AddSystemUserTest {
-
+class AddSystemUserTest
+{
     @InjectMocks
     AddSystemUser addSystemUser;
     @Mock

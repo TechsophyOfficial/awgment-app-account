@@ -23,6 +23,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 {
     private final GlobalMessageSource globalMessageSource;
 
+    @ExceptionHandler(UserNameValidationException.class)
+    public ResponseEntity<ApiErrorResponse> handleUserName(UserNameValidationException ex, WebRequest request)
+    {
+        ApiErrorResponse errorDetails = new ApiErrorResponse(Instant.now(), getMessage(ex.message, null, request.getLocale()), ex.errorcode,
+                HttpStatus.BAD_REQUEST, request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(CreateFormDataException.class)
     public ResponseEntity<ApiErrorResponse> handleCreateFormDataException(CreateFormDataException ex, WebRequest request)
     {
@@ -72,12 +80,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
     public ResponseEntity<ApiErrorResponse> entityNotFoundException(EntityNotFoundByIdException ex, WebRequest request)
     {
         ApiErrorResponse errorDetails = new ApiErrorResponse(Instant.now(), ex.message, ex.errorcode,
-                HttpStatus.INTERNAL_SERVER_ERROR, request.getDescription(false));
-        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+                HttpStatus.NOT_FOUND, request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(EntityIdNotFoundException.class)
-    public ResponseEntity<ApiErrorResponse> entityIdNotFoundException(EntityIdNotFoundException ex, WebRequest request)
+    public ResponseEntity<ApiErrorResponse> handleEntityException(EntityIdNotFoundException ex, WebRequest request)
     {
         ApiErrorResponse errorDetails = new ApiErrorResponse(Instant.now(), ex.message, ex.errorcode,
                 HttpStatus.INTERNAL_SERVER_ERROR, request.getDescription(false));

@@ -1,5 +1,6 @@
 package com.techsophy.tsf.account.utils;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
@@ -255,14 +256,7 @@ public class TokenUtils
     public List<String> getClientRoles(String token)
     {
         List<String> totalList = null;
-        var client = webClientWrapper.createWebClient(token);
-        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+USER_INFO_URL,GET,null);
-        if(userInfoResponse.isEmpty())
-        {
-            logger.info(TOKEN_VERIFICATION_FAILED);
-            throw new AccessDeniedException(TOKEN_VERIFICATION_FAILED);
-        }
-        Map<String,Object> userInformationMap=this.objectMapper.readValue(userInfoResponse,Map.class);
+        Map<String, Object> userInformationMap = getUserInformationMap(token);
         if(userInformationMap.containsKey(CLIENT_ROLES))
         {
             totalList = this.objectMapper.convertValue(userInformationMap.get(CLIENT_ROLES), List.class);
@@ -276,5 +270,18 @@ public class TokenUtils
             logger.error(CLIENT_ROLES_MISSING_IN_USER_INFORMATION);
         }
         return totalList;
+    }
+
+    public Map<String, Object> getUserInformationMap(String token) throws AccessDeniedException, JsonProcessingException
+    {
+        var client = webClientWrapper.createWebClient(token);
+        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+USER_INFO_URL,GET,null);
+        if(userInfoResponse.isEmpty())
+        {
+            logger.info(TOKEN_VERIFICATION_FAILED);
+            throw new AccessDeniedException(TOKEN_VERIFICATION_FAILED);
+        }
+        Map<String,Object> userInformationMap=this.objectMapper.readValue(userInfoResponse,Map.class);
+        return userInformationMap;
     }
 }

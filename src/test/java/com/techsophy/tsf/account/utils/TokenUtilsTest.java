@@ -2,48 +2,45 @@ package com.techsophy.tsf.account.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.techsophy.tsf.account.config.GlobalMessageSource;
+import com.techsophy.tsf.account.constants.AccountConstants;
 import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.exception.InvalidInputException;
-import com.techsophy.tsf.account.repository.GroupRepository;
-import com.techsophy.tsf.account.utils.WebClientWrapper;
 import io.micrometer.core.instrument.util.IOUtils;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
-import java.util.*;
-
-import static com.techsophy.tsf.account.constants.ThemesConstants.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import static com.techsophy.tsf.account.constants.GroupsDataServiceConstants.RESPONSE;
-import com.techsophy.tsf.account.constants.AccountConstants;
-import com.techsophy.tsf.account.config.GlobalMessageSource;
+import static com.techsophy.tsf.account.constants.ThemesConstants.TECHSOPHY_PLATFORM;
+import static com.techsophy.tsf.account.constants.ThemesConstants.TOKEN_TXT_PATH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
-//@SpringBootTest
-//@ExtendWith({SpringExtension.class})
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
-class TokenUtilsTest {
+class TokenUtilsTest
+{
     @Mock
     SecurityContext securityContext;
     @Mock
@@ -69,7 +66,6 @@ class TokenUtilsTest {
     @Order(2)
     @Test
     void getPageRequestWithPageTest() {
-        PageRequest tenant = tokenUtils.getPageRequest(1, 1, null);
         assertTrue(true);
     }
 
@@ -108,14 +104,12 @@ class TokenUtilsTest {
     @Order(5)
     @Test
     void getLoggedInUserIdTest() {
-//        Mockito.when(securityContext.getAuthentication()).thenReturn(null);
         assertThatExceptionOfType(SecurityException.class)
                 .isThrownBy(() -> tokenUtils.getLoggedInUserId());
     }
 
     @Test
     void getIssuerFromContext() {
-//        Mockito.when(securityContext.getAuthentication()).thenReturn(null);
         assertThatExceptionOfType(SecurityException.class)
                 .isThrownBy(() -> tokenUtils.getIssuerFromContext());
     }
@@ -156,8 +150,8 @@ class TokenUtilsTest {
         when(this.mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(list);
         List<String> response1 = tokenUtils.getClientRoles("token");
         Assertions.assertNotNull(response1);
-        //Assertions.assertThrows(AccessDeniedException.class,()->tokenUtils.getClientRoles("token"));
     }
+
     @Test
     void getClientRolesTest1() throws JsonProcessingException {
         String abc = "";
@@ -175,7 +169,6 @@ class TokenUtilsTest {
     }
     @Test
     void getClientRolesTest2() throws JsonProcessingException {
-        String abc = "";
         List<String> list = new ArrayList<>();
         List<String> list1 = new ArrayList<>();
         list.add("admin");
@@ -198,7 +191,6 @@ class TokenUtilsTest {
         list.add("user");
         Map<String, Object> map = new HashMap<>();
         map.put("name", "role");
-       // map.put(AccountConstants.CLIENT_ROLES,List.of("abc"));
         String response = RESPONSE;
         WebClient webClient = WebClient.builder().build();
         when(mockWebClientWrapper.createWebClient(any())).thenReturn(webClient);

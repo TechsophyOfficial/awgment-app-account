@@ -15,15 +15,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.CREATED_ON;
 import static com.techsophy.tsf.account.constants.AccountConstants.GET;
-import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.ThemesConstants.CREATED_BY_ID;
 import static com.techsophy.tsf.account.constants.ThemesConstants.DEPARTMENT;
 import static com.techsophy.tsf.account.constants.ThemesConstants.EMAIL_ID;
@@ -35,15 +34,14 @@ import static com.techsophy.tsf.account.constants.ThemesConstants.NUMBER;
 import static com.techsophy.tsf.account.constants.ThemesConstants.UPDATEDBYID;
 import static com.techsophy.tsf.account.constants.ThemesConstants.UPDATEDBYNAME;
 import static com.techsophy.tsf.account.constants.ThemesConstants.USER_NAME;
+import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.UserConstants.ID;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.eq;
 
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@SpringBootTest
-    @ExtendWith(MockitoExtension.class)
+@ExtendWith(MockitoExtension.class)
 class UserDetailsTest
 {
     @Mock
@@ -98,20 +96,9 @@ class UserDetailsTest
     }
 
     @Test
-    void InvalidInputExceptionTest() throws JsonProcessingException
+    void InvalidInputExceptionTest()
     {
-        ObjectMapper objectMapper=new ObjectMapper();
-        ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
-        Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
         Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(null);
-//        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
-//        Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
-//                (
-//                        INITIALIZATION_DATA
-//                );
-//        Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
-//                .thenReturn(response);
-        //Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userList);
         Assertions.assertThrows(InvalidInputException.class, () ->
                 mockUserDetails.getUserDetails());
     }

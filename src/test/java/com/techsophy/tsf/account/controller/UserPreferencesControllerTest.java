@@ -10,28 +10,19 @@ import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -44,23 +35,17 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ThemesConstants.ID;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
-import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.FILE;
-import static com.techsophy.tsf.account.constants.UserPreferencesConstants.TOKEN;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.USER_ID;
+import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
-import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-//@SpringBootTest
-//@RunWith(SpringJUnit4ClassRunner.class)
+
 @WebAppConfiguration
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith(MockitoExtension.class)
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @AutoConfigureMockMvc(addFilters = false)
 class UserPreferencesControllerTest {
     private static final SecurityMockMvcRequestPostProcessors.JwtRequestPostProcessor jwtSaveOrUpdate = jwt().authorities(new SimpleGrantedAuthority(AWGMENT_ACCOUNT_CREATE_OR_UPDATE));
@@ -86,12 +71,6 @@ class UserPreferencesControllerTest {
 
     @BeforeEach
     public void setUp() {
-
-//        mockMvc = MockMvcBuilders
-//                .webAppContextSetup(webApplicationContext)
-//                .addFilters(customFilter)
-//                .apply(springSecurity())
-//                .build();
         mockMvc = MockMvcBuilders.standaloneSetup(mockUserPreferencesControllerImplementation)
                 .setControllerAdvice(new GlobalExceptionHandler(mockGlobalMessageSource))
                 .build();

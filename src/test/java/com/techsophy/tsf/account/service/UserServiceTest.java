@@ -13,26 +13,23 @@ import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.*;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+
 import java.math.BigInteger;
 import java.util.*;
+
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@EnableWebMvc
-@ActiveProfiles("test")
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
  class UserServiceTest {
     @Mock
     GlobalMessageSource globalMessageSource;
@@ -97,7 +94,7 @@ import static org.mockito.Mockito.*;
     @Test
     void getUserById()
     {
-        UserData userSchema = new UserData("1","name","name","last","12","ab","cse");
+//        UserData userSchema = new UserData("1","name","name","last","12","ab","cse");
         UserDefinition userDefinition = new UserDefinition(BigInteger.ONE,"abc","abc","abc","1","abc","abc");
         Mockito.when(accountRepository.findById(BigInteger.valueOf(1))).thenReturn(Optional.of(userDefinition));
         AuditableData response = mockUserServiceImpl.getUserById("1");
