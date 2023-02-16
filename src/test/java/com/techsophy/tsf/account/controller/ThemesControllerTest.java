@@ -62,7 +62,7 @@ class ThemesControllerTest
     @Test
     void getThemesDataByIdTest()
     {
-        Mockito.when(themesService.getThemesDataById(ID)).thenReturn(new ThemesResponseSchema(ID,NAME,CONTENT,CREATED_BY_ID,CREATED_ON, CREATEDBYNAME,UPDATED_BY_ID,UPDATED_ON,UPDATED_BY_NAME));
+        Mockito.when(themesService.getThemesDataById(ID)).thenReturn(new ThemesResponseSchema(ID,NAME,CONTENT,CREATED_BY_ID,CREATED_ON,UPDATED_BY_ID,UPDATED_ON));
         ApiResponse<ThemesResponseSchema> responseEntity=themesControllerImplementation.getThemesDataById(ID);
         assertEquals(true,responseEntity.getSuccess());
         verify(themesService, times(2)).getThemesDataById(ID);

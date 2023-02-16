@@ -15,15 +15,18 @@ import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import lombok.Cleanup;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -31,7 +34,6 @@ import java.util.*;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.USER_ID;
 import static com.techsophy.tsf.account.constants.UserConstants.USER_STRING;
-import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -235,9 +237,6 @@ class UserFormDataServiceTest
         Map<String,Object> map = new HashMap<>();
         map.put("id","userId");
         map.put("userId","userId");
-        UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(null,map,null,1);
-//        when(this.mockObjectMapper.convertValue(userFormDataDefinition,Map.class)).thenReturn(map);
-//        when(this.mockUserFormDataDefinitionRepository.findByFilterColumnAndValue(any(),any(),any())).thenReturn(List.of(userFormDataDefinition));
         when(mockUserServiceImpl.getAllUsersByFilter(any(),any())).thenReturn(List.of(auditableData));
         userFormDataService.getAllUsersByFilter(false,"abc","abc", (Sort) null,"");
         userFormDataService.getAllUsersByFilter(true,"abc","abc", (Sort) null,"q");

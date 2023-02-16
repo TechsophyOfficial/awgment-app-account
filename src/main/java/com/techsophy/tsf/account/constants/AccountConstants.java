@@ -118,7 +118,7 @@ public class AccountConstants
  public static final String ALLOW="allow";
  public static final String DENY="deny";
  public static final String UNDEFINED="undefined";
-
+ public static final String EXCEUTION_IS_FAILED="Execution is failed";
  /*GroupsControllerConstants*/
  public static final String VERSION_V1="/v1";
  public static final String KEYCLOAK_URL ="/keycloak";

@@ -42,6 +42,8 @@ import static org.mockito.Mockito.*;
     @Mock
     WebClientWrapper webClientWrapper;
     @Mock
+    UserPreferencesThemeService userPreferencesThemeService;
+    @Mock
     UserDefinitionRepository accountRepository;
     @InjectMocks
     UserServiceImpl mockUserServiceImpl;
@@ -71,8 +73,7 @@ import static org.mockito.Mockito.*;
         Mockito.when(accountRepository.save(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(Long.parseLong(ThemesConstants.ID))));
         Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(map);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(UserDefinition.class))).thenReturn(userDefinition).thenReturn(userDefinition1);
-        UserDefinition response = mockUserServiceImpl.saveUser(userSchema);
-        Assertions.assertNotNull(response);
+        Assertions.assertNotNull(mockUserServiceImpl.saveUser(userSchema));
     }
 
     @Test

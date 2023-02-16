@@ -175,7 +175,7 @@ class UserPreferencesServiceTest
         when(mockUserPreferencesDefinitionRepository.existsByUserId(BigInteger.valueOf(Long.parseLong(USER_ID)))).thenReturn(true).thenReturn(true).thenReturn(false);
         when(mockUserPreferencesDefinitionRepository.save(userPreferencesDefinition)).thenReturn(userPreferencesDefinition);
         when(mockUserPreferencesDefinitionRepository.findByUserId(BigInteger.valueOf(Long.parseLong(USER_ID)))).thenReturn(Optional.of(userPreferencesDefinition));
-        when(mockIdGeneratorImpl.nextId()).thenReturn(BigInteger.ONE);
+//        when(mockIdGeneratorImpl.nextId()).thenReturn(BigInteger.ONE);
         when(mockObjectMapper.convertValue(any(),eq(UserPreferencesResponse.class))).thenReturn(userPreferencesResponse);
         mockUserPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema);
         UserPreferencesResponse response = mockUserPreferencesThemeServiceImplementation.saveUserPreferencesTheme(userPreferencesSchema1);
