@@ -60,10 +60,8 @@ class UserDefinitionServiceTest
         UserData userSchema = objectMapper.readValue(userData, UserData.class);
         UserDefinition userDefinition = objectMapper.readValue(userData, UserDefinition.class);
         userSchema.setCreatedById("1");
-        userSchema.setCreatedByName("name");
         userSchema.setCreatedOn(Instant.now());
         userSchema.setUpdatedById("1");
-        userSchema.setUpdatedByName("name");
         when(mockObjectMapper.convertValue(any(), eq(UserData.class))).thenReturn(userSchema);
         when(mockUserDefinitionRepository.findById((BigInteger) any())).thenReturn(java.util.Optional.ofNullable(userDefinition));
         AuditableData response = userService.getUserById("12345");

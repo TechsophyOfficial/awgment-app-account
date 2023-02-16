@@ -136,7 +136,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         String response;
         try
         {
-            response = webClientWrapper.webclientRequest(client,keyCloakApi+GET_ALL_CLIENTS_URL,GET,null);
+            response = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext())+GET_ALL_CLIENTS_URL,GET,null);
         }
         catch(Exception e)
         {
@@ -288,7 +288,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         totalRoles.put(DEFAULT_ROLES,rolesSchemas);
         try
         {
-            response = webClientWrapper.webclientRequest(client,keyCloakApi+GET_ALL_CLIENTS_URL,GET,null);
+            response = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext())+GET_ALL_CLIENTS_URL,GET,null);
         }
         catch(Exception e)
         {
@@ -300,7 +300,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         {
             try
             {
-                response = webClientWrapper.webclientRequest(client,keyCloakApi+GET_CLIENT_ROLES_URL+clientName.getValue()+ROLES_URL,GET,null);
+                response = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext())+GET_CLIENT_ROLES_URL+clientName.getValue()+ROLES_URL,GET,null);
             }
             catch(Exception e)
             {

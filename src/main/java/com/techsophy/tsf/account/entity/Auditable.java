@@ -21,6 +21,4 @@ public class Auditable
     private Instant createdOn;
     @LastModifiedDate
     private Instant updatedOn;
-    private String createdByName;
-    private String updatedByName;
 }

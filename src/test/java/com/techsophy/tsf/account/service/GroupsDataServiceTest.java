@@ -111,7 +111,7 @@ class GroupsDataServiceTest
         when(userServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(List.of(map));
         GroupsData groupsData1 = new GroupsData(null, "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880");
         GroupsDataSchema groupsDataSchema = new GroupsDataSchema("123", "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880",
-                roles, "123", Instant.now(), "createdByName", "123", Instant.now(), "updatedByName");
+                roles, "123", Instant.now(), "123", Instant.now());
         GroupsData groupsData = new GroupsData("123", "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880");
         when(mockObjectMapper.convertValue(any(), eq(GroupsDataSchema.class))).thenReturn(groupsDataSchema);
         GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(1), "abc", "abc", "1");
@@ -129,7 +129,7 @@ class GroupsDataServiceTest
     @Test
     void groupsPagination() {
         GroupsDataSchema groupsDataSchema = new GroupsDataSchema("123", "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880",
-                roles, "123", Instant.now(), "createdByName", "123", Instant.now(), "updatedByName");
+                roles, "123", Instant.now(),  "123", Instant.now());
         GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(1), "abc", "abc", "1");
         List<Map<String, Object>> list = new ArrayList<>();
         Page<GroupDefinition> groupDefinitions = new PageImpl<>(List.of(groupDefinition));
@@ -166,7 +166,7 @@ class GroupsDataServiceTest
         map.put(AccountConstants.CLIENT_ROLES,linkedHashMap);
         GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(10), "abc", "abc", "1");
         GroupsDataSchema groupsDataSchema = new GroupsDataSchema("123", "test", "description", "e8d5cea9-1215-45e9-b54a-0f7a2d6e0880",
-                roles, "123", Instant.now(), "createdByName", "123", Instant.now(), "updatedByName");
+                roles, "123", Instant.now(), "123", Instant.now());
         WebClient webClient = WebClient.builder().build();
         when(mockTokenUtils.getTokenFromContext()).thenReturn(String.valueOf(webClient));
         when( webClientWrapper.createWebClient(any())).thenReturn(webClient);

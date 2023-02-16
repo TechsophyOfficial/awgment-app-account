@@ -391,6 +391,7 @@ import static org.mockito.Mockito.*;
 
     @Test
     void assignUserRoleTest() throws JsonProcessingException {
+
         List<Map<String,Object>> list = new ArrayList<>();
         Map<String,Object> map2 = new HashMap<>();
         map2.put("clientId","camunda-identity-service");
@@ -419,7 +420,7 @@ import static org.mockito.Mockito.*;
         Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(map3);
         when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(),anyString(), any())).thenReturn(response).thenReturn(response).thenReturn(null).thenReturn(response);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.assignUserRole(userRolesSchema));
-        verify(mockTokenUtils,times(2)).getTokenFromContext();
+        verify(mockTokenUtils,times(6)).getTokenFromContext();
     }
 
     @Test

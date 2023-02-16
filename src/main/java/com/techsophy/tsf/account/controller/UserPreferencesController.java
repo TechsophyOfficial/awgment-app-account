@@ -20,6 +20,7 @@ public interface UserPreferencesController
     @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesResponse> saveUserPreferencesTheme(@RequestBody @Validated UserPreferencesSchema themesSchema) throws JsonProcessingException;
 
+
     @GetMapping
     @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesSchema>  getUserPreferencesThemesDataByUserId() throws IOException;
