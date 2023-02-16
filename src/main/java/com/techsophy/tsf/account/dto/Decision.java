@@ -9,6 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class Decision
 {
-    String decision;
+    String decisionValue;
     String additionalDetails;
 }

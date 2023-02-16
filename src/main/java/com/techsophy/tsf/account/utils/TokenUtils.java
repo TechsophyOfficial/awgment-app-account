@@ -281,7 +281,6 @@ public class TokenUtils
             logger.info(TOKEN_VERIFICATION_FAILED);
             throw new AccessDeniedException(TOKEN_VERIFICATION_FAILED);
         }
-        Map<String,Object> userInformationMap=this.objectMapper.readValue(userInfoResponse,Map.class);
-        return userInformationMap;
+        return this.objectMapper.readValue(userInfoResponse,Map.class);
     }
 }
