@@ -1,6 +1,5 @@
 package com.techsophy.tsf.account.controller.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.UserFormDataController;
 import com.techsophy.tsf.account.dto.AuditableData;

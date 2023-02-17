@@ -6,7 +6,6 @@ import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.exception.RunTimeException;
-import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
@@ -23,8 +22,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import javax.security.auth.login.AccountNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
