@@ -16,10 +16,10 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 public interface UserFormDataController
 {
     @GetMapping("/loggedIn")
-    ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() throws IOException, AccountNotFoundException;
+    ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() throws JsonProcessingException;
 
     @PostMapping("/loggedIn")
-    ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema) throws IOException, AccountNotFoundException;
+    ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema);
 
     @PostMapping
     @PreAuthorize(CREATE_OR_ALL_ACCESS)

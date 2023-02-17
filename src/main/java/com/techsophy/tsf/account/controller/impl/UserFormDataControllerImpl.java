@@ -1,9 +1,11 @@
 package com.techsophy.tsf.account.controller.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.UserFormDataController;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
@@ -13,9 +15,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RestController;
-
-import javax.security.auth.login.AccountNotFoundException;
-import java.io.IOException;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
@@ -29,12 +28,18 @@ public class UserFormDataControllerImpl implements UserFormDataController
     private final UserDetails userDetails;
 
     @Override
-    public ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() throws IOException, AccountNotFoundException {
-        String userId = (String) userDetails.getUserDetails().get(0).get(ID);
-        return new ApiResponse<>(userFormDataService.getUserFormDataByUserId(userId,false),true,"Logged In User details fetched successfully");
+    public ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() {
+        try {
+            String userId = (String) userDetails.getUserDetails().get(0).get(ID);
+            return new ApiResponse<>(userFormDataService.getUserFormDataByUserId(userId, false), true, "Logged In User details fetched successfully");
+        }
+        catch (Exception e)
+        {
+            throw new RunTimeException(e.getMessage());
+        }
     }
     @Override
-    public ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(UserFormDataSchema userFormDataSchema) throws IOException, AccountNotFoundException {
+    public ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(UserFormDataSchema userFormDataSchema) {
         return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema),true,"updated Successfully");
     }
     @Override

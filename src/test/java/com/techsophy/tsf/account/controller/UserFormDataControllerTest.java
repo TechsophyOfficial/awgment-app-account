@@ -5,6 +5,7 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
@@ -18,8 +19,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -32,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 
 //@SpringBootTest
 @ActiveProfiles(TEST_ACTIVE_PROFILE)
@@ -53,7 +53,7 @@ class UserFormDataControllerTest
     UserFormDataControllerImpl userFormDataController;
 
     @Test
-    void getUserDetailsOfLoggedInUserSuccess() throws IOException, AccountNotFoundException {
+    void getUserDetailsOfLoggedInUserSuccess() throws JsonProcessingException {
         List<Map<String,Object>> list = new ArrayList<>();
         Map<String,Object> map = new HashMap<>();
         map.put("id","123");
@@ -61,20 +61,18 @@ class UserFormDataControllerTest
         Mockito.when(userDetails.getUserDetails()).thenReturn(list);
         userFormDataController.getUserDetailsOfLoggedInUser();
         Mockito.verify(userFormDataService,Mockito.times(1)).getUserFormDataByUserId("123",false);
-
     }
     @Test
-    void getUserDetailsOfLoggedInUserNotFound() throws IOException, AccountNotFoundException {
-        List<Map<String,Object>> list = new ArrayList<>();
-        Map<String,Object> map = new HashMap<>();
-        map.put("id","123");
-        list.add(map);
-        Mockito.when(userDetails.getUserDetails()).thenReturn(list);
-        Mockito.when(userFormDataService.getUserFormDataByUserId(any(),any())).thenThrow(UserFormDataNotFoundException.class);
-        Assertions.assertThrows(UserFormDataNotFoundException.class,()->userFormDataController.getUserDetailsOfLoggedInUser());
+    void getUserDetailsOfLoggedInUserNotFound() throws JsonProcessingException {
+            List<Map<String, Object>> list = new ArrayList<>();
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", "123");
+            list.add(map);
+            Mockito.when(userDetails.getUserDetails()).thenThrow(JsonProcessingException.class);
+            Assertions.assertThrows(RunTimeException.class, () -> userFormDataController.getUserDetailsOfLoggedInUser());
     }
     @Test
-    void updateUserDetailsOfLoggedInUserSuccess() throws IOException, AccountNotFoundException {
+    void updateUserDetailsOfLoggedInUserSuccess()  {
         Map<String,Object> map = new HashMap<>();
         map.put("abc","abc");
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
@@ -82,7 +80,7 @@ class UserFormDataControllerTest
         Mockito.verify(userFormDataService,Mockito.times(1)).saveUserFormData(userFormDataSchema);
     }
     @Test
-    void updateUserDetailsOfLoggedInUserFailureException() throws IOException, AccountNotFoundException {
+    void updateUserDetailsOfLoggedInUserFailureException()  {
         Map<String,Object> map = new HashMap<>();
         map.put("abc","abc");
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
