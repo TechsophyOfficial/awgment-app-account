@@ -5,6 +5,7 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
@@ -63,12 +64,30 @@ class UserFormDataControllerTest
 
     }
     @Test
+    void getUserDetailsOfLoggedInUserNotFound() throws IOException, AccountNotFoundException {
+        List<Map<String,Object>> list = new ArrayList<>();
+        Map<String,Object> map = new HashMap<>();
+        map.put("id","123");
+        list.add(map);
+        Mockito.when(userDetails.getUserDetails()).thenReturn(list);
+        Mockito.when(userFormDataService.getUserFormDataByUserId(any(),any())).thenThrow(UserFormDataNotFoundException.class);
+        Assertions.assertThrows(UserFormDataNotFoundException.class,()->userFormDataController.getUserDetailsOfLoggedInUser());
+    }
+    @Test
     void updateUserDetailsOfLoggedInUserSuccess() throws IOException, AccountNotFoundException {
         Map<String,Object> map = new HashMap<>();
         map.put("abc","abc");
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
         userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
         Mockito.verify(userFormDataService,Mockito.times(1)).saveUserFormData(userFormDataSchema);
+    }
+    @Test
+    void updateUserDetailsOfLoggedInUserFailureException() throws IOException, AccountNotFoundException {
+        Map<String,Object> map = new HashMap<>();
+        map.put("abc","abc");
+        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
+        Mockito.when(userFormDataService.saveUserFormData(any())).thenThrow(RuntimeException.class);
+        Assertions.assertThrows(RuntimeException.class,()->userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema));
     }
     @Test
     void saveUser()
