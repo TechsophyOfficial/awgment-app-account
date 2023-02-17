@@ -120,6 +120,10 @@ public class AccountConstants
  public static final String IMPORT_URL ="/import";
  public static final String NAME="name";
 
+/*LoggedInUserConstants*/
+public static final String LOGGED_IN_USER ="/loggedIn";
+
+
  /*UserFormDataConstants*/
  public static final String USERS_URL ="/users";
  public static final String USER_ID_URL="/{userId}";

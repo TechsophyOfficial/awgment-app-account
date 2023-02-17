@@ -15,6 +15,12 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 @RequestMapping(ACCOUNTS_URL+VERSION_V1+USERS_URL)
 public interface UserFormDataController
 {
+    @GetMapping(LOGGED_IN_USER)
+    ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() throws IOException, AccountNotFoundException;
+
+    @PostMapping(LOGGED_IN_USER)
+    ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema) throws IOException, AccountNotFoundException;
+
     @PostMapping
     @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserFormDataSchema> saveUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema, @RequestHeader HttpHeaders headers) throws JsonProcessingException;
