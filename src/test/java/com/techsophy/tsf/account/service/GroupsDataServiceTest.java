@@ -58,7 +58,6 @@ class GroupsDataServiceTest
     @Test
     void getAllGroups() throws Exception
     {
-//        Long l = 1L;
         GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(1), "abc", "abc", "abc");
         Mockito.when(groupRepository.findGroupsByQSorting("abc", null)).thenReturn(List.of(groupDefinition));
         groupsDataServiceImpl.getAllGroups("abc", null, null);

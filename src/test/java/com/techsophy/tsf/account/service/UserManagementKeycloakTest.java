@@ -46,7 +46,6 @@ import static org.mockito.Mockito.*;
     GlobalMessageSource globalMessageSource;
     @InjectMocks
     UserManagementInKeyCloakImpl userManagementInKeyCloak;
-    private static final String USER_DATA = "testdata/user-data.json";
     String response;
     WebClient webClient;
     HashMap<String, String> hashMap = new HashMap<>();
@@ -65,71 +64,6 @@ import static org.mockito.Mockito.*;
         list1.add(map1);
         ReflectionTestUtils.setField(userManagementInKeyCloak,"requiredClientsCSV","camunda-identity-service,ticketing-system");
     }
-
-//    @Test
-//    void createUserTest() throws Exception
-//    {
-//        String response=RESPONSE;
-//        ObjectMapper mapper = new ObjectMapper();
-//        Map<String, Object> userDataId = new HashMap<String,Object>();
-//        userDataId.put("userName", "Bhavya");
-//        userDataId.put("id","1");
-//        Map<String, Object> userData = new HashMap<String,Object>();
-//        userData.put("userName", "Bhavya");
-//        List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-//        Map<String, Object> map1 = new HashMap<String, Object>();
-//        map1.put("foo", "bar");
-//        map1.put(AccountConstants.REALM_ROLES,List.of("abc"));
-//        list.add(map1);
-//        String json = mapper.writeValueAsString(list);
-//        ObjectMapper objectMap1 = new ObjectMapper();
-//        InputStream stream = new ClassPathResource(USER_DATA).getInputStream();
-//        UserDataSchema userDataSchema = objectMap1.readValue(new String(stream.readAllBytes()), UserDataSchema.class);
-//        UserSchema userSchema = objectMap1.convertValue(userDataSchema.getUserData(), UserSchema.class);
-//        UserDataSchema userDataSchema1 = new UserDataSchema(userDataId, null);
-//        UserDataSchema userDataSchema2 = new UserDataSchema(userData, "1");
-//        UserSchema userSchemaIm = new UserSchema("1","abc","abc","abc","abc","abc","abc");
-//        Mockito.when(mockObjectMapper.convertValue(any(), ArgumentMatchers.eq(UserSchema.class))).thenReturn(userSchemaIm);
-//        WebClient webClient= WebClient.builder().build();
-//        when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-//        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(),anyString(), ArgumentMatchers.eq(null))).thenReturn(json).thenReturn(json);
-//        Map<String, Object> map = new HashMap<String, Object>();
-//        map.put("foo", "bar");
-//        Mockito.when(mockObjectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(map).thenReturn(List.of(new HashMap<String,Object>()));
-//        when(mockTokenUtils.getTokenFromContext()).thenReturn("abc");
-//        Map<String, Object> response1 = userManagementInKeyCloak.createUser(userDataSchema);
-//        userManagementInKeyCloak.createUser(userDataSchema1);
-//        userManagementInKeyCloak.createUser(userDataSchema2);
-//        Assertions.assertNotNull(response1);
-//    }
-
-//    @Test
-//    void assignUserRolesTest() throws Exception
-//    {
-//        ObjectMapper mapper = new ObjectMapper();
-//        InputStream stream = new ClassPathResource(USER_DATA).getInputStream();
-//        String tenantData = new String(stream.readAllBytes());
-//        Map<String, Object> tenantDetails = mapper.readValue(tenantData, Map.class);
-//        UserRolesSchema userRolesSchema = new UserRolesSchema("1",List.of());
-//        RolesSchema rolesSchema = new RolesSchema("1","abc");
-//        List<Map<String, Object>> list = new ArrayList<Map<String, Object>>();
-//        Map<String, Object> map1 = new HashMap<>();
-//        map1.put("foo", "bar");
-//        map1.put(AccountConstants.REALM_ROLES,List.of("abc"));
-//        list.add(map1);
-//        Map<String, Object> map = new HashMap<String, Object>();
-//        map.put("foo", "bar");
-//        String json = mapper.writeValueAsString(list);
-//        WebClient webClient= WebClient.builder().build();
-//        when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-//        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(),anyString(), ArgumentMatchers.eq(null))).thenReturn(json);
-//        Mockito.when(mockObjectMapper.readValue(json,List.class)).thenReturn( list);
-//        Mockito.when(mockObjectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(map).thenReturn(map).thenReturn(List.of(map));
-//        Mockito.when(mockObjectMapper.convertValue(any(), ArgumentMatchers.eq(RolesSchema.class))).thenReturn(rolesSchema);        // when(userManagementInKeyCloak.getUserRoles("token","1")).thenReturn(Collections.singletonList(rolesSchema));
-//        when(mockTokenUtils.getTokenFromContext()).thenReturn("abc");
-//        userManagementInKeyCloak.assignUserRole(userRolesSchema);
-//        verify(mockTokenUtils,times(2)).getTokenFromContext();
-//    }
     @Test
     void createGroupTest() throws Exception
     {
@@ -245,7 +179,6 @@ import static org.mockito.Mockito.*;
         Mockito.when(webClientWrapper.webclientRequestForUser(any(WebClient.class),anyString(), anyString())).thenReturn(response);
         Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(), anyString(),any())).thenReturn(response).thenReturn(null);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(HashMap.class))).thenReturn(hashMap);
-        //when(this.mockObjectMapper.readValue(response, new TypeReference<>() {})).thenReturn(map1);
         Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map1);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.setPassword("abc"));
         userManagementInKeyCloak.setPassword("abc");
@@ -262,24 +195,6 @@ import static org.mockito.Mockito.*;
         Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(list);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.getAllRoles());
        }
-
-//    @Test
-//    void deleteUser() throws Exception
-//    {
-//        String response = RESPONSE;
-//        List<Map<String, Object>> list1 = new ArrayList<>();
-//        Map<String, Object> map1 = new HashMap<>();
-//        map1.put("userName", "nandini");
-//        map1.put(AccountConstants.REALM_ROLES,List.of("abc"));
-//        list1.add(map1);
-//        WebClient webClient= WebClient.builder().build();
-//        when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-//        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(),anyString(), ArgumentMatchers.eq(null))).thenReturn(response).thenReturn(null);
-//        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn("abc");
-//        Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map1);
-//        userManagementInKeyCloak.deleteUser("name");
-//        verify(mockTokenUtils,times(1)).getTokenFromContext();
-//    }
 
     @Test
     void createUserTestTokenEmpty()
@@ -332,51 +247,20 @@ import static org.mockito.Mockito.*;
         String response = RESPONSE;
         when(this.mockObjectMapper.convertValue(any(),eq(HashMap.class))).thenReturn(hashMap);
         when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), any())).thenReturn("abc");
-        //when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), eq(null))).thenReturn(response);
         when(webClientWrapper.webclientRequestForUser(any(WebClient.class), anyString(), anyString())).thenReturn(response);
         when(this.mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.createUser(userDataSchema));
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.createUser(userDataSchema1));
     }
-//    @Test
-//    void createUserTestException() throws Exception
-//    {
-//        Map<String,Object> map1 = new HashMap<>();
-//        map1.put("key","value");
-//        map1.put("abc","value");
-//        UserDataSchema userDataSchema = new UserDataSchema(map1,null);
-//        UserData userData = new UserData(" ","jaga","ab","cd","1234567890","jaga@gmail.com","software");
-//        when(mockObjectMapper.convertValue(any(),eq(UserData.class))).thenReturn(userData);
-//        when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-//        when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), any())).thenReturn("abc");
-//        userManagementInKeyCloak.createUser(userDataSchema);
-//
-//    }
-
-//    @Test
-//    void createUserExceptionTest() throws JsonProcessingException {
-//        UserDataSchema userDataSchema = new UserDataSchema(map1,"userId");
-//        UserData userData = new UserData("id","jaga","ab","cd","1234567890","jaga@gmail.com","software");
-//        when(mockObjectMapper.convertValue(any(),eq(UserData.class))).thenReturn(userData);
-//
-//        Map<String,String> map = new HashMap<>();
-//        map.put("key","value");
-//        map.put("abc","value");
-//        String response = "abc";
-//        when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(), anyString(), any())).thenReturn(response);
-//        when( this.mockObjectMapper.readValue(response, new TypeReference<>() {})).thenReturn(map);
-//        userManagementInKeyCloak.createUser(userDataSchema);
-//    }
 
     @Test
-    void deleteUserTest() throws JsonProcessingException {
+    void deleteUserTest() throws JsonProcessingException
+    {
         HashMap<String,String> hashMap = new HashMap<>();
         hashMap.put("id","value");
         hashMap.put("username","value");
-
         Map<String, String> map = new HashMap<>();
         map.put(AccountConstants.REALM_ROLES,"value");
-
         WebClient webClient = WebClient.builder().build();
         when(mockTokenUtils.getTokenFromContext()).thenReturn("token");
         when(webClientWrapper.createWebClient(any())).thenReturn(webClient);

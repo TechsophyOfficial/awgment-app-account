@@ -110,16 +110,16 @@ class UserPreferencesControllerTest {
     }
 
     @Test
-    void deleteProfilePictureTest() throws Exception {
-//        Mockito.when(mockTokenUtils.getIssuerFromToken(TOKEN)).thenReturn(TENANT);
+    void deleteProfilePictureTest() throws Exception
+    {
         RequestBuilder requestBuilderTest = MockMvcRequestBuilders.delete(BASE_URL + VERSION_V1 + USER_PREFERENCES_URL + PROFILE_PICTURE_URL)
                 .with(jwtDelete);
         this.mockMvc.perform(requestBuilderTest).andExpect(status().isOk());
     }
 
     @Test
-    void deleteUserPreferencesThemeDataByUserIdTest() throws Exception {
-//        Mockito.when(mockTokenUtils.getIssuerFromToken(TOKEN)).thenReturn(TENANT);
+    void deleteUserPreferencesThemeDataByUserIdTest() throws Exception
+    {
         RequestBuilder requestBuilderTest = MockMvcRequestBuilders.delete(BASE_URL + VERSION_V1 + USER_PREFERENCES_URL)
                 .with(jwtDelete);
         this.mockMvc.perform(requestBuilderTest).andExpect(status().isOk());

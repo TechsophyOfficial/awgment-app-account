@@ -54,7 +54,6 @@ import static org.mockito.Mockito.when;
     GlobalMessageSource globalMessageSource;
     @Mock
     IdGeneratorImpl idGenerator;
-    private static final String USER_DATA = "testdata/user-data.json";
     List<Map<String,String>> list = new ArrayList<>();
     Map<String,String> map = new HashMap<>();
     @BeforeEach
@@ -97,7 +96,6 @@ import static org.mockito.Mockito.when;
         OtpRequestPayload otpRequestPayload1 = new OtpRequestPayload("mobile","abc","abc","abc","abc","abc","1", map);
         when(environment.getProperty(anyString())).thenReturn(String.valueOf(true));
         OtpDefinition otpDefinition = new OtpDefinition(BigInteger.ONE,"email","abc",null, date);
-//        OtpDefinition otpDefinition1 = new OtpDefinition();
         String json = objectMapper.writeValueAsString(list);
         WebClient webClient= WebClient.builder().build();
         when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
@@ -117,7 +115,6 @@ import static org.mockito.Mockito.when;
     @Test
     void verifyOtpTest()
     {
-        // create 2 dates
         Date date = new Date(2011, 5, 21);
         Date date2 = new Date(2015, 1, 21);
         OtpDefinition otpDefinition = new OtpDefinition(BigInteger.ONE,"abc","abc",null, date);

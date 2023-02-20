@@ -98,8 +98,8 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void getAllMenuTest(){
-//        MenuSchema menuSchema = new MenuSchema(String.valueOf(BigInteger.valueOf(1)),"type","label","url",true,"version");
+    void getAllMenuTest()
+    {
         MenuDefinition menuDefinition = new MenuDefinition(BigInteger.valueOf(10),"type","label","url",true,2);
         when(mockMenuRepository.findAll()).thenReturn(List.of(menuDefinition));
         mockMenuServiceImpl.getAllMenus();

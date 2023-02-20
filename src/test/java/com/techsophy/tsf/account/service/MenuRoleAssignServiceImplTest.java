@@ -44,7 +44,7 @@ import static org.mockito.Mockito.*;
     MenuService mockMenuService;
 
     @InjectMocks
-    MenuRoleAssignServiceImpl mockMenuRoleAssignServiceImpl ;//= new MenuRoleAssignServiceImpl(mockMenuRoleAssignRepository,mockMenuService,mockObjectMapper,mockIdGeneratorImpl,mockGlobalMessageSource,mockUserDetails,mockTokenUtils);
+    MenuRoleAssignServiceImpl mockMenuRoleAssignServiceImpl ;
 
     List<Map<String, Object>> userList = new ArrayList<>();
     List<String> menus = new ArrayList<>();
@@ -102,7 +102,6 @@ import static org.mockito.Mockito.*;
     @Test
     void getAllMenuRoleTest(){
         MenuRoleAssignDefinition menuRoleAssignDefinition = new MenuRoleAssignDefinition(BigInteger.valueOf(10),"role",menus,1);
-        MenuRoleAssignSchema menuRoleAssignSchema = new MenuRoleAssignSchema(String.valueOf(BigInteger.valueOf(1)),"role",menus);
         when(mockMenuRoleAssignRepository.findAll()).thenReturn(List.of(menuRoleAssignDefinition));
         mockMenuRoleAssignServiceImpl.getAllMenuRole();
         verify(mockMenuRoleAssignRepository,times(1)).findAll();
