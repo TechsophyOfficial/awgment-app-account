@@ -4,14 +4,17 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.UserFormDataController;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
+import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RestController;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
@@ -21,7 +24,23 @@ public class UserFormDataControllerImpl implements UserFormDataController
     private final UserFormDataService userFormDataService;
     private final GlobalMessageSource globalMessageSource;
     private final TokenUtils tokenUtils;
+    private final UserDetails userDetails;
 
+    @Override
+    public ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() {
+        try {
+            String userId = (String) userDetails.getUserDetails().get(0).get(ID);
+            return new ApiResponse<>(userFormDataService.getUserFormDataByUserId(userId, false), true, "Logged In User details fetched successfully");
+        }
+        catch (Exception e)
+        {
+            throw new RunTimeException(e.getMessage());
+        }
+    }
+    @Override
+    public ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(UserFormDataSchema userFormDataSchema) {
+        return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema),true,"updated Successfully");
+    }
     @Override
     public ApiResponse<UserFormDataSchema> saveUser(UserFormDataSchema userFormDataSchema,HttpHeaders headers)
     {

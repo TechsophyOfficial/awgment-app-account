@@ -1,12 +1,15 @@
 package com.techsophy.tsf.account.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
+import com.techsophy.tsf.account.utils.UserDetails;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +18,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class})
@@ -29,9 +35,46 @@ class UserFormDataControllerTest
     TokenUtils tokenUtils;
     @Mock
     HttpHeaders httpHeaders;
+    @Mock
+    UserDetails userDetails;
     @InjectMocks
     UserFormDataControllerImpl userFormDataController;
 
+    @Test
+    void getUserDetailsOfLoggedInUserSuccess() throws JsonProcessingException {
+        List<Map<String,Object>> list = new ArrayList<>();
+        Map<String,Object> map = new HashMap<>();
+        map.put("id","123");
+        list.add(map);
+        Mockito.when(userDetails.getUserDetails()).thenReturn(list);
+        userFormDataController.getUserDetailsOfLoggedInUser();
+        Mockito.verify(userFormDataService,Mockito.times(1)).getUserFormDataByUserId("123",false);
+    }
+    @Test
+    void getUserDetailsOfLoggedInUserNotFound() throws JsonProcessingException {
+            List<Map<String, Object>> list = new ArrayList<>();
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", "123");
+            list.add(map);
+            Mockito.when(userDetails.getUserDetails()).thenThrow(JsonProcessingException.class);
+            Assertions.assertThrows(RunTimeException.class, () -> userFormDataController.getUserDetailsOfLoggedInUser());
+    }
+    @Test
+    void updateUserDetailsOfLoggedInUserSuccess()  {
+        Map<String,Object> map = new HashMap<>();
+        map.put("abc","abc");
+        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
+        userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
+        Mockito.verify(userFormDataService,Mockito.times(1)).saveUserFormData(userFormDataSchema);
+    }
+    @Test
+    void updateUserDetailsOfLoggedInUserFailureException()  {
+        Map<String,Object> map = new HashMap<>();
+        map.put("abc","abc");
+        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
+        Mockito.when(userFormDataService.saveUserFormData(any())).thenThrow(RuntimeException.class);
+        Assertions.assertThrows(RuntimeException.class,()->userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema));
+    }
     @Test
     void saveUser()
     {
