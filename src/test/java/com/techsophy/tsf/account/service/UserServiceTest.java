@@ -64,8 +64,7 @@ import static org.mockito.Mockito.*;
         list.add(map);
     }
     @Test
-    void saveUserWithIdTest()
-    {
+    void saveUserWithIdTest() throws JsonProcessingException {
         UserData userSchema = new UserData("1","name","name","last","12","ab","cse");
         UserDefinition userDefinition = new UserDefinition(BigInteger.ONE,"abc","abc","abc","1","abc","abc");
         UserDefinition userDefinition1 = new UserDefinition(BigInteger.ONE,"abc","abc","abc","1","abc","abc");
@@ -77,7 +76,7 @@ import static org.mockito.Mockito.*;
         Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(map);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(UserDefinition.class))).thenReturn(userDefinition).thenReturn(userDefinition1);
         UserDefinition response = mockUserServiceImpl.saveUser(userSchema);
-        Assertions.assertNotNull(response);
+        verify(userPreferencesThemeServiceImplementation,times(0)).saveUserWithTheme(any());
     }
 
     @Test
