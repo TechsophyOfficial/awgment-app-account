@@ -38,7 +38,7 @@ public class TokenUtils
     GlobalMessageSource globalMessageSource;
     @Value(KEYCLOAK_ISSUER_URI)
     private final String keyCloakApi;
-
+    private final TokenUtils tokenUtility;
     @Value(DEFAULT_PAGE_LIMIT)
     private Integer defaultPageLimit;
 
@@ -275,7 +275,7 @@ public class TokenUtils
     public Map<String, Object> getUserInformationMap(String token) throws AccessDeniedException, JsonProcessingException
     {
         var client = webClientWrapper.createWebClient(token);
-        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+USER_INFO_URL,GET,null);
+        String userInfoResponse = webClientWrapper.webclientRequest(client,keyCloakApi+ tokenUtility.getIssuerFromToken(token)+USER_INFO_URL,GET,null);
         if(userInfoResponse.isEmpty())
         {
             logger.info(TOKEN_VERIFICATION_FAILED);

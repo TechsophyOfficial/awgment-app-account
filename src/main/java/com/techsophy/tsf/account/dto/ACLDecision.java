@@ -3,12 +3,13 @@ package com.techsophy.tsf.account.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.Map;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Decision
+public class ACLDecision
 {
-    String decisionValue;
-    String additionalDetails;
+    String decision;
+    Map<String,String> additionalDetails;
 }

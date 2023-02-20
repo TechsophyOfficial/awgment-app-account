@@ -6,7 +6,7 @@ import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
-import com.techsophy.tsf.account.dto.Decision;
+import com.techsophy.tsf.account.dto.ACLDecision;
 import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
@@ -18,6 +18,7 @@ import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -56,16 +57,28 @@ public class ACLServiceImpl implements ACLService
         BigInteger loggedInUserId = BigInteger.valueOf(Long.parseLong(loggedInUserDetails.get(ID).toString()));
         ACLDefinition aclDefinition=this.objectMapper.convertValue(aclSchema,ACLDefinition.class);
         aclDefinition.setUpdatedById(loggedInUserId);
-        aclDefinition.setUpdatedOn(Instant.now());
         if(aclSchema.getId()!=null)
         {
-            return aclRepository.updateACLDefinition(aclSchema,loggedInUserId);
+            try {
+                return aclRepository.updateACLDefinition(aclSchema,loggedInUserId);
+            }
+            catch (Exception e)
+            {
+                throw new DuplicateKeyException("Duplicate names are not allowed for ACL");
+            }
         }
         BigInteger id=idGenerator.nextId();
         aclDefinition.setId(id);
         aclDefinition.setCreatedById(loggedInUserId);
         aclDefinition.setCreatedOn(Instant.now());
-        aclRepository.save(aclDefinition);
+        try
+        {
+            aclRepository.save(aclDefinition);
+        }
+        catch (DuplicateKeyException e)
+        {
+            throw new DuplicateKeyException("Duplicate names are not allowed for ACL");
+        }
         aclSchema.setId(String.valueOf(id));
         return aclSchema;
     }
@@ -99,26 +112,15 @@ public class ACLServiceImpl implements ACLService
                 .orElseThrow(()->new EntityNotFoundByIdException(ACL_NOT_FOUND_WITH_GIVEN_ID,globalMessageSource.get(ACL_NOT_FOUND_WITH_GIVEN_ID,id)));
         ACLValidate aclValidate=new ACLValidate();
         aclValidate.setName(aclDefinition.getName());
-        List<Decision> readDecisionList=aclDefinition.getRead().stream().map(x->x.evaluateDecision(userDetailsFromKeycloak,null)).collect(Collectors.toList());
-        if(readDecisionList.stream().anyMatch(Objects::nonNull))
-        {
-            aclValidate.setRead(getDecisionList(readDecisionList));
-        }
-        List<Decision> updateDecisionList=aclDefinition.getUpdate().stream().map(x->x.evaluateDecision(userDetailsFromKeycloak,null)).collect(Collectors.toList());
-        if(updateDecisionList.stream().anyMatch(Objects::nonNull))
-        {
-            aclValidate.setUpdate(getDecisionList(updateDecisionList));
-        }
-        List<Decision> deleteDecisionList=aclDefinition.getDelete().stream().map(x->x.evaluateDecision(userDetailsFromKeycloak,null)).collect(Collectors.toList());
-        if(deleteDecisionList.stream().anyMatch(Objects::nonNull))
-        {
-            aclValidate.setDelete(getDecisionList(deleteDecisionList));
-        }
+        aclValidate.setRead(aclDefinition.getRead().stream()
+                .map(x->x.evaluateDecision(userDetailsFromKeycloak,null))
+                        .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
+        aclValidate.setUpdate(aclDefinition.getUpdate().stream()
+                .map(x->x.evaluateDecision(userDetailsFromKeycloak,null))
+                .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
+       aclValidate.setDelete(aclDefinition.getDelete().stream()
+               .map(x->x.evaluateDecision(userDetailsFromKeycloak,null))
+               .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
         return  aclValidate;
-    }
-
-    private static Decision getDecisionList(List<Decision> decisionsList)
-    {
-        return decisionsList.stream().filter(Objects::nonNull).findFirst().orElse(new Decision(UNDEFINED,null));
     }
 }

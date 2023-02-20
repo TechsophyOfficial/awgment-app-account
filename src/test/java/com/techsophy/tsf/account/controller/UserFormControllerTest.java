@@ -23,7 +23,6 @@ import static com.techsophy.tsf.account.constants.UserFormDataConstants.userID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
-@EnableWebMvc
 @ExtendWith(MockitoExtension.class)
 class UserFormControllerTest
 {

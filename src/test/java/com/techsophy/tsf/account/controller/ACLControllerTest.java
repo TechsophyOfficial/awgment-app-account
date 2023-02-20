@@ -15,15 +15,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.test.context.ActiveProfiles;
-import java.nio.file.AccessDeniedException;
-import static com.techsophy.tsf.account.constants.AccountConstants.ID_VALUE;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
+import java.nio.file.AccessDeniedException;
+
+import static com.techsophy.tsf.account.constants.AccountConstants.ID_VALUE;
+
 @ExtendWith({MockitoExtension.class})
-@AutoConfigureMockMvc(addFilters = false)
 class ACLControllerTest
 {
     @Mock

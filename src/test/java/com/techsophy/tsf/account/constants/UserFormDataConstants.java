@@ -10,7 +10,5 @@ public class UserFormDataConstants
 {
     public final static @NotNull(message = "Id should not be null") String ID = String.valueOf(BigInteger.valueOf(1));
     public final static @NotNull(message = "Id should not be null") String userID = String.valueOf(BigInteger.valueOf(1));
-    public final static String NAME = "FormTest";
-    public final static String FORM_VERSION="v1";
     public final static String ANYSTRING="abc";
 }

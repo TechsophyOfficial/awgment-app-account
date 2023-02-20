@@ -39,6 +39,6 @@ public class ChangeToSmallLetters {
 
     @RollbackExecution
     public void rollback() {
-        log.info(EXCEUTION_IS_FAILED);
+        log.info(EXECUTION_IS_FAILED);
     }
 }

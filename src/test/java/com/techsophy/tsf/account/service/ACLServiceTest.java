@@ -7,6 +7,7 @@ import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.ACLEntry;
 import com.techsophy.tsf.account.dto.ACLSchema;
+import com.techsophy.tsf.account.dto.ACLValidate;
 import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
@@ -204,7 +205,10 @@ class ACLServiceTest
         aclDefinition.setDelete(aclEntryList);
         Mockito.when(aclRepository.findById(any())).thenReturn(Optional.of(aclDefinition));
         Mockito.when(mockTokenUtils.getUserInformationMap(anyString())).thenReturn(userData);
-        Assertions.assertNotNull(aclService.checkACLAccess(ID_VALUE));
+        ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE);
+        org.junit.jupiter.api.Assertions.assertEquals(ALLOW,aclValidate.getRead().getDecision());
+        org.junit.jupiter.api.Assertions.assertEquals(ALLOW,aclValidate.getUpdate().getDecision());
+        org.junit.jupiter.api.Assertions.assertEquals(ALLOW,aclValidate.getDelete().getDecision());
     }
 
     @Test

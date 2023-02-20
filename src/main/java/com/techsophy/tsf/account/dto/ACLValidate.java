@@ -6,7 +6,7 @@ import lombok.Data;
 public class ACLValidate
 {
     String name;
-    Decision read;
-    Decision update;
-    Decision delete;
+    ACLDecision read;
+    ACLDecision update;
+    ACLDecision delete;
 }

@@ -10,7 +10,6 @@ import com.techsophy.tsf.account.dto.ThemesSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.ThemesService;
 import com.techsophy.tsf.account.utils.TokenUtils;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +21,9 @@ import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
+
 import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.UserConstants.ID;
 import static com.techsophy.tsf.account.constants.UserConstants.NAME;
@@ -71,14 +72,16 @@ class ThemesControllerTest
     @Test
     void getAllThemesListTest()
     {
-        Assertions.assertNotNull(themesControllerImplementation.getAllThemesData("abc","theme1", null,null,new String[0]));
+        ApiResponse<ThemesResponseSchema> responseEntity=themesControllerImplementation.getAllThemesData("abc","theme1", null,null,new String[0]);
+        assertEquals(true,responseEntity.getSuccess());
     }
 
 
     @Test
     void getAllThemesPaginationTest()
     {
-        Assertions.assertNotNull(themesControllerImplementation.getAllThemesData("abc","theme1", 0,5,new String[0]));
+        ApiResponse<ThemesResponse> responseEntity=themesControllerImplementation.getAllThemesData("abc","theme1", 0,5,new String[0]);
+        assertEquals(true,responseEntity.getSuccess());
     }
 
     @Test

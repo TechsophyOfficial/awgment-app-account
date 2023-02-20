@@ -65,16 +65,10 @@ public class AccountConstants
  public static final String READ_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+ AWGMENT_ACCOUNT_READ +HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
  public static final String DELETE_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_DELETE+HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
  public static final String AWGMENT_ACL_CREATE_OR_UPDATE="awgment-acl-create-or-update";
- public static final String AWGMENT_ACL_READ="awgment-acl-read";
- public static final String CREATE_ACL_ACCESS=HAS_ANY_AUTHORITY+AWGMENT_ACL_CREATE_OR_UPDATE+HAS_ANY_AUTHORITY_ENDING;
- public static final String READ_ACL_ACCESS=HAS_ANY_AUTHORITY+AWGMENT_ACL_READ+HAS_ANY_AUTHORITY_ENDING;
  public static final String TP_ACL="tp_acl";
- public static final String SAVE_ACL="Save Access Control";
  public static final String GET_ALL_ACLS="Get All Access Controls";
- public static final String REQUIRES_ROLE="Requires role ";
  public static final String GET_ACL_BY_ID="Get Access Control By Id";
  public static final String CHECKS_ACL= "Check Access Control ";
- public static final String DOES_NOT_REQUIRES_ROLE="Does not require any role";
 
  /*TenantAuthenticationManagerConstants*/
  public static final String KEYCLOAK_ISSUER_URI = "${keycloak.issuer-uri}";
@@ -103,17 +97,13 @@ public class AccountConstants
  public static final String PASSWORD_SET_SUCCESSFULLY="PASSWORD.SET.SUCCESS";
 
 //ACL Constants
- public static final String ACL="/acl";
- public static final String CREATE_URL="/create";
- public static final String ID_URL="/{id}";
- public static final String CHECK_ACCESS_URL="/{id}/evaluate";
  public static final String ACL_SAVED_SUCCESSFULLY="ACL.SAVED.SUCCESS";
  public static final String ACL_RETRIEVE_SUCCESS="ACL.RETRIEVE.SUCCESS";
  public static final String ACL_EVALUATION_SUCCESS="ACL.EVALUATE.SUCCESS";
  public static final String ALLOW="allow";
  public static final String DENY="deny";
  public static final String UNDEFINED="undefined";
- public static final String EXCEUTION_IS_FAILED="Execution is failed";
+ public static final String EXECUTION_IS_FAILED ="Execution is failed";
 
  /*GroupsControllerConstants*/
  public static final String VERSION_V1="/v1";
