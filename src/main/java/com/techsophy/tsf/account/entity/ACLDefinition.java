@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.math.BigInteger;
 import java.util.List;
+import java.util.Map;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.TP_ACL;
 
@@ -27,4 +28,5 @@ public class ACLDefinition extends Auditable
     private List<ACLEntry> read;
     private List<ACLEntry> update;
     private List<ACLEntry> delete;
+    private Map<String,String> context;
 }

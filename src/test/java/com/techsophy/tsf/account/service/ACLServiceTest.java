@@ -134,8 +134,8 @@ class ACLServiceTest
         paginationResponsePayload.setTotalPages(10);
         paginationResponsePayload.setNumberOfElements(100);
         Mockito.when(aclRepository.findAll(pageable)).thenReturn(new PageImpl<>(aclDefinitionList,pageable,100));
-        Mockito.when(mockTokenUtils.getPaginationResponsePayload(any(),any())).thenReturn(paginationResponsePayload);
-        Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(new HashMap());
+//        Mockito.when(mockTokenUtils.getPaginationResponsePayload(any(),any())).thenReturn(paginationResponsePayload);
+//        Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(new HashMap());
         Assertions.assertNotNull(aclService.getAllACLs(PageRequest.of(1,5)));
     }
 

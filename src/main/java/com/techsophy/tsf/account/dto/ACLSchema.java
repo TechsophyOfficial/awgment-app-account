@@ -4,6 +4,8 @@ import lombok.Data;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.util.List;
+import java.util.Map;
+
 import static com.techsophy.tsf.account.constants.ErrorConstants.ACL_NAME_CANNOT_BE_BLANK;
 
 @Data
@@ -18,4 +20,5 @@ public class ACLSchema
     List<ACLEntry> update;
     @NotNull(message="delete cannot be null")
     List<ACLEntry> delete;
+    Map<String,String> context;
 }

@@ -27,6 +27,7 @@ public class ACLRepoCustomImpl implements ACLRepoCustom
                 .set("read",aclSchema.getRead())
                 .set("update",aclSchema.getUpdate())
                 .set("delete",aclSchema.getDelete())
+                .set("context",aclSchema.getContext())
                 .set(UPDATED_BY_ID,loggedInUserId)
                 .set(UPDATED_ON, Instant.now());
         mongoTemplate.updateFirst(query,update,ACLDefinition.class,TP_ACL);

@@ -5,11 +5,12 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.ACLController;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
-import com.techsophy.tsf.account.dto.PaginationResponsePayload;
+import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.ACLService;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.RestController;
 import java.nio.file.AccessDeniedException;
@@ -29,7 +30,7 @@ public class ACLControllerImpl implements ACLController
     }
 
     @Override
-    public ApiResponse<PaginationResponsePayload> getAllACLs(Integer page, Integer pageSize)
+    public ApiResponse<Page<ACLDefinition>> getAllACLs(Integer page, Integer pageSize)
     {
         return new ApiResponse<>(aclService.getAllACLs(PageRequest.of(page,pageSize)),true,globalMessageSource.get(ACL_RETRIEVE_SUCCESS));
     }

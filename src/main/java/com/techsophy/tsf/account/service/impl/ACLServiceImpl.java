@@ -7,7 +7,6 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
 import com.techsophy.tsf.account.dto.ACLDecision;
-import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
@@ -25,10 +24,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.nio.file.AccessDeniedException;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.ACL_NOT_FOUND_WITH_GIVEN_ID;
 import static com.techsophy.tsf.account.constants.ErrorConstants.LOGGED_IN_USER_ID_NOT_FOUND;
@@ -84,16 +82,9 @@ public class ACLServiceImpl implements ACLService
     }
 
     @Override
-    public PaginationResponsePayload getAllACLs(Pageable pageable)
+    public Page<ACLDefinition> getAllACLs(Pageable pageable)
     {
-        Page<ACLDefinition> aclDefinitionPage= aclRepository.findAll(pageable);
-        List<Map<String,Object>> aclList=aclDefinitionPage.stream().map(this::convertTaskEntityToMap).collect(Collectors.toList());
-        return tokenUtils.getPaginationResponsePayload(aclDefinitionPage,aclList);
-    }
-
-    public Map<String, Object> convertTaskEntityToMap(ACLDefinition aclDefinition)
-    {
-        return this.objectMapper.convertValue(aclDefinition, Map.class);
+     return aclRepository.findAll(pageable);
     }
 
     @Override
@@ -113,13 +104,13 @@ public class ACLServiceImpl implements ACLService
         ACLValidate aclValidate=new ACLValidate();
         aclValidate.setName(aclDefinition.getName());
         aclValidate.setRead(aclDefinition.getRead().stream()
-                .map(x->x.evaluateDecision(userDetailsFromKeycloak,null))
+                .map(x->x.evaluateDecision(userDetailsFromKeycloak,aclDefinition.getContext()))
                         .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
         aclValidate.setUpdate(aclDefinition.getUpdate().stream()
-                .map(x->x.evaluateDecision(userDetailsFromKeycloak,null))
+                .map(x->x.evaluateDecision(userDetailsFromKeycloak,aclDefinition.getContext()))
                 .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
        aclValidate.setDelete(aclDefinition.getDelete().stream()
-               .map(x->x.evaluateDecision(userDetailsFromKeycloak,null))
+               .map(x->x.evaluateDecision(userDetailsFromKeycloak,aclDefinition.getContext()))
                .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
         return  aclValidate;
     }

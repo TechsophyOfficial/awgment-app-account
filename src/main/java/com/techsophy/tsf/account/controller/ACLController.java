@@ -3,9 +3,10 @@ package com.techsophy.tsf.account.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
-import com.techsophy.tsf.account.dto.PaginationResponsePayload;
+import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.model.ApiResponse;
 import io.swagger.annotations.ApiOperation;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -23,8 +24,8 @@ public interface ACLController
     @GetMapping
     @PreAuthorize("hasAnyAuthority('awgment-acl-read')")
     @ApiOperation(value = GET_ALL_ACLS,notes="Requires role awgment-acl-read")
-    ApiResponse<PaginationResponsePayload> getAllACLs(@RequestParam(defaultValue ="0",value=PAGE) Integer page,
-                                                      @RequestParam(defaultValue ="200",value = SIZE) Integer pageSize);
+    ApiResponse<Page<ACLDefinition>> getAllACLs(@RequestParam(defaultValue ="0",value=PAGE) Integer page,
+                                                @RequestParam(defaultValue ="200",value = SIZE) Integer pageSize);
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyAuthority('awgment-acl-read')")
