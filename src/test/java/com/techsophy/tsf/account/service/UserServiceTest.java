@@ -61,7 +61,7 @@ import static org.mockito.Mockito.*;
         list.add(map);
     }
     @Test
-    void saveUserWithIdTest() throws JsonProcessingException {
+    void saveUserWithIdTest() {
         UserData userSchema = new UserData("1","name","name","last","12","ab","cse");
         UserDefinition userDefinition = new UserDefinition(BigInteger.ONE,"abc","abc","abc","1","abc","abc");
         UserDefinition userDefinition1 = new UserDefinition(BigInteger.ONE,"abc","abc","abc","1","abc","abc");
