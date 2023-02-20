@@ -11,13 +11,10 @@ public class AccountConstants
  public static final String ORDER_2="100";
  public static final String ORDER_3="101";
  public static final String ORDER_4="102";
- public static final String ORDER_5="103";
  public static final String SYSTEM_VERSION_1="1";
  public static final String ADD_ADMIN_USER= "add-admin-user01";
  public static final String CHANGE_ALL_USER_NAMES_TO_LOWER= "change-user-names-to-lowercase";
  public static final String ADD_SYSTEM_USER= "add-system-user02";
- public static final String ADD_FORM_SYSTEM_USER= "add-form_system-user01";
- public static final String ADD_FORMDATA_ADMIN_USER= "add-formdata-admin-user01";
  public static final String TP_FORMDATA_USER_JSON ="TP_FORMDATA_USER.json";
  public static final String TP_FORMDATA_SYSTEM_USER_JSON ="TP_FORMDATA_SYSTEM_USER.json";
  public static final String TP_USER_JSON = "TP_USER.json";
@@ -109,16 +106,15 @@ public class AccountConstants
  public static final String ACL="/acl";
  public static final String CREATE_URL="/create";
  public static final String ID_URL="/{id}";
- public static final String UPDATE_URL="/update";
  public static final String CHECK_ACCESS_URL="/{id}/evaluate";
  public static final String ACL_SAVED_SUCCESSFULLY="ACL.SAVED.SUCCESS";
  public static final String ACL_RETRIEVE_SUCCESS="ACL.RETRIEVE.SUCCESS";
- public static final String ACL_UPDATE_SUCCESS="ACL.UPDATE.SUCCESS";
  public static final String ACL_EVALUATION_SUCCESS="ACL.EVALUATE.SUCCESS";
  public static final String ALLOW="allow";
  public static final String DENY="deny";
  public static final String UNDEFINED="undefined";
  public static final String EXCEUTION_IS_FAILED="Execution is failed";
+
  /*GroupsControllerConstants*/
  public static final String VERSION_V1="/v1";
  public static final String KEYCLOAK_URL ="/keycloak";
@@ -130,9 +126,6 @@ public class AccountConstants
  public static final String SORT_ORDER="sort-order";
  public static final String ID="id";
  public static final String QUERY ="q";
-
- //RoleConstants
- public static final String ROLE="/role";
 
  /*GroupsDataControllerConstants*/
  public static final String GROUP_BY_ID_ROLES_URL ="/groups/{id}/roles";
@@ -322,7 +315,6 @@ public class AccountConstants
  public static final String LOGIN_ID="LOGINID";
  public static final String SERVICE_ACCOUNT="service-account";
  public static final String DEFAULT_THEME_ID="979654592245444123";
- public static final String DEFAULT_THEME="default-theme";
 
  //GroupsCustomRepositoryConstants
  public static final String GROUP_DEFINITION_NAME ="name";
@@ -367,7 +359,7 @@ public class AccountConstants
  public static final String AUTHENTICATION_FAILED="Authentication failed";
  public static final String UNABLE_GET_TOKEN="Unable to get token";
  public static final String PREFERED_USERNAME="preferred_username";
- public static final String SYSTEM_USER_NAME="service-account";
+ public static final String PREFIX ="service-account";
  public static final String CREATED_ON="createdOn";
  public static final String CREATED_BY_ID="createById";
  public static final String CREATED_BY_NAME="createdByName";
@@ -396,7 +388,6 @@ public class AccountConstants
 
  //UserManagementInKeycloakImpl
  public static final String SLASH="/";
- public static final String BRIEF_URL="?briefRepresentation=true&exact=true&username=";
 
  //UserFormDataServiceImplConstants
  public static final String  DOT=".";

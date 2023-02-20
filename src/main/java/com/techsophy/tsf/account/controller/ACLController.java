@@ -23,7 +23,7 @@ public interface ACLController
     @GetMapping
     @PreAuthorize(READ_ACL_ACCESS)
     @ApiOperation(value = GET_ALL_ACLS,notes=REQUIRES_ROLE+AWGMENT_ACL_READ)
-    ApiResponse<PaginationResponsePayload> getAllACLs(@RequestParam(PAGE) Integer page,@RequestParam(SIZE) Integer pageSize);
+    ApiResponse<PaginationResponsePayload> getAllACLs(@RequestParam(defaultValue ="0",value=PAGE) Integer page,@RequestParam(defaultValue ="200",value = SIZE) Integer pageSize);
 
     @GetMapping(ID_URL)
     @PreAuthorize(READ_ACL_ACCESS)

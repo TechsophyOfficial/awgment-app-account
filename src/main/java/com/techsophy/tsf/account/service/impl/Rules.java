@@ -32,7 +32,7 @@ public enum Rules implements IRule
         public boolean match(Object data, Map<String, Object> userDetailsFromKeycloak, Map<?, ?> context)
         {
             String userName= String.valueOf(userDetailsFromKeycloak.get(PREFERED_USERNAME));
-            return userName.startsWith(SYSTEM_USER_NAME);
+            return userName.startsWith(PREFIX);
         }
     },
     ALL {
@@ -50,5 +50,5 @@ public enum Rules implements IRule
             List<String> loggedInRolesList= (List<String>) userDetailsFromKeycloak.get(CLIENT_ROLES);
             return loggedInRolesList.stream().anyMatch(rolesList::contains);
         }
-    };
+    }
 }

@@ -10,7 +10,7 @@ public class ACLEntry
     String decision;
     Rules ruleType ;
     Object data;
-    String additionalDetails;
+    Map<String,String> additionalDetails;
 
     public Decision evaluateDecision(Map<String,Object> userDetailsFromKeycloak,Map<?,?> context)
     {
