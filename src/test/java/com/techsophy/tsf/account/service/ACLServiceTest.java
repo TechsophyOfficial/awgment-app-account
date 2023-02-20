@@ -224,6 +224,9 @@ class ACLServiceTest
         aclDefinition.setDelete(aclEntryList);
         Mockito.when(aclRepository.findById(any())).thenReturn(Optional.of(aclDefinition));
         Mockito.when(mockTokenUtils.getUserInformationMap(anyString())).thenReturn(userData);
-        Assertions.assertNotNull(aclService.checkACLAccess(ID_VALUE));
+        ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE);
+        org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getRead().getDecision());
+        org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getUpdate().getDecision());
+        org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getDelete().getDecision());
     }
 }
