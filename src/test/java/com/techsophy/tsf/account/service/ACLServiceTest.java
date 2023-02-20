@@ -170,7 +170,7 @@ class ACLServiceTest
         List<String> usersList=new ArrayList<>();
         usersList.add(USER_NAME_VALUE);
         aclEntry.setData(usersList);
-        aclEntry.setAdditionalDetails(ADDITIONAL_DETAILS);
+        aclEntry.setAdditionalDetails(new HashMap<>());
         List<ACLEntry> aclEntryList =new ArrayList<>();
         aclEntryList.add(aclEntry);
         ACLEntry aclEntry1=new ACLEntry();
