@@ -7,34 +7,26 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.MenuRoleAssignSchema;
 import com.techsophy.tsf.account.dto.MenuSchema;
 import com.techsophy.tsf.account.entity.MenuRoleAssignDefinition;
-import com.techsophy.tsf.account.exception.NoDataFoundException;
 import com.techsophy.tsf.account.repository.MenuRoleAssignRepository;
 import com.techsophy.tsf.account.service.impl.MenuRoleAssignServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-
 import java.math.BigInteger;
 import java.util.*;
-
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
-import static com.techsophy.tsf.account.constants.UserPreferencesConstants.NULL;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
-
- class MenuRoleAssignServiceImplTest {
+ class MenuRoleAssignServiceImplTest
+{
     @Mock
     MenuRoleAssignRepository mockMenuRoleAssignRepository;
     @Mock
@@ -52,7 +44,7 @@ import static org.mockito.Mockito.*;
     MenuService mockMenuService;
 
     @InjectMocks
-    MenuRoleAssignServiceImpl mockMenuRoleAssignServiceImpl ;//= new MenuRoleAssignServiceImpl(mockMenuRoleAssignRepository,mockMenuService,mockObjectMapper,mockIdGeneratorImpl,mockGlobalMessageSource,mockUserDetails,mockTokenUtils);
+    MenuRoleAssignServiceImpl mockMenuRoleAssignServiceImpl ;
 
     List<Map<String, Object>> userList = new ArrayList<>();
     List<String> menus = new ArrayList<>();
@@ -110,7 +102,6 @@ import static org.mockito.Mockito.*;
     @Test
     void getAllMenuRoleTest(){
         MenuRoleAssignDefinition menuRoleAssignDefinition = new MenuRoleAssignDefinition(BigInteger.valueOf(10),"role",menus,1);
-        MenuRoleAssignSchema menuRoleAssignSchema = new MenuRoleAssignSchema(String.valueOf(BigInteger.valueOf(1)),"role",menus);
         when(mockMenuRoleAssignRepository.findAll()).thenReturn(List.of(menuRoleAssignDefinition));
         mockMenuRoleAssignServiceImpl.getAllMenuRole();
         verify(mockMenuRoleAssignRepository,times(1)).findAll();
@@ -123,7 +114,6 @@ import static org.mockito.Mockito.*;
         mockMenuRoleAssignServiceImpl.deleteMenuRoleById("1");
         verify(mockMenuRoleAssignRepository,times(1)).existsById(BigInteger.valueOf(1));
     }
-
 
     @Test
     void getAssignedMenuToUserRolesTest(){

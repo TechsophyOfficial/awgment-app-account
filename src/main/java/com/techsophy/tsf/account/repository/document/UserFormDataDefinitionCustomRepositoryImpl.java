@@ -33,6 +33,14 @@ public class UserFormDataDefinitionCustomRepositoryImpl implements UserFormDataD
     }
 
     @Override
+    public UserFormDataDefinition findByUserName(String userName)
+    {
+       Query query=new Query();
+       query.addCriteria(Criteria.where(USER_DATA+DOT+USER_NAME_DATA).is(userName));
+       return mongoTemplate.findOne(query,UserFormDataDefinition.class,TP_FORM_DATA_USER_COLLECTION);
+    }
+
+    @Override
     public List<UserFormDataDefinition> findAll(Sort sort)
     {
         Query query = new Query();

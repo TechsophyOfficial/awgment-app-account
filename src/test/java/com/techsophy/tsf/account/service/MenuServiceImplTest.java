@@ -1,42 +1,31 @@
 package com.techsophy.tsf.account.service;
 
-
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
-import com.techsophy.tsf.account.dto.MenuRoleAssignSchema;
 import com.techsophy.tsf.account.dto.MenuSchema;
 import com.techsophy.tsf.account.entity.MenuDefinition;
-import com.techsophy.tsf.account.entity.MenuRoleAssignDefinition;
-import com.techsophy.tsf.account.exception.NoDataFoundException;
 import com.techsophy.tsf.account.repository.MenuRepository;
 import com.techsophy.tsf.account.service.impl.MenuServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-
 import java.math.BigInteger;
 import java.util.*;
-
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
-
- class MenuServiceImplTest {
-
+ class MenuServiceImplTest
+{
     @Mock
     MenuRepository mockMenuRepository;
     @Mock
@@ -109,8 +98,8 @@ import static org.mockito.Mockito.*;
     }
 
     @Test
-    void getAllMenuTest(){
-        MenuSchema menuSchema = new MenuSchema(String.valueOf(BigInteger.valueOf(1)),"type","label","url",true,"version");
+    void getAllMenuTest()
+    {
         MenuDefinition menuDefinition = new MenuDefinition(BigInteger.valueOf(10),"type","label","url",true,2);
         when(mockMenuRepository.findAll()).thenReturn(List.of(menuDefinition));
         mockMenuServiceImpl.getAllMenus();
