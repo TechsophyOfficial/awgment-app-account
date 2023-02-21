@@ -3,6 +3,7 @@ package com.techsophy.tsf.account.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
+import com.techsophy.tsf.account.dto.CheckACLSchema;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.model.ApiResponse;
 import io.swagger.annotations.ApiOperation;
@@ -34,5 +35,5 @@ public interface ACLController
 
     @PostMapping("/{id}/evaluate")
     @ApiOperation(value = CHECKS_ACL,notes="Does not require any role")
-    ApiResponse<ACLValidate>  checkACLAccess(@PathVariable("id") String id) throws JsonProcessingException, AccessDeniedException;
+    ApiResponse<ACLValidate>  checkACLAccess(@PathVariable("id") String id,@RequestBody CheckACLSchema checkACLSchema) throws JsonProcessingException, AccessDeniedException;
 }

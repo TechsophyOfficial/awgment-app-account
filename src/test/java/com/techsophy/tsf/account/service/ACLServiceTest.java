@@ -2,13 +2,10 @@ package com.techsophy.tsf.account.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mongodb.assertions.Assertions;
+import com.mongodb.MongoException;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
-import com.techsophy.tsf.account.dto.ACLEntry;
-import com.techsophy.tsf.account.dto.ACLSchema;
-import com.techsophy.tsf.account.dto.ACLValidate;
-import com.techsophy.tsf.account.dto.PaginationResponsePayload;
+import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.repository.ACLRepository;
@@ -17,6 +14,7 @@ import com.techsophy.tsf.account.service.impl.ACLServiceImpl;
 import com.techsophy.tsf.account.service.impl.Rules;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,14 +23,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-
 import java.math.BigInteger;
 import java.nio.file.AccessDeniedException;
 import java.util.*;
-
 import static com.techsophy.tsf.account.constants.ACLConstants.TEST_TOKEN;
 import static com.techsophy.tsf.account.constants.ACLConstants.*;
 import static com.techsophy.tsf.account.constants.AccountConstants.CREATED_BY_ID;
@@ -50,6 +47,7 @@ import static com.techsophy.tsf.account.constants.UserPreferencesConstants.DEPAR
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.MOBILE_NUMBER;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.NULL;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.NUMBER;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.when;
 
@@ -108,6 +106,32 @@ class ACLServiceTest
     }
 
     @Test
+    void saveACLDuplicateNameTest() throws JsonProcessingException
+    {
+        ACLSchema aclSchema=new ACLSchema();
+        Mockito.when(mockUserDetails.getUserDetails())
+                .thenReturn(userList);
+        when(mockIdGenerator.nextId()).thenReturn(BigInteger.valueOf(Long.parseLong(BIGINTEGER_ID)));
+        ACLDefinition aclDefinition=new ACLDefinition();
+        Mockito.when(mockObjectMapper.convertValue(any(), ArgumentMatchers.eq(ACLDefinition.class))).thenReturn(aclDefinition);
+        Mockito.when(aclRepository.save(any())).thenThrow(new DuplicateKeyException("Duplicate names are not allowed for ACL"));
+        assertThrows(DuplicateKeyException.class,()->aclService.saveACL(aclSchema));
+    }
+
+    @Test
+    void saveACLMongoConnectionFailedTest() throws JsonProcessingException
+    {
+        ACLSchema aclSchema=new ACLSchema();
+        Mockito.when(mockUserDetails.getUserDetails())
+                .thenReturn(userList);
+        when(mockIdGenerator.nextId()).thenReturn(BigInteger.valueOf(Long.parseLong(BIGINTEGER_ID)));
+        ACLDefinition aclDefinition=new ACLDefinition();
+        Mockito.when(mockObjectMapper.convertValue(any(), ArgumentMatchers.eq(ACLDefinition.class))).thenReturn(aclDefinition);
+        Mockito.when(aclRepository.save(any())).thenThrow(new MongoException("Mongo Failed Exception"));
+        assertThrows(MongoException.class,()->aclService.saveACL(aclSchema));
+    }
+
+    @Test
     void updateACLRecordTest() throws JsonProcessingException
     {
         Mockito.when(mockUserDetails.getUserDetails())
@@ -118,6 +142,19 @@ class ACLServiceTest
         Mockito.when(mockObjectMapper.convertValue(any(), ArgumentMatchers.eq(ACLDefinition.class))).thenReturn(aclDefinition);
         Mockito.when(aclRepository.updateACLDefinition(any(),any())).thenReturn(aclSchema);
         Assertions.assertNotNull(aclService.saveACL(aclSchema));
+    }
+
+    @Test
+    void updateACLRecordDuplicateNameTest() throws JsonProcessingException
+    {
+        Mockito.when(mockUserDetails.getUserDetails())
+                .thenReturn(userList);
+        ACLSchema aclSchema=new ACLSchema();
+        aclSchema.setId(ID_VALUE);
+        ACLDefinition aclDefinition=new ACLDefinition();
+        Mockito.when(mockObjectMapper.convertValue(any(), ArgumentMatchers.eq(ACLDefinition.class))).thenReturn(aclDefinition);
+        Mockito.when(aclRepository.updateACLDefinition(any(),any())).thenThrow(new DuplicateKeyException("Duplicate names are not allowed for ACL"));
+        assertThrows(DuplicateKeyException.class,()->aclService.saveACL(aclSchema));
     }
 
     @Test
@@ -134,9 +171,24 @@ class ACLServiceTest
         paginationResponsePayload.setTotalPages(10);
         paginationResponsePayload.setNumberOfElements(100);
         Mockito.when(aclRepository.findAll(pageable)).thenReturn(new PageImpl<>(aclDefinitionList,pageable,100));
-//        Mockito.when(mockTokenUtils.getPaginationResponsePayload(any(),any())).thenReturn(paginationResponsePayload);
-//        Mockito.when(mockObjectMapper.convertValue(any(),eq(Map.class))).thenReturn(new HashMap());
         Assertions.assertNotNull(aclService.getAllACLs(PageRequest.of(1,5)));
+    }
+
+    @Test
+    void getAllACLsDBFailedTest()
+    {
+        List<ACLDefinition> aclDefinitionList=new ArrayList<>();
+        ACLDefinition aclDefinition=new ACLDefinition();
+        aclDefinitionList.add(aclDefinition);
+        Pageable pageable=PageRequest.of(1,5);
+        PaginationResponsePayload paginationResponsePayload=new PaginationResponsePayload();
+        paginationResponsePayload.setContent(new ArrayList<>());
+        paginationResponsePayload.setPage(0);
+        paginationResponsePayload.setSize(5);
+        paginationResponsePayload.setTotalPages(10);
+        paginationResponsePayload.setNumberOfElements(100);
+        Mockito.when(aclRepository.findAll(pageable)).thenThrow(new MongoException("Mongo Failed Exception"));
+        assertThrows(MongoException.class,()->aclService.getAllACLs(pageable));
     }
 
     @Test
@@ -147,6 +199,13 @@ class ACLServiceTest
         Mockito.when(mockObjectMapper.convertValue(aclDefinition,ACLSchema.class)).thenReturn(aclSchema);
         Mockito.when(aclRepository.findById(any())).thenReturn(Optional.of(aclDefinition));
         Assertions.assertNotNull(aclService.getACLById(ID_VALUE));
+    }
+
+    @Test
+    void getAclByIdDBFailedTest()
+    {
+        Mockito.when(aclRepository.findById(any())).thenThrow(new MongoException("Mongo Failed Exception"));
+        assertThrows(MongoException.class,()->aclService.getACLById(ID_VALUE));
     }
 
     @Test
@@ -205,7 +264,8 @@ class ACLServiceTest
         aclDefinition.setDelete(aclEntryList);
         Mockito.when(aclRepository.findById(any())).thenReturn(Optional.of(aclDefinition));
         Mockito.when(mockTokenUtils.getUserInformationMap(anyString())).thenReturn(userData);
-        ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE);
+        CheckACLSchema checkACLSchema=new CheckACLSchema();
+        ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE,checkACLSchema);
         org.junit.jupiter.api.Assertions.assertEquals(ALLOW,aclValidate.getRead().getDecision());
         org.junit.jupiter.api.Assertions.assertEquals(ALLOW,aclValidate.getUpdate().getDecision());
         org.junit.jupiter.api.Assertions.assertEquals(ALLOW,aclValidate.getDelete().getDecision());
@@ -224,7 +284,8 @@ class ACLServiceTest
         aclDefinition.setDelete(aclEntryList);
         Mockito.when(aclRepository.findById(any())).thenReturn(Optional.of(aclDefinition));
         Mockito.when(mockTokenUtils.getUserInformationMap(anyString())).thenReturn(userData);
-        ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE);
+        CheckACLSchema checkACLSchema=new CheckACLSchema();
+        ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE,checkACLSchema);
         org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getRead().getDecision());
         org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getUpdate().getDecision());
         org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getDelete().getDecision());

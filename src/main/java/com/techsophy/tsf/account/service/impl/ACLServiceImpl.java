@@ -4,9 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
+import com.techsophy.tsf.account.dto.ACLDecision;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
-import com.techsophy.tsf.account.dto.ACLDecision;
+import com.techsophy.tsf.account.dto.CheckACLSchema;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
@@ -23,11 +24,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.nio.file.AccessDeniedException;
-import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
-
-import static com.techsophy.tsf.account.constants.AccountConstants.*;
+import static com.techsophy.tsf.account.constants.AccountConstants.ID;
+import static com.techsophy.tsf.account.constants.AccountConstants.UNDEFINED;
 import static com.techsophy.tsf.account.constants.ErrorConstants.ACL_NOT_FOUND_WITH_GIVEN_ID;
 import static com.techsophy.tsf.account.constants.ErrorConstants.LOGGED_IN_USER_ID_NOT_FOUND;
 import static org.apache.commons.lang3.ObjectUtils.isEmpty;
@@ -54,7 +54,6 @@ public class ACLServiceImpl implements ACLService
         }
         BigInteger loggedInUserId = BigInteger.valueOf(Long.parseLong(loggedInUserDetails.get(ID).toString()));
         ACLDefinition aclDefinition=this.objectMapper.convertValue(aclSchema,ACLDefinition.class);
-        aclDefinition.setUpdatedById(loggedInUserId);
         if(aclSchema.getId()!=null)
         {
             try {
@@ -67,8 +66,6 @@ public class ACLServiceImpl implements ACLService
         }
         BigInteger id=idGenerator.nextId();
         aclDefinition.setId(id);
-        aclDefinition.setCreatedById(loggedInUserId);
-        aclDefinition.setCreatedOn(Instant.now());
         try
         {
             aclRepository.save(aclDefinition);
@@ -96,7 +93,7 @@ public class ACLServiceImpl implements ACLService
     }
 
     @Override
-    public ACLValidate checkACLAccess(String id) throws JsonProcessingException, AccessDeniedException
+    public ACLValidate checkACLAccess(String id, CheckACLSchema checkACLSchema) throws JsonProcessingException, AccessDeniedException
     {
         Map<String,Object> userDetailsFromKeycloak= tokenUtils.getUserInformationMap(tokenUtils.getTokenFromContext());
         ACLDefinition aclDefinition=aclRepository.findById(BigInteger.valueOf(Long.parseLong(id)))
@@ -104,13 +101,13 @@ public class ACLServiceImpl implements ACLService
         ACLValidate aclValidate=new ACLValidate();
         aclValidate.setName(aclDefinition.getName());
         aclValidate.setRead(aclDefinition.getRead().stream()
-                .map(x->x.evaluateDecision(userDetailsFromKeycloak,aclDefinition.getContext()))
+                .map(x->x.evaluateDecision(userDetailsFromKeycloak,checkACLSchema.getContext()))
                         .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
         aclValidate.setUpdate(aclDefinition.getUpdate().stream()
-                .map(x->x.evaluateDecision(userDetailsFromKeycloak,aclDefinition.getContext()))
+                .map(x->x.evaluateDecision(userDetailsFromKeycloak,checkACLSchema.getContext()))
                 .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
        aclValidate.setDelete(aclDefinition.getDelete().stream()
-               .map(x->x.evaluateDecision(userDetailsFromKeycloak,aclDefinition.getContext()))
+               .map(x->x.evaluateDecision(userDetailsFromKeycloak,checkACLSchema.getContext()))
                .filter(Objects::nonNull).findFirst().orElse(new ACLDecision(UNDEFINED,null)));
         return  aclValidate;
     }

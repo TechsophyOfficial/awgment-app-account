@@ -4,10 +4,10 @@ public class UserDetailsIdNotFoundException extends RuntimeException
 {
     final String errorcode;
     final String message;
-    public UserDetailsIdNotFoundException(String errorCode, String message)
+    public UserDetailsIdNotFoundException(String errorcode, String message)
     {
         super(message);
-        this.errorcode= errorCode;
+        this.errorcode= errorcode;
         this.message=message;
     }
 }

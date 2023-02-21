@@ -7,6 +7,8 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.constants.AccountConstants;
 import com.techsophy.tsf.account.constants.UserPreferencesConstants;
 import com.techsophy.tsf.account.dto.ACLSchema;
+import com.techsophy.tsf.account.dto.CheckACLSchema;
+import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.repository.ACLRepository;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
@@ -27,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.techsophy.tsf.account.constants.ACLConstants.TEST_TOKEN;
 import static com.techsophy.tsf.account.constants.AccountConstants.CREATED_ON;
 import static com.techsophy.tsf.account.constants.AccountConstants.EMAIL_ID;
 import static com.techsophy.tsf.account.constants.AccountConstants.LAST_NAME;
@@ -93,4 +96,17 @@ class ACLServiceExceptionTest
         Assertions.assertThrows(UserDetailsIdNotFoundException.class,()->aclService.saveACL(aclSchema));
     }
 
+    @Test
+    void getACLByIdEntityNotFoundExceptionTest()
+    {
+        Assertions.assertThrows(EntityNotFoundByIdException.class,()->aclService.getACLById(ID_VALUE));
+    }
+
+    @Test
+    void checkACLAccessEntityNotFoundExceptionTest()
+    {
+        CheckACLSchema checkACLSchema=new CheckACLSchema();
+        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
+        Assertions.assertThrows(EntityNotFoundByIdException.class,()->aclService.checkACLAccess(ID_VALUE,checkACLSchema));
+    }
 }

@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.With;
-import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.*;
 import java.math.BigInteger;
 import java.time.Instant;
 
@@ -14,9 +14,14 @@ import java.time.Instant;
 @AllArgsConstructor
 public class Auditable
 {
+    @CreatedBy
     private BigInteger createdById;
+    @LastModifiedBy
     private BigInteger updatedById;
+    @CreatedDate
     private Instant createdOn;
     @LastModifiedDate
     private Instant updatedOn;
+    @Version
+    private Integer auditVersion;
 }

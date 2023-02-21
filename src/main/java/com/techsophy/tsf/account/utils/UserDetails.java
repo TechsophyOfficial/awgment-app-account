@@ -8,15 +8,21 @@ import com.techsophy.tsf.account.exception.InvalidInputException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.exception.UserNameValidationException;
 import lombok.AllArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
+import org.springframework.data.domain.AuditorAware;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
@@ -24,7 +30,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 @Slf4j
 @Service
 @AllArgsConstructor(onConstructor_ = {@Autowired})
-public class UserDetails
+public class UserDetails  implements AuditorAware<BigInteger>
 {
     private final GlobalMessageSource globalMessageSource;
     private final TokenUtils tokenUtils;
@@ -76,6 +82,13 @@ public class UserDetails
             return userDetailsResponse;
         }
         throw new UserDetailsIdNotFoundException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,loggedInUserId));
+    }
+
+    @SneakyThrows
+    @Override
+    public Optional<BigInteger> getCurrentAuditor()
+    {
+        return Optional.ofNullable(BigInteger.valueOf(Long.parseLong(String.valueOf(getUserDetails().get(0).get(ID)))));
     }
 }
 

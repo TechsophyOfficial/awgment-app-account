@@ -203,13 +203,15 @@ class GlobalExceptionHandlerTest
   void handleUserNameExceptionTest()
   {
     UserNameValidationException userNameValidationException=new UserNameValidationException("errorCode","userName should not start with service-account");
-   Assertions.assertNotNull(globalExceptionHandler.handleUserName(userNameValidationException,webRequest));
+    ResponseEntity<ApiErrorResponse> x= globalExceptionHandler.handleUserName(userNameValidationException,webRequest);
+    Assertions.assertEquals(400,x.getStatusCodeValue());
   }
 
   @Test
   void handleEntityIdNotFoundExceptionTest()
   {
     EntityIdNotFoundException entityIdNotFoundException=new EntityIdNotFoundException("errorCode","userName should not start with service-account");
-    Assertions.assertNotNull(globalExceptionHandler.handleEntityException(entityIdNotFoundException,webRequest));
+    ResponseEntity<ApiErrorResponse> x=globalExceptionHandler.handleEntityException(entityIdNotFoundException,webRequest);
+    Assertions.assertEquals(500,x.getStatusCodeValue());
   }
 }

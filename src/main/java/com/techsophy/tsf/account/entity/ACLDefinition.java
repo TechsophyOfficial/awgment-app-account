@@ -5,11 +5,8 @@ import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-
 import java.math.BigInteger;
 import java.util.List;
-import java.util.Map;
-
 import static com.techsophy.tsf.account.constants.AccountConstants.TP_ACL;
 
 @EqualsAndHashCode(callSuper = true)
@@ -28,5 +25,4 @@ public class ACLDefinition extends Auditable
     private List<ACLEntry> read;
     private List<ACLEntry> update;
     private List<ACLEntry> delete;
-    private Map<String,String> context;
 }

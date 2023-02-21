@@ -5,6 +5,7 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.ACLController;
 import com.techsophy.tsf.account.dto.ACLSchema;
 import com.techsophy.tsf.account.dto.ACLValidate;
+import com.techsophy.tsf.account.dto.CheckACLSchema;
 import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.ACLService;
@@ -42,8 +43,8 @@ public class ACLControllerImpl implements ACLController
     }
 
     @Override
-    public ApiResponse<ACLValidate> checkACLAccess(String id) throws JsonProcessingException, AccessDeniedException
+    public ApiResponse<ACLValidate> checkACLAccess(String id, CheckACLSchema checkACLSchema) throws JsonProcessingException, AccessDeniedException
     {
-        return new ApiResponse<>(aclService.checkACLAccess(id),true,globalMessageSource.get(ACL_EVALUATION_SUCCESS));
+        return new ApiResponse<>(aclService.checkACLAccess(id,checkACLSchema),true,globalMessageSource.get(ACL_EVALUATION_SUCCESS));
     }
 }
