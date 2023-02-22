@@ -30,6 +30,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
                 HttpStatus.INTERNAL_SERVER_ERROR, request.getDescription(false));
         return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+    @ExceptionHandler(RunTimeException.class)
+    public ResponseEntity<ApiErrorResponse> runTimeException(RunTimeException ex, WebRequest request)
+    {
+        ApiErrorResponse errorDetails = new ApiErrorResponse(Instant.now(), getMessage(ex.getMessage(), null, request.getLocale()),ex.getMessage(),
+                HttpStatus.INTERNAL_SERVER_ERROR, request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
     @ExceptionHandler(CreateTenantException.class)
     public ResponseEntity<ApiErrorResponse> handleCreateTenantException(CreateTenantException ex, WebRequest request)

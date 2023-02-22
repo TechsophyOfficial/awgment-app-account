@@ -86,6 +86,7 @@ public class AccountConstants
 
  /*UserManagementInKeycloakControllerImplConstants*/
  public static final String USER_NAME="username";
+ public static final String DESCRIPTION="description";
  public static final String USER_NAME_DATA="userName";
  public static final String OLD_USER_NAME="oldUserName";
 
@@ -284,6 +285,7 @@ public class AccountConstants
  public static final String DEFAULT_ROLES="defaultRoles";
  public static final String GET_ALL_CLIENTS_URL="/clients";
  public static final String CLIENT_ID="clientId";
+ public static final String CLIENT_NAME="clientName";
  public static final String GET_CLIENT_ROLES_URL="/clients/";
  public static final String USERCREDENTIALS="User Credentials - username : ";
  public static final String USERNAME="username";
