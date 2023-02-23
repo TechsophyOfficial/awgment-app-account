@@ -520,7 +520,7 @@ import static org.mockito.Mockito.*;
         Mockito.verify(webClientWrapper,times(1)).createWebClient(any());
     }
     @Test
-    void addRolesException() throws JsonProcessingException {
+    void addRolesExceptionForClientsNotFound() throws JsonProcessingException {
         List<Map<String,Object>> list = new ArrayList<>();
         Map<String,Object> map2 = new HashMap<>();
         map2.put("id","98958-492");
@@ -533,7 +533,24 @@ import static org.mockito.Mockito.*;
         Mockito.when(mockObjectMapper.readValue(anyString(),eq(List.class))).thenThrow(JsonProcessingException.class);
         WebClient webClient = WebClient.builder().build();
         when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(), anyString(),any())).thenReturn(response);
+        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(), anyString(),any())).thenReturn(null);
+        Assertions.assertThrows(RunTimeException.class,()->userManagementInKeyCloak.addRoles("camunda-identity-service",rolesDto));
+    }
+    @Test
+    void addRolesExceptionForClientNotFound() throws JsonProcessingException {
+        List<Map<String,Object>> list = new ArrayList<>();
+        Map<String,Object> map2 = new HashMap<>();
+        map2.put("id","98958-492");
+        map2.put("clientId","camunda-identity-service");
+        list.add(map2);
+        RolesDto rolesDto = new RolesDto();
+        rolesDto.setDescription("abc");
+        rolesDto.setName("abc");
+        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn("abc");
+        Mockito.when(mockObjectMapper.readValue(anyString(),eq(List.class))).thenThrow(JsonProcessingException.class);
+        WebClient webClient = WebClient.builder().build();
+        when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
+        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(), anyString(),any())).thenReturn(response).thenReturn(null);
         Assertions.assertThrows(RunTimeException.class,()->userManagementInKeyCloak.addRoles("camunda-identity-service",rolesDto));
     }
 }
