@@ -99,6 +99,6 @@ public class UserFormDataControllerImpl implements UserFormDataController
     public ApiResponse<Void> deleteUserByUserId(String userId)
     {
         userFormDataService.deleteUserFormDataByUserId(userId);
-        return new ApiResponse<>(null, true, globalMessageSource.get(DELETE_FORM_SUCCESS));
+        return new ApiResponse<>(null, true, globalMessageSource.get(DELETE_USER_SUCCESS));
     }
 }

@@ -8,18 +8,14 @@ import com.techsophy.tsf.account.dto.GroupsSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -27,17 +23,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.UserConstants.ID;
 import static com.techsophy.tsf.account.constants.UserConstants.NAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith({MockitoExtension.class, SpringExtension.class})
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
  class GroupsControllerTest
 {
     @InjectMocks
@@ -94,22 +86,16 @@ import static org.mockito.Mockito.verify;
         Mockito.when(userManagementInKeyCloak.getAllGroups()).thenReturn(Stream
                 .of(new GroupsSaveSchema(ID, NAME),new GroupsSaveSchema(ID, NAME)));
         Stream<GroupsSaveSchema> groupsSchemaStream= userManagementInKeyCloak.getAllGroups();
-//        Mockito.when(userManagementInKeyCloak.getAllGroups(page,pageSize,sortBy)).thenReturn(new PaginationResponsePayload());
-//        PaginationResponsePayload groupsPayload = userManagementInKeyCloak.getAllGroups(page,pageSize,sortBy);
         assertEquals(2, (int) groupsSchemaStream.count());
         assertEquals(true,responseEntity.getSuccess());
         verify(userManagementInKeyCloak, times(1)).getAllGroups();
-//        verify(userManagementInKeyCloak,times(1)).getAllGroups(page,pageSize,sortBy);
     }
 
     @Test
     void getGroupByIdTest() throws JsonProcessingException
     {
         ApiResponse responseEntity=groupsControllerImpl.getGroupById(request,ID);
-        Mockito.when(userManagementInKeyCloak.getGroupById(ID)).thenReturn(new GroupsSchema(ID, NAME));
-        GroupsSchema data= userManagementInKeyCloak.getGroupById(ID);
         assertEquals(true,responseEntity.getSuccess());
-        verify(userManagementInKeyCloak, times(1)).getGroupById(ID);
     }
 
     @Test

@@ -9,22 +9,14 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.MessageSource;
-import org.springframework.test.context.ActiveProfiles;
-
 import java.math.BigInteger;
 import java.util.Locale;
-
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.UserConstants.ARGS;
 import static com.techsophy.tsf.account.constants.UserConstants.KEY;
-import static com.techsophy.tsf.account.constants.UserPreferencesConstants.USER_ID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.beans.MethodInvocationException.ERROR_CODE;
 
-//@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
 class GlobalMessageSourceTest {
     @Mock

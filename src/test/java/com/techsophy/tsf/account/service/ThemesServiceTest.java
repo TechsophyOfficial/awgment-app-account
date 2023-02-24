@@ -1,6 +1,5 @@
 package com.techsophy.tsf.account.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
@@ -26,23 +25,17 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.stream.Stream;
-
 import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static com.techsophy.tsf.account.constants.UserConstants.NAME;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.FILE;
@@ -53,12 +46,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
-@EnableWebMvc
-@ActiveProfiles("test")
-//@ExtendWith(SpringExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ThemesServiceTest
 {
     @Mock
@@ -83,11 +71,8 @@ class ThemesServiceTest
     TokenUtils accountUtils;
     private static final String THEMES_DATA = "testdata/themes-schema.json";
     private  final String DOC_DOWNLOAD_DATA = "testdata/theme1.json";
-    private  final String DOC_UPLOAD_DATA = "testdata/theme2.json";
-    private final String themeName="name";
 
     List<Map<String, Object>> userList = new ArrayList<>();
-
 
     @BeforeEach
     public void init()
@@ -166,7 +151,6 @@ class ThemesServiceTest
         ObjectMapper objectMapper=new ObjectMapper();
         @Cleanup InputStream stream = new ClassPathResource(THEMES_DATA).getInputStream();
         String themesData= new String(stream.readAllBytes());
-        ThemesResponseSchema themesResponseSchema = objectMapper.readValue(themesData,ThemesResponseSchema.class);
         ThemesDefinition themesDefinition=objectMapper.readValue(themesData,ThemesDefinition.class);
         Page<ThemesDefinition> page = new PageImpl<>(List.of(themesDefinition));
         when(themesDefinitionRepository.findThemesByQPageable(anyString(),any())).thenReturn(page);
@@ -184,7 +168,7 @@ class ThemesServiceTest
         when(themesDefinitionRepository.existsById(BigInteger.valueOf(1))).thenReturn(true).thenReturn(false);
         doNothing().when(themesDefinitionRepository).deleteById(BigInteger.valueOf(1));
         themesServiceImplementation.deleteThemesDataById("1");
-       Assertions.assertThrows( ThemesNotFoundByIdException.class,()->themesServiceImplementation.deleteThemesDataById("1"));
+        Assertions.assertThrows( ThemesNotFoundByIdException.class,()->themesServiceImplementation.deleteThemesDataById("1"));
         verify(themesDefinitionRepository, times(1)).deleteById(BigInteger.valueOf(1));
     }
 
@@ -194,7 +178,6 @@ class ThemesServiceTest
         ObjectMapper objectMapper = new ObjectMapper();
         @Cleanup InputStream stream = new ClassPathResource(DOC_DOWNLOAD_DATA).getInputStream();
         String id="866660468878082061";
-        String client="1234";
         List<Map<String, Object>> list = new ArrayList<>();
         Map<String, Object> map1 = new HashMap<>();
         map1.put("foo", "bar");
@@ -213,9 +196,9 @@ class ThemesServiceTest
         Assertions.assertNotNull(responseEntity);
     }
 
-
     @Test
-    void uploadThemeTest() throws IOException {
+    void uploadThemeTest() throws IOException
+    {
         MockMultipartFile file = new MockMultipartFile(FILE_NAME,FILE, TEXT_PLAIN_VALUE,"abc".getBytes());
         UploadSchema uploadSchema = new UploadSchema(ID,NAME,CONTENT);
         UploadSchema uploadSchema1 = new UploadSchema(null,NAME,CONTENT);

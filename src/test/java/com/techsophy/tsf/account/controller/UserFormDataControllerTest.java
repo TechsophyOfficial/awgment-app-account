@@ -1,34 +1,26 @@
 package com.techsophy.tsf.account.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
-import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import org.apache.commons.lang3.ObjectUtils;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpHeaders;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
-
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import static com.techsophy.tsf.account.constants.ThemesConstants.NULL;
@@ -36,10 +28,8 @@ import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PR
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
-@ExtendWith(SpringExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+
+@ExtendWith({MockitoExtension.class, SpringExtension.class})
 class UserFormDataControllerTest
 {
     @Mock
@@ -57,6 +47,7 @@ class UserFormDataControllerTest
 
 
     @Test
+
     void getUserDetailsOfLoggedInUserSuccess() throws JsonProcessingException {
         List<Map<String,Object>> list = new ArrayList<>();
         Map<String,Object> map = new HashMap<>();
@@ -97,6 +88,7 @@ class UserFormDataControllerTest
         Assertions.assertThrows(RunTimeException.class,()->userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema));
     }
     @Test
+
     void saveUser()
     {
         Map<String,Object> map = new HashMap<>();
