@@ -39,8 +39,25 @@ public class UserFormDataControllerImpl implements UserFormDataController
     }
     @Override
     public ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(UserFormDataSchema userFormDataSchema) {
-        return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema),true,"updated Successfully");
+        try {
+            String userId = (String) userDetails.getUserDetails().get(0).get(ID);
+            if (userFormDataSchema.getUserId() != null && userFormDataSchema.getUserId().equalsIgnoreCase(userId)) {
+                return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, "updated Successfully");
+            } else if (userFormDataSchema.getUserId()==null) {
+                 userFormDataSchema.setUserId(userId);
+                return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, "updated Successfully");
+            }
+            else
+            {
+                return new ApiResponse<>(null,true,"the userId is not a loggin userId");
+            }
+        }
+        catch(Exception e)
+        {
+            throw new RunTimeException(e.getMessage());
+        }
     }
+
     @Override
     public ApiResponse<UserFormDataSchema> saveUser(UserFormDataSchema userFormDataSchema,HttpHeaders headers)
     {
