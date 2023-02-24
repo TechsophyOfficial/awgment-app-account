@@ -93,7 +93,6 @@ class UserFormDataControllerTest
         Map<String,Object> map = new HashMap<>();
         map.put("abc","abc");
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
-        Mockito.when(userFormDataService.saveUserFormData(any())).thenThrow(RunTimeException.class);
         Mockito.when(userDetails.getUserDetails()).thenThrow(JsonProcessingException.class);
         Assertions.assertThrows(RunTimeException.class,()->userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema));
     }
