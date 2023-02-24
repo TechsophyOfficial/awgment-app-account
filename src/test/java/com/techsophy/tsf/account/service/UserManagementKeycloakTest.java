@@ -541,16 +541,16 @@ import static org.mockito.Mockito.*;
         List<Map<String,Object>> list = new ArrayList<>();
         Map<String,Object> map2 = new HashMap<>();
         map2.put("id","98958-492");
-        map2.put("clientId","camunda-identity-service");
+        map2.put("clientId","camunda-service");
         list.add(map2);
         RolesDto rolesDto = new RolesDto();
         rolesDto.setDescription("abc");
         rolesDto.setName("abc");
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn("abc");
-        Mockito.when(mockObjectMapper.readValue(anyString(),eq(List.class))).thenThrow(JsonProcessingException.class);
+        Mockito.when(mockObjectMapper.readValue(anyString(),eq(List.class))).thenReturn(list);
         WebClient webClient = WebClient.builder().build();
         when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(), anyString(),any())).thenReturn(response).thenReturn(null);
+        Mockito.when(webClientWrapper.webclientRequest(any(WebClient.class),anyString(), anyString(),any())).thenReturn(response);
         Assertions.assertThrows(RunTimeException.class,()->userManagementInKeyCloak.addRoles("camunda-identity-service",rolesDto));
     }
 }
