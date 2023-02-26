@@ -6,12 +6,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserPreferencesConstants
 {
-    public static final String TEST_ID="1";
-    public  static final  String USERID="1";
     public static final String THEMEID="1";
-    public static final String TEST_IMAGE_JPEG ="JPEG";
-    public static final String PROFILE_PICTURE ="image";
-    public static final String TEST_THEME_DATA_1 = "testdata/userPreferenceThemeSchema.json";
 
     //INITILIZATION CONSTANTS
     public static final String DEPARTMENT="department";
@@ -38,11 +33,9 @@ public class UserPreferencesConstants
     public static final String  FILE="file";
     public static final String IMAGE_PNG="image.png";
     public static final String PICTURE_CONTENT="ABC";
-    public static final String TENANT="tenant";
     public static final String IMAGE="Image";
 
     //UserPrefControllerExceptionTest
-    public static final String USER_NOT_FOUND_WITH_GIVEN_ID="User not found with given id";
     public static final String USER_PREFERENCE_SCHEMA_NOT_FOUND="User Preference Schema not found for given id";
 
     //UserprefServiceConstants

@@ -1,36 +1,30 @@
 package com.techsophy.tsf.account.utils;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.GET;
 import static com.techsophy.tsf.account.constants.AccountConstants.POST;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-//@SpringBootTest
-//@ExtendWith({SpringExtension.class})
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 class WebClientWrapperTest
 {
     @InjectMocks
     WebClientWrapper webClientWrapper;
     @Mock
     private WebClient webClientMock;
-
 
     @Order(1)
     @Test

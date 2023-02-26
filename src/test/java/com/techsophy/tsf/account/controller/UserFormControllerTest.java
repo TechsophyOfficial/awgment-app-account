@@ -2,34 +2,28 @@ package com.techsophy.tsf.account.controller;
 
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
-import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+
 import java.util.HashMap;
 import java.util.Map;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
+
 import static com.techsophy.tsf.account.constants.UserFormDataConstants.userID;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
-//@SpringBootTest
-@EnableWebMvc
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserFormControllerTest
 {
     @InjectMocks
@@ -44,12 +38,6 @@ class UserFormControllerTest
     UserServiceImpl userService;
     @Mock
     TokenUtils mockTokenUtils;
-
-//    @BeforeAll
-//    static void setUp()
-//    {
-//        MockitoAnnotations.openMocks(UserServiceImpl.class);
-//    }
 
     String token;
     Map<String, Object> userData = new HashMap<>();
@@ -86,11 +74,10 @@ class UserFormControllerTest
     {
         when(userFormDataService.getUserFormDataByUserId(userID, true)).thenReturn(new UserFormDataSchema( userData, null, null));
         ApiResponse responseEntity = userFormDataController.getUserByUserId(userID, true);
-//        AuditableData userData = userFormDataService.getUserFormDataByUserId(userID, true);
-//        assertThat(userData).isNotNull();
         assertEquals(true, responseEntity.getSuccess());
         verify(userFormDataService, times(1)).getUserFormDataByUserId(userID, true);
     }
+
 /*
     @Test
     public void getAllForms1()

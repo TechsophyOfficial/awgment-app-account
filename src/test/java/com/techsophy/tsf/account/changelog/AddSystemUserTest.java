@@ -2,11 +2,12 @@ package com.techsophy.tsf.account.changelog;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoCollection;
-import com.nimbusds.jose.shaded.json.parser.ParseException;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import org.bson.Document;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
@@ -27,9 +28,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class AddSystemUserTest {
-
+class AddSystemUserTest
+{
     @InjectMocks
     AddSystemUser addSystemUser;
     @Mock
@@ -51,7 +51,7 @@ class AddSystemUserTest {
     }
 
     @Test
-    void changeSetFormDefinitionNoDocumentTest() throws IOException, ParseException {
+    void changeSetFormDefinitionNoDocumentTest() throws IOException{
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
         UserDefinition userDefinition = new UserDefinition(BigInteger.ONE,"abc","abc","abc","abc","abc@gmail.com","cs");
         Mockito.when(mockObjectMapper.readValue(any(InputStream.class), ArgumentMatchers.eq(UserDefinition.class))).thenReturn(userDefinition);
@@ -63,7 +63,7 @@ class AddSystemUserTest {
         Mockito.verify(template,Mockito.times(0)).save(any(),any());    }
 
     @Test
-    void changeSetFormDefinitionWithDocumentTest() throws IOException, ParseException {
+    void changeSetFormDefinitionWithDocumentTest() throws IOException {
         MongoCollection mongoCollectionLocal = mock(MongoCollection.class);
         Document document = new Document();
         document.append("abc","value");

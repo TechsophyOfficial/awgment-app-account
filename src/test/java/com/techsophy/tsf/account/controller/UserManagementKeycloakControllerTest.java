@@ -3,27 +3,23 @@ package com.techsophy.tsf.account.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserManagementInKeyCloakControllerImpl;
-import com.techsophy.tsf.account.dto.RolesSchema;
-import com.techsophy.tsf.account.dto.UserDataSchema;
-import com.techsophy.tsf.account.dto.UserGroupsSchema;
-import com.techsophy.tsf.account.dto.UserRolesSchema;
+import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,11 +32,9 @@ import static com.techsophy.tsf.account.constants.UserConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
-//@SpringBootTest
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
 @ExtendWith(MockitoExtension.class)
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class UserManagementKeycloakControllerTest {
+class UserManagementKeycloakControllerTest
+{
     @InjectMocks
     UserManagementInKeyCloakControllerImpl userManagementInKeyCloakController;
     @Mock
@@ -151,5 +145,14 @@ class UserManagementKeycloakControllerTest {
         userManagementInKeyCloak.setPassword(USER_NAME);
         assertEquals(true, responseEntity.getSuccess());
         verify(userManagementInKeyCloak, times(1)).setPassword(USER_NAME);
+    }
+    @Test
+    void addRolesSuccess(){
+        RolesDto rolesDto = new RolesDto();
+        rolesDto.setName("abc");
+        rolesDto.setDescription("abc");
+        userManagementInKeyCloakController.addRoles("abc",rolesDto);
+        userManagementInKeyCloak.addRoles(any(),any());
+        verify(userManagementInKeyCloak,times(1)).addRoles(any(),any());
     }
 }

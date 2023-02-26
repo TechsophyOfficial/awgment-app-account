@@ -689,4 +689,20 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         userDetails.put(USER_SCHEMA_PASSWORD,password);
         return userDetails;
     }
+
+    @Override
+    public String addRoles(String clientName, RolesDto rolesDto)  {
+        try {
+            String token = tokenUtils.getTokenFromContext();
+            var client = webClientWrapper.createWebClient(token);
+            String data = webClientWrapper.webclientRequest(client, keyCloakApi + tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext()) + GET_ALL_CLIENTS_URL, GET, null);
+            List<Map<String, Object>> clients = this.objectMapper.readValue(data, List.class);
+            String id = clients.stream().filter(e -> e.get("clientId").toString().equalsIgnoreCase(clientName)).collect(Collectors.toList()).get(0).get("id").toString();
+            return webClientWrapper.webclientRequest(client, keyCloakApi + tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext()) + GET_CLIENT_ROLES_URL + id + ROLES_URL, POST, rolesDto);
+        }
+        catch (Exception e)
+        {
+            throw new RunTimeException(e.getMessage());
+        }
+    }
 }

@@ -11,13 +11,10 @@ public class AccountConstants
  public static final String ORDER_2="100";
  public static final String ORDER_3="101";
  public static final String ORDER_4="102";
- public static final String ORDER_5="103";
  public static final String SYSTEM_VERSION_1="1";
  public static final String ADD_ADMIN_USER= "add-admin-user01";
  public static final String CHANGE_ALL_USER_NAMES_TO_LOWER= "change-user-names-to-lowercase";
  public static final String ADD_SYSTEM_USER= "add-system-user02";
- public static final String ADD_FORM_SYSTEM_USER= "add-form_system-user01";
- public static final String ADD_FORMDATA_ADMIN_USER= "add-formdata-admin-user01";
  public static final String TP_FORMDATA_USER_JSON ="TP_FORMDATA_USER.json";
  public static final String TP_FORMDATA_SYSTEM_USER_JSON ="TP_FORMDATA_SYSTEM_USER.json";
  public static final String TP_USER_JSON = "TP_USER.json";
@@ -28,8 +25,6 @@ public class AccountConstants
  public static final String USER_DATA_NAME= "userName";
  public static final String EMAIL_ID= "emailId";
  public static final String ID_VALUE= "821024382412341232";
-
-
 
  //JWTRoleConverter
  public static final String CLIENT_ROLES="clientRoles";
@@ -69,6 +64,11 @@ public class AccountConstants
  public static final String CREATE_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+ AWGMENT_ACCOUNT_CREATE_OR_UPDATE +HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
  public static final String READ_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+ AWGMENT_ACCOUNT_READ +HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
  public static final String DELETE_OR_ALL_ACCESS =HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_DELETE+HAS_ANY_AUTHORITY_ENDING+OR+HAS_ANY_AUTHORITY+AWGMENT_ACCOUNT_ALL+HAS_ANY_AUTHORITY_ENDING;
+ public static final String AWGMENT_ACL_CREATE_OR_UPDATE="awgment-acl-create-or-update";
+ public static final String TP_ACL="tp_acl";
+ public static final String GET_ALL_ACLS="Get All Access Controls";
+ public static final String GET_ACL_BY_ID="Get Access Control By Id";
+ public static final String CHECKS_ACL= "Check Access Control ";
 
  /*TenantAuthenticationManagerConstants*/
  public static final String KEYCLOAK_ISSUER_URI = "${keycloak.issuer-uri}";
@@ -86,9 +86,9 @@ public class AccountConstants
 
  /*UserManagementInKeycloakControllerImplConstants*/
  public static final String USER_NAME="username";
+ public static final String DESCRIPTION="description";
  public static final String USER_NAME_DATA="userName";
  public static final String OLD_USER_NAME="oldUserName";
-
  public static final String SAVE_USER_SUCCESS="SAVE.USER.SUCCESS";
  public static final String ROLE_USER_SUCCESS="ROLE.USER.SUCCESS";
  public static final String GET_ROLE_SUCCESS="GET.ROLE.SUCCESS";
@@ -97,6 +97,14 @@ public class AccountConstants
  public static final String PASSWORD_UPDATED_SUCCESSFULLY="PASSWORD.UPDATED.SUCCESS";
  public static final String PASSWORD_SET_SUCCESSFULLY="PASSWORD.SET.SUCCESS";
 
+//ACL Constants
+ public static final String ACL_SAVED_SUCCESSFULLY="ACL.SAVED.SUCCESS";
+ public static final String ACL_RETRIEVE_SUCCESS="ACL.RETRIEVE.SUCCESS";
+ public static final String ACL_EVALUATION_SUCCESS="ACL.EVALUATE.SUCCESS";
+ public static final String ALLOW="allow";
+ public static final String DENY="deny";
+ public static final String UNDEFINED="undefined";
+ public static final String EXECUTION_IS_FAILED ="Execution is failed";
 
  /*GroupsControllerConstants*/
  public static final String VERSION_V1="/v1";
@@ -142,7 +150,6 @@ public class AccountConstants
  public static final String DOCUMENT_ID ="documentId";
  public static final String WORKFLOW_START_URL="/workflow/v1/process/start";
  public static final String COMMA=",";
- public static final String DELETE_FORM_SUCCESS="DELETE.FORM.SUCCESS";
  public static final String SAVE_FORM_SUCCESS="SAVE.FORM.SUCCESS";
 
  //GroupsControllerConstants
@@ -177,7 +184,6 @@ public class AccountConstants
  public static final String USER_GROUPS_URL="/users/groups";
  public static final String CHANGE_PASSWORD="/users/changePassword";
  public static final String SET_PASSWORD="/users/setPassword";
-
 
  /*UserPreferencesControllerConstants*/
  public static final String USER_PREFERENCES_URL="/users/preferences";
@@ -241,7 +247,6 @@ public class AccountConstants
  public static final String EMAIL_VALIDITY= "${email.validity}";
  public static final String CLIENTS="${clients}";
 
-
  /*ThemesServiceImplConstants*/
  public static final String FIRST_NAME="firstName";
  public static final String LAST_NAME="lastName";
@@ -284,6 +289,7 @@ public class AccountConstants
  public static final String DEFAULT_ROLES="defaultRoles";
  public static final String GET_ALL_CLIENTS_URL="/clients";
  public static final String CLIENT_ID="clientId";
+ public static final String CLIENT_NAME="clientName";
  public static final String GET_CLIENT_ROLES_URL="/clients/";
  public static final String USERCREDENTIALS="User Credentials - username : ";
  public static final String USERNAME="username";
@@ -303,7 +309,6 @@ public class AccountConstants
  public static final String LOGIN_ID="LOGINID";
  public static final String SERVICE_ACCOUNT="service-account";
  public static final String DEFAULT_THEME_ID="979654592245444123";
- public static final String DEFAULT_THEME="default-theme";
 
  //GroupsCustomRepositoryConstants
  public static final String GROUP_DEFINITION_NAME ="name";
@@ -348,6 +353,7 @@ public class AccountConstants
  public static final String AUTHENTICATION_FAILED="Authentication failed";
  public static final String UNABLE_GET_TOKEN="Unable to get token";
  public static final String PREFERED_USERNAME="preferred_username";
+ public static final String PREFIX ="service-account";
  public static final String CREATED_ON="createdOn";
  public static final String CREATED_BY_ID="createById";
  public static final String CREATED_BY_NAME="createdByName";
@@ -376,7 +382,6 @@ public class AccountConstants
 
  //UserManagementInKeycloakImpl
  public static final String SLASH="/";
- public static final String BRIEF_URL="?briefRepresentation=true&exact=true&username=";
 
  //UserFormDataServiceImplConstants
  public static final String  DOT=".";

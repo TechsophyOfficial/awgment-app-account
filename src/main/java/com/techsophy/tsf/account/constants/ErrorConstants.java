@@ -19,7 +19,6 @@ public class ErrorConstants
     public static final String UNABLE_TO_DELETE_GROUP_WITH_THIS_ID="AWGMENT-ACCOUNT-1011";
     public static final String UNABLE_TO_ADD_USER="AWGMENT-ACCOUNT-1012";
     public static final String UNABLE_TO_UPDATE_USER="AWGMENT-ACCOUNT-1013";
-
     public static final String TOKEN_NOT_FOUND="AWGMENT-ACCOUNT-1014";
     public static final String UNABLE_TO_GET_USER_ROLES="AWGMENT-ACCOUNT-1015";
     public static final String UNABLE_TO_DELETE_ROLES="AWGMENT-ACCOUNT-1016";
@@ -62,10 +61,11 @@ public class ErrorConstants
     public static final String FILE_SIZE_EXCEEDED="AWGMENT-ACCOUNT-1053";
     public static final String UNABLE_TO_FETCH_CLIENTS="AWGMENT-ACCOUNT-1054";
     public static final String LOGGED_IN_USER_ID_NOT_FOUND ="AWGMENT-ACCOUNT-1055";
-
     public static final String UNABLE_TO_SET_PASSWORD="AWGMENT-ACCOUNT-1056";
     public static final String INVALID_TOKEN="AWGMENT-ACCOUNT-1057";
     public static final String FILTER_OR_Q_REQUIRED="AWGMENT-ACCOUNT-1058";
-    public static final String EXCEUTION_IS_FAILED="storing data using mongock is failed";
-
+    public static final String EXECUTION_IS_FAILED ="storing data using mongock is failed";
+    public static final String ACL_NOT_FOUND_WITH_GIVEN_ID="AWGMENT-ACCOUNT-1059";
+    public static final String USER_NAME_VALIDATION_EXCEPTION="AWGMENT-ACCOUNT-1060";
+    public static final String ACL_NAME_CANNOT_BE_BLANK="ACL name cannot be blank";
 }
