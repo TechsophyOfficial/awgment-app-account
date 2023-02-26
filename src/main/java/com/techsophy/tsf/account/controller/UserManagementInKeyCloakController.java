@@ -1,11 +1,8 @@
 package com.techsophy.tsf.account.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.techsophy.tsf.account.dto.RolesSchema;
+import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.model.ApiResponse;
-import com.techsophy.tsf.account.dto.UserDataSchema;
-import com.techsophy.tsf.account.dto.UserGroupsSchema;
-import com.techsophy.tsf.account.dto.UserRolesSchema;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,4 +42,6 @@ public interface UserManagementInKeyCloakController
     @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<Map<String,Object>> setPassword(@RequestParam(USER_NAME) String userName) throws JsonProcessingException, UnsupportedEncodingException;
 
+     @PostMapping("/{clientName}/roles")
+     ApiResponse<String> addRoles(@PathVariable(value = CLIENT_NAME,required = true) String clienName, @RequestBody RolesDto rolesDto) throws JsonProcessingException;
 }

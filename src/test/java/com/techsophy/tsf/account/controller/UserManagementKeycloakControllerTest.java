@@ -3,10 +3,7 @@ package com.techsophy.tsf.account.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserManagementInKeyCloakControllerImpl;
-import com.techsophy.tsf.account.dto.RolesSchema;
-import com.techsophy.tsf.account.dto.UserDataSchema;
-import com.techsophy.tsf.account.dto.UserGroupsSchema;
-import com.techsophy.tsf.account.dto.UserRolesSchema;
+import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
@@ -23,13 +20,13 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
-
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static com.techsophy.tsf.account.constants.ThemesConstants.USER_NAME;
 import static com.techsophy.tsf.account.constants.UserConstants.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -148,5 +145,14 @@ class UserManagementKeycloakControllerTest
         userManagementInKeyCloak.setPassword(USER_NAME);
         assertEquals(true, responseEntity.getSuccess());
         verify(userManagementInKeyCloak, times(1)).setPassword(USER_NAME);
+    }
+    @Test
+    void addRolesSuccess(){
+        RolesDto rolesDto = new RolesDto();
+        rolesDto.setName("abc");
+        rolesDto.setDescription("abc");
+        userManagementInKeyCloakController.addRoles("abc",rolesDto);
+        userManagementInKeyCloak.addRoles(any(),any());
+        verify(userManagementInKeyCloak,times(1)).addRoles(any(),any());
     }
 }

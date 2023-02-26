@@ -3,10 +3,7 @@ package com.techsophy.tsf.account.controller.impl;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.UserManagementInKeyCloakController;
-import com.techsophy.tsf.account.dto.RolesSchema;
-import com.techsophy.tsf.account.dto.UserDataSchema;
-import com.techsophy.tsf.account.dto.UserGroupsSchema;
-import com.techsophy.tsf.account.dto.UserRolesSchema;
+import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import lombok.AllArgsConstructor;
@@ -73,5 +70,10 @@ public class UserManagementInKeyCloakControllerImpl implements UserManagementInK
     public ApiResponse<Map<String,Object>> setPassword(String userName) throws JsonProcessingException, UnsupportedEncodingException {
         Map<String, Object> userDetails=  userManagementInKeyCloak.setPassword(userName);
         return new ApiResponse<>(userDetails, true, globalMessageSource.get(PASSWORD_SET_SUCCESSFULLY));
+    }
+
+    @Override
+    public ApiResponse<String> addRoles(String clientName, RolesDto rolesDto) {
+            return new ApiResponse<>(userManagementInKeyCloak.addRoles(clientName, rolesDto), true, "role added successfully");
     }
 }
