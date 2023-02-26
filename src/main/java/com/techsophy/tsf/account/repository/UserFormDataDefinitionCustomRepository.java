@@ -11,6 +11,7 @@ public interface UserFormDataDefinitionCustomRepository
 {
     List<UserFormDataDefinition> findByNameOrId(String idOrNameLike) throws UnsupportedEncodingException;
 
+   UserFormDataDefinition findByUserName(String userName);
     List<UserFormDataDefinition> findAll(Sort sort);
 
     Page<UserFormDataDefinition> findAll(Pageable pageable);

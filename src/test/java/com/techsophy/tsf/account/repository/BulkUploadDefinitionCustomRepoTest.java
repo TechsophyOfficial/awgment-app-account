@@ -9,24 +9,19 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.test.context.ActiveProfiles;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import static com.techsophy.tsf.account.constants.ThemesConstants.CREATEDON;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-//@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
 class BulkUploadDefinitionCustomRepoTest
 {
@@ -122,5 +117,4 @@ class BulkUploadDefinitionCustomRepoTest
         bulkUploadDefinitionCustomRepository.findBulkUsersByQPageable("abc",page);
         verify(mongoTemplate,times(1)).find(any(),eq(BulkUserDefinition.class));
     }
-
 }

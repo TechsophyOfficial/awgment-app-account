@@ -85,11 +85,13 @@ public class UserServiceImpl implements UserService
             userDefinition.setUpdatedOn(Instant.now());
             userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             userDefinition=this.userDefinitionRepository.save(userDefinition);
-            Map<String,Object> map = new HashMap<>();
-            map.put(THEME_ID,DEFAULT_THEME_ID);
-            map.put(USER_ID,userDefinition.getId());
-            UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map,UserPreferencesSchema.class);
-            userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
+            if(userData.getId()==null) {
+                Map<String, Object> map = new HashMap<>();
+                map.put(THEME_ID, DEFAULT_THEME_ID);
+                map.put(USER_ID, userDefinition.getId());
+                UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map, UserPreferencesSchema.class);
+                userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
+            }
             return userDefinition;
         }
         catch (ConstraintViolationException e)
@@ -106,7 +108,7 @@ public class UserServiceImpl implements UserService
     public AuditableData getUserById(String id)
     {
         UserDefinition userDefinition = this.userDefinitionRepository.findById(BigInteger.valueOf(Long.parseLong(id)))
-                .orElseThrow(() -> new EntityNotFoundByIdException(ENTITY_NOT_FOUND_EXCEPTION,globalMessageSource.get(ENTITY_NOT_FOUND_EXCEPTION,id)));
+                .orElseThrow(() -> new EntityNotFoundByIdException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,id)));
         return  this.objectMapper.convertValue(userDefinition,UserData.class);
     }
 
@@ -150,14 +152,14 @@ public class UserServiceImpl implements UserService
     public UserDefinition getUserById(BigInteger id)
     {
         return this.userDefinitionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundByIdException(ENTITY_NOT_FOUND_EXCEPTION,globalMessageSource.get(ENTITY_NOT_FOUND_EXCEPTION,id)));
+                .orElseThrow(() -> new EntityNotFoundByIdException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,id)));
     }
     @Override
     public void deleteUserById(String id)
     {
         if (!userDefinitionRepository.existsById(BigInteger.valueOf(Long.parseLong(id))))
         {
-            throw new EntityNotFoundByIdException(ENTITY_NOT_FOUND_EXCEPTION,globalMessageSource.get(ENTITY_NOT_FOUND_EXCEPTION,id));
+            throw new EntityNotFoundByIdException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,id));
         }
         this.userDefinitionRepository.deleteById(BigInteger.valueOf(Long.parseLong(id)));
     }

@@ -8,7 +8,6 @@ import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.mongodb.config.EnableMongoAuditing;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
-
 import static com.techsophy.tsf.account.constants.AccountConstants.CURRENT_PROJECT;
 import static com.techsophy.tsf.account.constants.AccountConstants.MULTITENANCY_PROJECT;
 
