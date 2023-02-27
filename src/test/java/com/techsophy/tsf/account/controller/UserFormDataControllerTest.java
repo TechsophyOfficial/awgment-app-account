@@ -6,11 +6,11 @@ import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.exception.RunTimeException;
+import com.techsophy.tsf.account.exception.BadRequestException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
-import org.apache.commons.lang3.ObjectUtils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
@@ -18,7 +18,6 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -31,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.techsophy.tsf.account.constants.ThemesConstants.NULL;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -76,7 +74,7 @@ class UserFormDataControllerTest
             Assertions.assertThrows(RunTimeException.class, () -> userFormDataController.getUserDetailsOfLoggedInUser());
     }
     @ParameterizedTest
-    @CsvSource({"1,1", "3,0", ",1"}) //here i am verifying with passing id and their invocation for service layer
+    @CsvSource({"1,1", ",1"}) //here i am verifying with passing id and their invocation for service layer
     void updateUserDetailsOfLoggedInUserSuccessWithId(String args,int invocation) throws JsonProcessingException {
         Map<String,Object> map = new HashMap<>();
         map.put("abc","abc");
@@ -85,8 +83,21 @@ class UserFormDataControllerTest
         map.put("id","1");
         list.add(map);
         Mockito.when(userDetails.getUserDetails()).thenReturn(list);
-        userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
+        Mockito.when(userFormDataService.saveUserFormData(userFormDataSchema)).thenReturn(userFormDataSchema);
+        ApiResponse<UserFormDataSchema> userFormDataSchemaApiResponse = userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
+        Assertions.assertEquals("1",userFormDataSchemaApiResponse.getData().getUserId());
         Mockito.verify(userFormDataService,Mockito.times(invocation)).saveUserFormData(userFormDataSchema);
+    }
+    @Test
+    void updateUserDetailsOfLoggedInUserMisMatch() throws JsonProcessingException {
+        Map<String,Object> map = new HashMap<>();
+        map.put("abc","abc");
+        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
+        List<Map<String,Object>> list = new ArrayList<>();
+        map.put("id","2");
+        list.add(map);
+        Mockito.when(userDetails.getUserDetails()).thenReturn(list);
+        Assertions.assertThrows(BadRequestException.class,()->userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema));
     }
     @Test
     void updateUserDetailsOfLoggedInUserFailureException() throws JsonProcessingException {

@@ -23,6 +23,13 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
 {
     private final GlobalMessageSource globalMessageSource;
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<ApiErrorResponse> badRequestException(BadRequestException ex, WebRequest request)
+    {
+        ApiErrorResponse errorDetails = new ApiErrorResponse(Instant.now(), getMessage(ex.message, null, request.getLocale()), ex.errorcode,
+                HttpStatus.BAD_REQUEST, request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
+    }
     @ExceptionHandler(UserNameValidationException.class)
     public ResponseEntity<ApiErrorResponse> handleUserName(UserNameValidationException ex, WebRequest request)
     {
