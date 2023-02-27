@@ -5,6 +5,7 @@ import com.techsophy.tsf.account.controller.UserFormDataController;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.exception.RunTimeException;
+import com.techsophy.tsf.account.exception.BadRequestException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
@@ -39,8 +40,28 @@ public class UserFormDataControllerImpl implements UserFormDataController
     }
     @Override
     public ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(UserFormDataSchema userFormDataSchema) {
-        return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema),true,"updated Successfully");
+        try {
+            String userId = (String) userDetails.getUserDetails().get(0).get(ID);
+            if (userFormDataSchema.getUserId() != null && userFormDataSchema.getUserId().equalsIgnoreCase(userId)) {
+                return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, UPDATED_SUCCESSFULLY);
+            } else if (userFormDataSchema.getUserId() == null) {
+                userFormDataSchema.setUserId(userId);
+                return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, UPDATED_SUCCESSFULLY);
+            } else {
+                throw new BadRequestException(NOT_LOGGIN_USER_ID, globalMessageSource.get(NOT_LOGGIN_USER_ID));
+            }
+        }
+        catch (BadRequestException e)
+        {
+            throw e;
+        }
+        catch(Exception e)
+        {
+            throw new RunTimeException(e.getMessage());
+        }
+
     }
+
     @Override
     public ApiResponse<UserFormDataSchema> saveUser(UserFormDataSchema userFormDataSchema,HttpHeaders headers)
     {

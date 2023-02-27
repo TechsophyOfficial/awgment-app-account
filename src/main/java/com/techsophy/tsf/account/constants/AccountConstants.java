@@ -173,6 +173,8 @@ public class AccountConstants
  public static final String DELETE_BY_ID="/bulk-upload";
  public static final String BULK_STATUS_URL="/bulk-upload/status";
  public static final String BULK_STATUS_UPDATE_SUCCESS ="BULK.STATUS.UPDATED.SUCCESSFULLY";
+ public static final String UPDATED_SUCCESSFULLY ="Updated Successfully";
+ public static final String NOT_LOGGIN_USER_ID ="AWGMENT-ACCOUNT-1061";
 
  //OTPControllerImpl
  public static final String OTP_GENERATED_SUCCESSFULLY= "OTP.GENERATED.SUCCESSFULLY";
