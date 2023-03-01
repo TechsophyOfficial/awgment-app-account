@@ -82,6 +82,8 @@ jobs:
           command: |
             REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
             docker build . -t $REPONAME:latest
+            echo ${CIRCLE_BRANCH}
+            echo ${CIRCLE_TAG}
 
       - run:
           name: "Push docker image"
@@ -90,7 +92,7 @@ jobs:
             then  if [[ "$CIRCLE_BRANCH" == "dev" ]] ; then TAG="v0.0.0-alpha"; fi 
             else 
               TAG=$CIRCLE_TAG; 
-            fi 
+            fi    
             if [[ -z "$TAG" ]]; then exit 0; fi
             echo $TS_DOCKER_PUB_PASS | docker login -u $TS_DOCKER_PUB_USR --password-stdin
             REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
