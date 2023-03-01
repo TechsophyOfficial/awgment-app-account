@@ -82,6 +82,10 @@ jobs:
           command: |
             REPONAME=$TS_DOCKER_PUB_USR/$CIRCLE_PROJECT_REPONAME
             docker build . -t $REPONAME:latest
+            echo "hello"
+            echo $(CIRCLE_TAG)
+            echo $(CIRCLE_PROJECT_REPONAME)
+            echo "bye"
 
       - run:
           name: "Push docker image"
