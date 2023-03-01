@@ -24,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.nio.file.AccessDeniedException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import static com.techsophy.tsf.account.constants.AccountConstants.ID;
@@ -66,6 +67,8 @@ public class ACLServiceImpl implements ACLService
         }
         BigInteger id=idGenerator.nextId();
         aclDefinition.setId(id);
+        aclDefinition.setCreatedById(loggedInUserId);
+        aclDefinition.setCreatedOn(Instant.now());
         try
         {
             aclRepository.save(aclDefinition);

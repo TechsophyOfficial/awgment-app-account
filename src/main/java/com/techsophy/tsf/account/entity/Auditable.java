@@ -22,6 +22,6 @@ public class Auditable
     private Instant createdOn;
     @LastModifiedDate
     private Instant updatedOn;
-    @Version
-    private Integer auditVersion;
+//    @Version
+//    private Integer auditVersion=0;
 }
