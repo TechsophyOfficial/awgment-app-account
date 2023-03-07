@@ -9,10 +9,7 @@ import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserData;
 import com.techsophy.tsf.account.dto.UserPreferencesSchema;
 import com.techsophy.tsf.account.entity.UserDefinition;
-import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
-import com.techsophy.tsf.account.exception.InvalidInputException;
-import com.techsophy.tsf.account.exception.RunTimeException;
-import com.techsophy.tsf.account.exception.UserNotFoundException;
+import com.techsophy.tsf.account.exception.*;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import com.techsophy.tsf.account.service.UserService;
@@ -74,11 +71,11 @@ public class UserServiceImpl implements UserService
                 /*cannot change userName and emailId*/
                 if (!existingUserDefinition.getUserName().equalsIgnoreCase(userDefinition.getUserName()))
                 {
-                    throw new InvalidInputException(USER_NAME_CANNOT_BE_CHANGED,globalMessageSource.get(USER_NAME_CANNOT_BE_CHANGED));
+                    throw new BadRequestException(USER_NAME_CANNOT_BE_CHANGED,globalMessageSource.get(USER_NAME_CANNOT_BE_CHANGED));
                 }
                 if (!existingUserDefinition.getEmailId().equalsIgnoreCase(userDefinition.getEmailId()))
                 {
-                    throw new InvalidInputException(EMAIL_ID_CANNOT_BE_CHANGED,globalMessageSource.get(EMAIL_ID_CANNOT_BE_CHANGED));
+                    throw new BadRequestException(EMAIL_ID_CANNOT_BE_CHANGED,globalMessageSource.get(EMAIL_ID_CANNOT_BE_CHANGED));
                 }
             }
             /*cannot change userName and emailId*/
@@ -94,7 +91,7 @@ public class UserServiceImpl implements UserService
             }
             return userDefinition;
         }
-        catch (ConstraintViolationException e)
+        catch (ConstraintViolationException | BadRequestException e)
         {
             throw e;
         }

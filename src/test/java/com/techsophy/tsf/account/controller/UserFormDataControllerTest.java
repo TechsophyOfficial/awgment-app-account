@@ -1,6 +1,7 @@
 package com.techsophy.tsf.account.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
@@ -25,11 +27,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.mongodb.client.model.Filters.eq;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -50,6 +54,8 @@ class UserFormDataControllerTest
     HttpHeaders httpHeaders;
     @Mock
     UserDetails userDetails;
+    @Mock
+    ObjectMapper objectMapper;
     @InjectMocks
     UserFormDataControllerImpl userFormDataController;
 
@@ -77,11 +83,17 @@ class UserFormDataControllerTest
     @CsvSource({"1,1", ",1"}) //here i am verifying with passing id and their invocation for service layer
     void updateUserDetailsOfLoggedInUserSuccessWithId(String args,int invocation) throws JsonProcessingException {
         Map<String,Object> map = new HashMap<>();
-        map.put("abc","abc");
+        map.put("userName","nandini");
+        map.put("emailId","nandini.k@techsophy.com");
+        map.put("groups","awgment");
+        map.put("roles","awgment-account-all");;
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,args,"abc");
         List<Map<String,Object>> list = new ArrayList<>();
         map.put("id","1");
         list.add(map);
+        AuditableData auditableData = new AuditableData("abc", Instant.now(),"abc",Instant.now());
+        Mockito.when(userFormDataService.getUserFormDataByUserId("1",false)).thenReturn(auditableData);
+        Mockito.when(objectMapper.convertValue(any(), ArgumentMatchers.eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema);
         Mockito.when(userDetails.getUserDetails()).thenReturn(list);
         Mockito.when(userFormDataService.saveUserFormData(userFormDataSchema)).thenReturn(userFormDataSchema);
         ApiResponse<UserFormDataSchema> userFormDataSchemaApiResponse = userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
@@ -91,8 +103,14 @@ class UserFormDataControllerTest
     @Test
     void updateUserDetailsOfLoggedInUserMisMatch() throws JsonProcessingException {
         Map<String,Object> map = new HashMap<>();
-        map.put("abc","abc");
+        map.put("userName","nandini");
+        map.put("emailId","nandini.k@techsophy.com");
+        map.put("groups","awgment");
+        map.put("roles","awgment-account-all");
+        AuditableData auditableData = new AuditableData("abc", Instant.now(),"abc",Instant.now());
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
+        Mockito.when(userFormDataService.getUserFormDataByUserId("1",false)).thenReturn(auditableData);
+        Mockito.when(objectMapper.convertValue(any(), ArgumentMatchers.eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema);
         List<Map<String,Object>> list = new ArrayList<>();
         map.put("id","2");
         list.add(map);

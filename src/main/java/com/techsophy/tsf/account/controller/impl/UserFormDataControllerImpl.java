@@ -1,12 +1,16 @@
 package com.techsophy.tsf.account.controller.impl;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.UserFormDataController;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.BadRequestException;
+import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
+import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
@@ -16,7 +20,11 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigInteger;
+import java.util.Map;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
+import static com.techsophy.tsf.account.constants.ErrorConstants.FORM_NOT_FOUND_EXCEPTION;
 
 @RestController
 @AllArgsConstructor(onConstructor_ = {@Autowired})
@@ -26,6 +34,7 @@ public class UserFormDataControllerImpl implements UserFormDataController
     private final GlobalMessageSource globalMessageSource;
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
+    private final ObjectMapper objectMapper;
 
     @Override
     public ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() {
@@ -42,6 +51,14 @@ public class UserFormDataControllerImpl implements UserFormDataController
     public ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(UserFormDataSchema userFormDataSchema) {
         try {
             String userId = (String) userDetails.getUserDetails().get(0).get(ID);
+            AuditableData  auditableData = userFormDataService.getUserFormDataByUserId(userId,false);
+            UserFormDataSchema existingFormData = this.objectMapper.convertValue(auditableData,UserFormDataSchema.class);
+            Map<String,Object> userData = userFormDataSchema.getUserData();
+            userData.put("userName",existingFormData.getUserData().get("userName"));
+            userData.put("groups",existingFormData.getUserData().get("groups"));
+            userData.put("roles",existingFormData.getUserData().get("roles"));
+            userData.put("emailId",existingFormData.getUserData().get("emailId"));
+            userFormDataSchema.setUserData(userData);
             if (userFormDataSchema.getUserId() != null && userFormDataSchema.getUserId().equalsIgnoreCase(userId)) {
                 return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, UPDATED_SUCCESSFULLY);
             } else if (userFormDataSchema.getUserId() == null) {
