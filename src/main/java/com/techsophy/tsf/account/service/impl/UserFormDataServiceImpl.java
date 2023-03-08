@@ -6,6 +6,8 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
+import com.techsophy.tsf.account.exception.BadRequestException;
+import com.techsophy.tsf.account.exception.InvalidInputException;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
@@ -84,7 +86,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userFormDataDefinition = this.userFormDataRepository.save(userFormDataDefinition);
             return this.objectMapper.convertValue(userFormDataDefinition, UserFormDataSchema.class);
         }
-        catch (ConstraintViolationException e)
+        catch (ConstraintViolationException | BadRequestException e)
         {
             throw e;
         }
