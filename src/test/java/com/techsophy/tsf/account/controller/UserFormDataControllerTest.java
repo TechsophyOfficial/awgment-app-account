@@ -35,6 +35,7 @@ import java.util.Map;
 
 import static com.mongodb.client.model.Filters.eq;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
+import static org.apache.commons.lang3.ArrayUtils.add;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 
@@ -82,27 +83,34 @@ class UserFormDataControllerTest
     @ParameterizedTest
     @CsvSource({"1,1", ",1"}) //here i am verifying with passing id and their invocation for service layer
     void updateUserDetailsOfLoggedInUserSuccessWithId(String args,int invocation) throws JsonProcessingException {
-        Map<String,Object> map = new HashMap<>();
-        map.put("userName","nandini");
-        map.put("emailId","nandini.k@techsophy.com");
-        map.put("groups","awgment");
-        map.put("roles","awgment-account-all");;
-        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,args,"abc");
+        Map<String,Object> inputData = new HashMap<>();
+        inputData.put("userName","nandini");
+        inputData.put("emailId","nandini.k@techsophy.com");
+        inputData.put("groups","awgment");
+        inputData.put("roles","awgment-account-all");
+        Map<String,Object> exitData = new HashMap<>();
+        exitData.put("userName","vaibhav");
+        exitData.put("emailId","vaibhav.j@techsophy.com");
+        exitData.put("groups","awgment-all");
+        exitData.put("roles","awgment-account-all");
+        exitData.put("id","1");
+        UserFormDataSchema userFormDataSchemaInputData = new UserFormDataSchema(inputData,args,"abc");
+        UserFormDataSchema userFormDataSchemaExitData = new UserFormDataSchema(exitData,args,"abc");
         List<Map<String,Object>> list = new ArrayList<>();
-        map.put("id","1");
-        list.add(map);
+        inputData.put("id","1");
+        list.add(inputData);
         AuditableData auditableData = new AuditableData("abc", Instant.now(),"abc",Instant.now());
         Mockito.when(userFormDataService.getUserFormDataByUserId("1",false)).thenReturn(auditableData);
-        Mockito.when(objectMapper.convertValue(any(), ArgumentMatchers.eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema);
+        Mockito.when(objectMapper.convertValue(any(), ArgumentMatchers.eq(UserFormDataSchema.class))).thenReturn(userFormDataSchemaExitData);
         Mockito.when(userDetails.getUserDetails()).thenReturn(list);
-        Mockito.when(userFormDataService.saveUserFormData(userFormDataSchema)).thenReturn(userFormDataSchema);
-        ApiResponse<UserFormDataSchema> userFormDataSchemaApiResponse = userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
-        Assertions.assertEquals(userFormDataSchema.getUserData().get("userName"),userFormDataSchemaApiResponse.getData().getUserData().get("userName"));
-        Assertions.assertEquals(userFormDataSchema.getUserData().get("emailId"),userFormDataSchemaApiResponse.getData().getUserData().get("emailId"));
-        Assertions.assertEquals(userFormDataSchema.getUserData().get("groups"),userFormDataSchemaApiResponse.getData().getUserData().get("groups"));
-        Assertions.assertEquals(userFormDataSchema.getUserData().get("roles"),userFormDataSchemaApiResponse.getData().getUserData().get("roles"));
+        Mockito.when(userFormDataService.saveUserFormData(userFormDataSchemaInputData)).thenReturn(userFormDataSchemaInputData);
+        ApiResponse<UserFormDataSchema> userFormDataSchemaApiResponse = userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchemaInputData);
+        Assertions.assertEquals(userFormDataSchemaExitData.getUserData().get("userName"),userFormDataSchemaApiResponse.getData().getUserData().get("userName"));
+        Assertions.assertEquals(userFormDataSchemaExitData.getUserData().get("emailId"),userFormDataSchemaApiResponse.getData().getUserData().get("emailId"));
+        Assertions.assertEquals(userFormDataSchemaExitData.getUserData().get("groups"),userFormDataSchemaApiResponse.getData().getUserData().get("groups"));
+        Assertions.assertEquals(userFormDataSchemaExitData.getUserData().get("roles"),userFormDataSchemaApiResponse.getData().getUserData().get("roles"));
         Assertions.assertEquals("1",userFormDataSchemaApiResponse.getData().getUserId());
-        Mockito.verify(userFormDataService,Mockito.times(invocation)).saveUserFormData(userFormDataSchema);
+        Mockito.verify(userFormDataService,Mockito.times(invocation)).saveUserFormData(userFormDataSchemaInputData);
     }
     @Test
     void updateUserDetailsOfLoggedInUserMisMatch() throws JsonProcessingException {
