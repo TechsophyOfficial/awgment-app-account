@@ -97,6 +97,10 @@ class UserFormDataControllerTest
         Mockito.when(userDetails.getUserDetails()).thenReturn(list);
         Mockito.when(userFormDataService.saveUserFormData(userFormDataSchema)).thenReturn(userFormDataSchema);
         ApiResponse<UserFormDataSchema> userFormDataSchemaApiResponse = userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema);
+        Assertions.assertEquals(userFormDataSchema.getUserData().get("userName"),userFormDataSchemaApiResponse.getData().getUserData().get("userName"));
+        Assertions.assertEquals(userFormDataSchema.getUserData().get("emailId"),userFormDataSchemaApiResponse.getData().getUserData().get("emailId"));
+        Assertions.assertEquals(userFormDataSchema.getUserData().get("groups"),userFormDataSchemaApiResponse.getData().getUserData().get("groups"));
+        Assertions.assertEquals(userFormDataSchema.getUserData().get("roles"),userFormDataSchemaApiResponse.getData().getUserData().get("roles"));
         Assertions.assertEquals("1",userFormDataSchemaApiResponse.getData().getUserId());
         Mockito.verify(userFormDataService,Mockito.times(invocation)).saveUserFormData(userFormDataSchema);
     }
