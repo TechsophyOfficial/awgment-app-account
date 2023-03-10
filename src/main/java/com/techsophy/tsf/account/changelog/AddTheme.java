@@ -5,8 +5,6 @@ import com.nimbusds.jose.shaded.json.parser.ParseException;
 import com.techsophy.tsf.account.entity.ThemesDefinition;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserPreferencesDefinition;
-import com.techsophy.tsf.account.repository.UserDefinitionRepository;
-import com.techsophy.tsf.account.repository.UserPreferencesDefinitionRepository;
 import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
@@ -18,7 +16,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import java.io.IOException;
 import java.io.InputStream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
-import static com.techsophy.tsf.account.constants.ErrorConstants.EXCEUTION_IS_FAILED;
+import static com.techsophy.tsf.account.constants.ErrorConstants.EXECUTION_IS_FAILED;
 
 @ChangeUnit(id = ADD_THEME, order = ORDER_3, systemVersion = SYSTEM_VERSION_1)
 @AllArgsConstructor(onConstructor_ = {@Autowired})
@@ -45,7 +43,7 @@ public class AddTheme {
     @RollbackExecution
     public void rollback()
     {
-        log.info(EXCEUTION_IS_FAILED);
+        log.info(EXECUTION_IS_FAILED);
     }
 
 }

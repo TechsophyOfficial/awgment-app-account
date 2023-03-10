@@ -6,11 +6,14 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
+import com.techsophy.tsf.account.exception.BadRequestException;
+import com.techsophy.tsf.account.exception.InvalidInputException;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
+import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +21,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+
 import javax.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.FORM_NOT_FOUND_EXCEPTION;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
@@ -38,6 +45,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
     private final GlobalMessageSource globalMessageSource;
     private final IdGeneratorImpl idGenerator;
     private final TokenUtils tokenUtils;
+    private final UserDetails userDetails;
 
     @Override
     public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
@@ -47,6 +55,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
             UserFormDataDefinition userFormDataDefinition = this.objectMapper
                     .convertValue(userFormDataSchema,UserFormDataDefinition.class);
             UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(),UserData.class);
+            userDetails.userNameValidations(userData.getUserName());
             String userId = userFormDataSchema.getUserId();
             userData.setUserName(userData.getUserName().toLowerCase());
             Map<String,Object> loggedInUser = userServiceImpl.getCurrentlyLoggedInUserId().get(0);
@@ -61,7 +70,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
             else
             {
                 UserFormDataDefinition existingFormDataDefinition =
-                        this.userFormDataRepository.findByUserId(BigInteger.valueOf(Long.valueOf(userId)))
+                        this.userFormDataRepository.findByUserId(BigInteger.valueOf(Long.parseLong(userId)))
                                 .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION,globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION,userId)));
                 userFormDataDefinition.setId(existingFormDataDefinition.getId());
                 userFormDataDefinition.setCreatedOn(existingFormDataDefinition.getCreatedOn());
@@ -77,7 +86,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userFormDataDefinition = this.userFormDataRepository.save(userFormDataDefinition);
             return this.objectMapper.convertValue(userFormDataDefinition, UserFormDataSchema.class);
         }
-        catch (ConstraintViolationException e)
+        catch (ConstraintViolationException | BadRequestException e)
         {
             throw e;
         }
@@ -192,8 +201,8 @@ public class UserFormDataServiceImpl implements UserFormDataService
     public Map<String,Object> convertEntityToMap(UserFormDataDefinition userFormDataDefinition)
     {
         Map<String,Object> stringObjectMap=this.objectMapper.convertValue(userFormDataDefinition,Map.class);
-        stringObjectMap.replace(ID,stringObjectMap.get(ID).toString());
-        stringObjectMap.replace(USER_ID,stringObjectMap.get(USER_ID).toString());
+        stringObjectMap.replace(ID,String.valueOf(stringObjectMap.get(ID)));
+        stringObjectMap.replace(USER_ID,String.valueOf(stringObjectMap.get(USER_ID)));
         return stringObjectMap;
     }
 

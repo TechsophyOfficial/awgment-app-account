@@ -31,4 +31,6 @@ public interface UserManagementInKeyCloak
     void changePassword() throws JsonProcessingException;
     Map<String,Object> setPassword(String userName) throws JsonProcessingException, UnsupportedEncodingException;
 
+    String addRoles(String clientName, RolesDto rolesDto);
+
 }

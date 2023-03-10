@@ -8,49 +8,33 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.constants.AccountConstants;
 import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.GroupDefinition;
-import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.repository.GroupRepository;
 import com.techsophy.tsf.account.service.impl.GroupsDataServiceImpl;
 import com.techsophy.tsf.account.service.impl.UserManagementInKeyCloakImpl;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
-import lombok.Cleanup;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.reactive.function.client.WebClient;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
-
 import static com.techsophy.tsf.account.constants.GroupsDataServiceConstants.RESPONSE;
-import static com.techsophy.tsf.account.constants.GroupsDataServiceConstants.USER_DEFINITION;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
-import com.techsophy.tsf.account.exception.GroupsNotFoundException;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-//@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@SpringBootTest
-class GroupsDataServiceTest {
+class GroupsDataServiceTest
+{
     @Mock
     UserManagementInKeyCloakImpl userManagementInKeyCloak;
     @Mock
@@ -72,8 +56,8 @@ class GroupsDataServiceTest {
     List<String> roles = new ArrayList<>();
 
     @Test
-    void getAllGroups() throws Exception {
-        Long l = 1L;
+    void getAllGroups() throws Exception
+    {
         GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(1), "abc", "abc", "abc");
         Mockito.when(groupRepository.findGroupsByQSorting("abc", null)).thenReturn(List.of(groupDefinition));
         groupsDataServiceImpl.getAllGroups("abc", null, null);
@@ -98,8 +82,6 @@ class GroupsDataServiceTest {
 
     @Test
     void getAllGroupsTest() throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(1), "abc", "abc", "abc");
         Page<GroupDefinition> tasks = Mockito.mock(Page.class);
         Mockito.when(this.groupRepository.findGroupsByQPageable("abc", null)).thenReturn(tasks);
         groupsDataServiceImpl.getAllGroups("abc", null);
@@ -108,7 +90,6 @@ class GroupsDataServiceTest {
     @Test
     void getAllGroupsNullTest() throws Exception {
         Page<GroupDefinition> tasks = Mockito.mock(Page.class);
-        GroupDefinition groupDefinition = new GroupDefinition(BigInteger.valueOf(1), "abc", "abc", "abc");
         when(groupRepository.findAll((Pageable) any())).thenReturn(tasks);
         groupsDataServiceImpl.getAllGroups("", null);
         verify(groupRepository, times(1)).findAll((Pageable) null);
@@ -124,9 +105,6 @@ class GroupsDataServiceTest {
 
     @Test
     void saveGroups() throws Exception {
-        InputStream inputStreamTest = new ClassPathResource(USER_DEFINITION).getInputStream();
-        ObjectMapper objectMapperTest = new ObjectMapper();
-        UserDefinition userDefintion = objectMapperTest.readValue(inputStreamTest, UserDefinition.class);
         Map<String, Object> map = new HashMap<>();
         map.put("id", "1");
         when(userServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(List.of(map));
@@ -165,7 +143,8 @@ class GroupsDataServiceTest {
     }
 
     @Test
-    void getGroupByIdTest() throws JsonProcessingException {
+    void getGroupByIdTest() throws JsonProcessingException
+    {
         String response = RESPONSE;
         List<String> list = new ArrayList<>();
         list.add("admin");

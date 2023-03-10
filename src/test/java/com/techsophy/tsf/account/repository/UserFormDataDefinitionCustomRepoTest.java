@@ -1,8 +1,6 @@
 package com.techsophy.tsf.account.repository;
 
-import com.techsophy.tsf.account.entity.BulkUserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
-import com.techsophy.tsf.account.repository.document.BulkUploadDefinitionCustomRepositoryImpl;
 import com.techsophy.tsf.account.repository.document.UserFormDataDefinitionCustomRepositoryImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,27 +9,20 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.test.context.ActiveProfiles;
-
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-@ActiveProfiles(TEST_ACTIVE_PROFILE)
-//@SpringBootTest
 class UserFormDataDefinitionCustomRepoTest
 {
     @Mock
@@ -52,6 +43,14 @@ class UserFormDataDefinitionCustomRepoTest
         verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
     }
 
+    @Test
+    void findByUserNameTest()
+    {
+        UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
+        Mockito.when(mongoTemplate.findOne(any(),eq(UserFormDataDefinition.class),anyString())).thenReturn(userFormDataDefinition);
+        userFormDataDefinitionCustomRepository.findByUserName("abc");
+        verify(mongoTemplate,times(1)).findOne(any(),eq(UserFormDataDefinition.class),anyString());
+    }
     @Test
     void findAll()
     {
@@ -76,7 +75,6 @@ class UserFormDataDefinitionCustomRepoTest
     {
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
         Mockito.when(mongoTemplate.find(any(),eq(UserFormDataDefinition.class))).thenReturn(List.of(userFormDataDefinition));
-        Pageable page =  PageRequest.of(1,1);
         userFormDataDefinitionCustomRepository.findFormDataUserByQSort("abc",Sort.by("abc"));
         verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
     }
@@ -96,7 +94,6 @@ class UserFormDataDefinitionCustomRepoTest
     {
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
         Mockito.when(mongoTemplate.find(any(),eq(UserFormDataDefinition.class))).thenReturn(List.of(userFormDataDefinition));
-        Pageable page =  PageRequest.of(1,1);
         userFormDataDefinitionCustomRepository.findByFilterColumnAndValue(Sort.by("abc"),"abc","abc");
         verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
     }

@@ -15,6 +15,12 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 @RequestMapping(ACCOUNTS_URL+VERSION_V1+USERS_URL)
 public interface UserFormDataController
 {
+    @GetMapping("/loggedIn")
+    ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() ;
+
+    @PostMapping("/loggedIn")
+    ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema);
+
     @PostMapping
     @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserFormDataSchema> saveUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema, @RequestHeader HttpHeaders headers) throws JsonProcessingException;

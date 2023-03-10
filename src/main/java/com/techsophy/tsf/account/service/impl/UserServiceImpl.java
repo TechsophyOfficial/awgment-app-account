@@ -9,10 +9,7 @@ import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserData;
 import com.techsophy.tsf.account.dto.UserPreferencesSchema;
 import com.techsophy.tsf.account.entity.UserDefinition;
-import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
-import com.techsophy.tsf.account.exception.InvalidInputException;
-import com.techsophy.tsf.account.exception.RunTimeException;
-import com.techsophy.tsf.account.exception.UserNotFoundException;
+import com.techsophy.tsf.account.exception.*;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import com.techsophy.tsf.account.service.UserService;
@@ -74,25 +71,27 @@ public class UserServiceImpl implements UserService
                 /*cannot change userName and emailId*/
                 if (!existingUserDefinition.getUserName().equalsIgnoreCase(userDefinition.getUserName()))
                 {
-                    throw new InvalidInputException(USER_NAME_CANNOT_BE_CHANGED,globalMessageSource.get(USER_NAME_CANNOT_BE_CHANGED));
+                    throw new BadRequestException(USER_NAME_CANNOT_BE_CHANGED,globalMessageSource.get(USER_NAME_CANNOT_BE_CHANGED));
                 }
                 if (!existingUserDefinition.getEmailId().equalsIgnoreCase(userDefinition.getEmailId()))
                 {
-                    throw new InvalidInputException(EMAIL_ID_CANNOT_BE_CHANGED,globalMessageSource.get(EMAIL_ID_CANNOT_BE_CHANGED));
+                    throw new BadRequestException(EMAIL_ID_CANNOT_BE_CHANGED,globalMessageSource.get(EMAIL_ID_CANNOT_BE_CHANGED));
                 }
             }
             /*cannot change userName and emailId*/
             userDefinition.setUpdatedOn(Instant.now());
             userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             userDefinition=this.userDefinitionRepository.save(userDefinition);
-            Map<String,Object> map = new HashMap<>();
-            map.put(THEME_ID,DEFAULT_THEME_ID);
-            map.put(USER_ID,userDefinition.getId());
-            UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map,UserPreferencesSchema.class);
-            userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
+            if(userData.getId()==null) {
+                Map<String, Object> map = new HashMap<>();
+                map.put(THEME_ID, DEFAULT_THEME_ID);
+                map.put(USER_ID, userDefinition.getId());
+                UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map, UserPreferencesSchema.class);
+                userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
+            }
             return userDefinition;
         }
-        catch (ConstraintViolationException e)
+        catch (ConstraintViolationException | BadRequestException e)
         {
             throw e;
         }
@@ -106,7 +105,7 @@ public class UserServiceImpl implements UserService
     public AuditableData getUserById(String id)
     {
         UserDefinition userDefinition = this.userDefinitionRepository.findById(BigInteger.valueOf(Long.parseLong(id)))
-                .orElseThrow(() -> new EntityNotFoundByIdException(ENTITY_NOT_FOUND_EXCEPTION,globalMessageSource.get(ENTITY_NOT_FOUND_EXCEPTION,id)));
+                .orElseThrow(() -> new EntityNotFoundByIdException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,id)));
         return  this.objectMapper.convertValue(userDefinition,UserData.class);
     }
 
@@ -150,14 +149,14 @@ public class UserServiceImpl implements UserService
     public UserDefinition getUserById(BigInteger id)
     {
         return this.userDefinitionRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundByIdException(ENTITY_NOT_FOUND_EXCEPTION,globalMessageSource.get(ENTITY_NOT_FOUND_EXCEPTION,id)));
+                .orElseThrow(() -> new EntityNotFoundByIdException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,id)));
     }
     @Override
     public void deleteUserById(String id)
     {
         if (!userDefinitionRepository.existsById(BigInteger.valueOf(Long.parseLong(id))))
         {
-            throw new EntityNotFoundByIdException(ENTITY_NOT_FOUND_EXCEPTION,globalMessageSource.get(ENTITY_NOT_FOUND_EXCEPTION,id));
+            throw new EntityNotFoundByIdException(USER_NOT_FOUND_BY_ID,globalMessageSource.get(USER_NOT_FOUND_BY_ID,id));
         }
         this.userDefinitionRepository.deleteById(BigInteger.valueOf(Long.parseLong(id)));
     }

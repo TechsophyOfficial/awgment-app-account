@@ -8,6 +8,7 @@ import com.techsophy.tsf.account.constants.ThemesConstants;
 import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.BulkUserDefinition;
 import com.techsophy.tsf.account.exception.BulkUserNotFoundException;
+import com.techsophy.tsf.account.exception.FileNameNotPresentException;
 import com.techsophy.tsf.account.exception.InvalidDataException;
 import com.techsophy.tsf.account.repository.BulkUploadDefinintionRepository;
 import com.techsophy.tsf.account.service.impl.BulkUserServiceImplementation;
@@ -16,26 +17,24 @@ import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import org.apache.commons.io.IOUtils;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.math.BigInteger;
 import java.util.*;
 import java.util.stream.Stream;
@@ -45,11 +44,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
-//@SpringBootTest
 @ExtendWith(MockitoExtension.class)
-@EnableWebMvc
-@ActiveProfiles("test")
-@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class BulkUserServiceTest
 {
     @Mock
@@ -102,7 +97,6 @@ class BulkUserServiceTest
         userDetails.put(GROUPS,s);
         Mockito.when(userServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
         MultipartFile multipartFile = new MockMultipartFile("file", file.getName(), "text/plain", IOUtils.toByteArray(input));
-        PaginationResponsePayload paginationResponsePayload = new PaginationResponsePayload(list,1,1L,1,1,1);
         when(this.objectMapper.convertValue(any(),ArgumentMatchers.eq(String.class))).thenReturn("abc,abc");
         Mockito.when(bulkUploadDefinintionRepository.save(any())).thenReturn(bulkUserDefinition);
         Mockito.when(userManagementInKeyCloak.getAllGroups()).thenReturn(Stream.of(schema1)).thenReturn(Stream.of(schema1)).thenReturn(Stream.of(schema1));
@@ -110,6 +104,25 @@ class BulkUserServiceTest
         Mockito.when(bulkUploadDefinintionRepository.findById(BigInteger.valueOf(1))).thenReturn(bulkUserDefinition);
         bulkUserServiceImplementation.bulkUploadUsers(multipartFile);
         Mockito.verify(bulkUploadDefinintionRepository,Mockito.times(1)).findById(BigInteger.valueOf(1));
+    }
+
+    @Test
+    void bulkUploadFileNameExceptionTest() throws IOException
+    {
+        when(idGenerator.nextId()).thenReturn(BigInteger.ONE);
+        BulkUserDefinition bulkUserDefinition = new BulkUserDefinition(BigInteger.valueOf(1),map,BigInteger.valueOf(1),"abc");
+        File file = new File("src/test/resources/testdata/accounts_template.csv");
+        FileInputStream input = new FileInputStream(file);
+        List<String> s = new ArrayList<>();
+        s.add("abc");
+        s.add("bcd");
+        GroupsSaveSchema schema1 = new GroupsSaveSchema("WorkingGroup101","abc");
+        RolesSchema rolesSchema = new RolesSchema("abc","abc");
+        LinkedHashMap<String,Object> userDetails = new LinkedHashMap<>();
+        userDetails.put(GROUPS,s);
+        Mockito.when(userServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
+        MultipartFile multipartFile = new MockMultipartFile("file1","", "text/plain", IOUtils.toByteArray(input));
+        Assertions.assertThrows(FileNameNotPresentException.class,()->bulkUserServiceImplementation.bulkUploadUsers(multipartFile));
     }
 
     @Test
@@ -226,10 +239,6 @@ class BulkUserServiceTest
     @Test
     void getAllBulkUsersPagination()
     {
-        Pageable pageable = PageRequest.of(1,1);
-        BulkUserDefinition bulkUserDefinition = new BulkUserDefinition(BigInteger.valueOf(1),map,BigInteger.valueOf(1),"status");
-        PaginationResponsePayload paginationResponsePayload = new PaginationResponsePayload(list,1,1L,1,1,1);
-        Page<BulkUserDefinition> page = new PageImpl<>(List.of(bulkUserDefinition));
         Assertions.assertNotNull(bulkUserServiceImplementation.getAllBulkUsers(DOCUMENT_ID,"123",CREATED_ON,"asc"));
     }
 
