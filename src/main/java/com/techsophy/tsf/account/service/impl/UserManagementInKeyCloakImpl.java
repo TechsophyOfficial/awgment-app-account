@@ -63,8 +63,8 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         String token= tokenUtils.getTokenFromContext();
         var userSchema = objectMapper
                 .convertValue(userData.getUserData(), UserData.class);
-        Map<String,Object> map = new HashMap<>();
-        map.put("userId",userSchema.getId());
+        Map<String,Object> attributeMap = new HashMap<>();
+        attributeMap.put("userId",userSchema.getId());
         Map<String, String> realmDetails;
         if (StringUtils.isEmpty(token))
         {
@@ -76,7 +76,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         userModel.put(USER_SCHEMA_LAST_NAME, userSchema.getLastName());
         userModel.put(USER_SCHEMA_EMAIL, userSchema.getEmailId());
         userModel.put(USER_SCHEMA_USER_NAME, userSchema.getUserName());
-        userModel.put("attributes", map);
+        userModel.put("attributes", attributeMap);
         var client = webClientWrapper.createWebClient(token);
         if (StringUtils.isEmpty(userData.getUserId()))
         {
@@ -353,7 +353,9 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
     private Map<String, Object> getUserIdByUsername(String token, String username)
     {
         var client = webClientWrapper.createWebClient(token);
-        String userDetails = webClientWrapper.webclientRequestForUser(client,keyCloakApi + tokenUtils.getIssuerFromContext()+ userCreationApi,username);
+        String userDetails = webClientWrapper.webclientRequestForUser(client,
+                keyCloakApi + tokenUtils.getIssuerFromContext()+ userCreationApi,
+                username);
         var roleObject = new JSONTokener(userDetails).nextValue();
         if (roleObject instanceof JSONObject)
         {
