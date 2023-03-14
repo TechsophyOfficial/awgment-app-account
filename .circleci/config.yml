@@ -8,8 +8,6 @@ orbs:
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   commit-flow:
-    # when: 
-    #   not: << pipeline.git.tag >>
     jobs:
       - buildMS:
           context: ossContext
@@ -19,7 +17,7 @@ workflows:
             - buildMS
           filters:
             tags:
-              only: /^v.*/
+              only: /v.*/
             branches:
               ignore: /.*/              
       - deployMS:
