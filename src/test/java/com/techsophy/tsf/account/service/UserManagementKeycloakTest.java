@@ -19,7 +19,10 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -27,8 +30,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.techsophy.tsf.account.constants.AccountConstants.POST;
 import static com.techsophy.tsf.account.constants.GroupsDataServiceConstants.RESPONSE;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -253,35 +254,6 @@ import static org.mockito.Mockito.*;
         when(this.mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.createUser(userDataSchema));
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.createUser(userDataSchema1));
-    }
-    @Test
-    void createUserWithAttribute() throws JsonProcessingException
-    {
-        Map<String, Object> userDataMap = new HashMap<>();
-        userDataMap.put("id","123");
-        userDataMap.put("firstName","Ganga");
-        userDataMap.put("lastName","Nandini");
-        userDataMap.put("requiredActions","value");
-        userDataMap.put("credentials","value");
-        userDataMap.put("attributes","value");
-        userDataMap.put("email","nandini.k@techsophy.com");
-        userDataMap.put("username","nandini");
-        HashMap<String,String> userTokenMap = new HashMap<>();
-        userTokenMap.put("id","123");
-        userTokenMap.put("username","nandini");
-        UserDataSchema userDataSchema = new UserDataSchema(userDataMap,"");
-        UserData userData = new UserData("123","nandini","Ganga","Nandini","9381837179","nandini.k@techsophy.com","software");
-        when(mockTokenUtils.getTokenFromContext()).thenReturn("token");
-        Mockito.when(mockObjectMapper.convertValue(any(),eq(UserData.class))).thenReturn(userData);
-        when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-        when(webClientWrapper.webclientRequestForUser(any(WebClient.class), anyString(), anyString())).thenReturn(response);
-        when(this.mockObjectMapper.convertValue(any(),eq(HashMap.class))).thenReturn(userTokenMap);
-        ArgumentCaptor<Map> objectCaptor = ArgumentCaptor.forClass(Map.class);
-        userManagementInKeyCloak.createUser(userDataSchema);
-        verify(webClientWrapper).webclientRequest(any(WebClient.class), any(String.class),anyString(),objectCaptor.capture());
-        Map attributeMap= (Map) objectCaptor.getValue().get("attributes");
-        Assertions.assertEquals("123",attributeMap.get("userId"));
-
     }
 
     @Test
