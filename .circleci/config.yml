@@ -8,15 +8,21 @@ orbs:
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
 workflows:
   commit-flow:
-    # when: 
-    #   not: << pipeline.git.tag >>
     jobs:
       - buildMS:
           context: ossContext
+          filters:
+            tags:
+              only: /^v.*/         
       - publishMS:
           context: ossContext
           requires: 
             - buildMS
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              only: /dev/                   
       - deployMS:
           context: 
             - ossContext
@@ -24,7 +30,7 @@ workflows:
             - devAppEnv
           requires:
             - publishMS
-          filters:
+          filters:           
             branches:
               only: /220927_cibuild/
       - testMS:
