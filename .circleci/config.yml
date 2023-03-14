@@ -19,7 +19,8 @@ workflows:
             - buildMS
           filters:
             branches:
-              only: /dev/           
+              only: /dev/
+              ignore: /.*/         
             tags:
               only: /^v.*/
       - deployMS:
