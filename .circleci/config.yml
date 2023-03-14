@@ -21,7 +21,7 @@ workflows:
             branches:
               only: /dev/           
             tags:
-              only: /^v.*/            
+              only: /^v.*/
       - deployMS:
           context: 
             - ossContext
