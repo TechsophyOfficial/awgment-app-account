@@ -11,15 +11,18 @@ workflows:
     jobs:
       - buildMS:
           context: ossContext
+          filters:
+            tags:
+              only: /^v.*/         
       - publishMS:
           context: ossContext
           requires: 
             - buildMS
           filters:
             tags:
-              only: /v.*/
+              only: /^v.*/
             branches:
-              ignore: /.*/              
+              only: /dev/                   
       - deployMS:
           context: 
             - ossContext
