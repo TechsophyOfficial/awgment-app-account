@@ -18,8 +18,6 @@ workflows:
           requires: 
             - buildMS
           filters:
-            branches:
-              ignore: /.*/         
             tags:
               only: /^v.*/
       - deployMS:
