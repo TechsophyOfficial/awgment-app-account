@@ -17,6 +17,11 @@ workflows:
           context: ossContext
           requires: 
             - buildMS
+          filters:
+            branches:
+              only: /dev/           
+            tags:
+              only: /^v.*/            
       - deployMS:
           context: 
             - ossContext
@@ -24,11 +29,9 @@ workflows:
             - devAppEnv
           requires:
             - publishMS
-          filters:
-            tags:
-              only: /^v.*/            
+          filters:           
             branches:
-              ignore: /.*/
+              only: /220927_cibuild/
       - testMS:
           context: ossContext
           requires:
