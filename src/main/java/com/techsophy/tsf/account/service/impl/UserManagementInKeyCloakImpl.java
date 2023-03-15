@@ -157,6 +157,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
                 clientMap.put(String.valueOf(c.get(CLIENT_ID)),String.valueOf(c.get(ID)));
             }
         }
+
         return clientMap;
     }
 
