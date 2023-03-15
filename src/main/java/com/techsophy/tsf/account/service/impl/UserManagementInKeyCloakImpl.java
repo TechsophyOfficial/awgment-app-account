@@ -107,7 +107,8 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
             }
             userDetails.put(USER_SCHEMA_PASSWORD,password);
             return userDetails;
-        } else
+        }
+        else
         {
             Map<String, Object> userDetails = getUserIdByUsername(token, userData.getUserData().containsKey(OLD_USER_NAME)?String.valueOf(userData.getUserData().get("oldUserName")):userSchema.getUserName());
             if (userDetails == null)
