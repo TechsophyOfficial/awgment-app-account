@@ -77,6 +77,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         userModel.put(USER_SCHEMA_EMAIL, userSchema.getEmailId());
         userModel.put(USER_SCHEMA_USER_NAME, userSchema.getUserName());
         userModel.put("attributes", attributeMap);
+
         var client = webClientWrapper.createWebClient(token);
         if (StringUtils.isEmpty(userData.getUserId()))
         {
