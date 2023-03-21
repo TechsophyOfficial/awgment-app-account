@@ -1,3 +1,7 @@
+- 20230320 - 24227 - awgment-keycloak - configure userId as claim in token
+   - Added the clientscope with name awgment
+   - under the name of awgment clientscope added userAttribute with name of userId under Mappers section
+
 - 20230221 - 23299 -Form Security issue -ACL APIs
  - Add following roles to existing keycloak under camunda-identity-service client
     - awgment-account-acl-create-or-update      
