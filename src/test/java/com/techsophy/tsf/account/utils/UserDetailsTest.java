@@ -67,7 +67,7 @@ class UserDetailsTest
         map.put(UPDATEDBYNAME, NULL);
         map.put(UPDATEDON, NULL);
         map.put(ID, BIGINTEGER_ID);
-        map.put("id", BIGINTEGER_ID);
+        map.put("id", BigInteger.ONE);
         map.put(USER_NAME, USER_FIRST_NAME);
         map.put(FIRST_NAME, USER_LAST_NAME);
         map.put(LAST_NAME, USER_FIRST_NAME);
@@ -138,7 +138,7 @@ class UserDetailsTest
                 .thenReturn(response);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userList);
         Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
-        Assertions.assertNotEquals(Optional.empty(),id);
+        Assertions.assertEquals(Optional.of(BigInteger.ONE),id);
     }
 }
 
