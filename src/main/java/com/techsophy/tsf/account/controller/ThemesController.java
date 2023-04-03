@@ -24,7 +24,6 @@ public interface ThemesController
     ApiResponse<ThemesResponse> saveThemesData(@RequestBody @Validated ThemesSchema themesSchema) throws JsonProcessingException;
 
     @GetMapping(BY_ID_URL)
-    @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<ThemesResponseSchema>  getThemesDataById(@PathVariable(ID) String id);
 
     @GetMapping

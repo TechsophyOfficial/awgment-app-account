@@ -17,12 +17,10 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 public interface UserPreferencesController
 {
     @PostMapping
-    @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesResponse> saveUserPreferencesTheme(@RequestBody @Validated UserPreferencesSchema themesSchema) throws JsonProcessingException;
 
 
     @GetMapping
-    @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesSchema>  getUserPreferencesThemesDataByUserId() throws IOException;
 
     @DeleteMapping
