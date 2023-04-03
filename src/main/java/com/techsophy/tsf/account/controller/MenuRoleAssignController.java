@@ -28,7 +28,6 @@ public interface MenuRoleAssignController
     ApiResponse<Stream<MenuRoleAssignSchema>> getAllMenuRoles();
 
     @GetMapping(ROLES_URL+MENU)
-    @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<List<MenuSchema>> getAssignedMenuToUserRoles();
 
     @DeleteMapping(MENU_ROLE+MENU_ROLE_ID)
