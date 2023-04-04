@@ -25,11 +25,8 @@ public class CustomFilter implements Filter
 		String uri = httpRequest.getRequestURI();
 
 		String tenant = httpRequest.getHeader("X-Tenant");
-		if(tenant==null || tenant.isEmpty()){
-			if(!uri.startsWith("/internal")){
-				tenant= tokenUtils.getIssuerFromToken(httpRequest.getHeader(AUTHORIZATION));
-			}
-
+		if(!uri.startsWith("/internal")){
+			tenant= tokenUtils.getIssuerFromToken(httpRequest.getHeader(AUTHORIZATION));
 		}
 
 		if(StringUtils.isNotEmpty(tenant))
