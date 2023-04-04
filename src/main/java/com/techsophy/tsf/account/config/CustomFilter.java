@@ -22,11 +22,24 @@ public class CustomFilter implements Filter
 	public void doFilter(ServletRequest request, ServletResponse response,FilterChain chain)
 	{
 	    HttpServletRequest httpRequest=(HttpServletRequest) request;
-		String tenant= tokenUtils.getIssuerFromToken(httpRequest.getHeader(AUTHORIZATION));
-	    if(StringUtils.isNotEmpty(tenant))
+		String uri = httpRequest.getRequestURI();
+
+		String tenant = httpRequest.getHeader("X-Tenant");
+		if(tenant==null || tenant.isEmpty()){
+			if(!uri.startsWith("/internal")){
+				tenant= tokenUtils.getIssuerFromToken(httpRequest.getHeader(AUTHORIZATION));
+			}
+
+		}
+
+		if(StringUtils.isNotEmpty(tenant))
 	    {
             TenantContext.setTenantId(tenant);
-        }
+        }else{
+			throw new IllegalStateException("Unable to find tenant info in request");
+		}
 		chain.doFilter(request, response);
+
+
 	}
 }
