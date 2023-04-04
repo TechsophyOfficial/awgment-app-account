@@ -28,10 +28,8 @@ public interface UserPreferencesController
     ApiResponse<Void> deleteUserPreferencesThemeDataByUserId() throws JsonProcessingException;
 
     @PostMapping(value =PROFILE_PICTURE_URL,consumes={MediaType.MULTIPART_FORM_DATA_VALUE })
-    @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<ProfilePictureResponse> uploadProfilePictureByUserId(@RequestParam(FILE) MultipartFile file) throws IOException;
 
     @DeleteMapping(PROFILE_PICTURE_URL)
-    @PreAuthorize(DELETE_OR_ALL_ACCESS)
     ApiResponse<Void> deleteProfilePhotoByUserId() throws JsonProcessingException;
 }
