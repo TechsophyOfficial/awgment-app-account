@@ -21,12 +21,13 @@ public class CustomFilter implements Filter
 	@Override
 	public void doFilter(ServletRequest request, ServletResponse response,FilterChain chain)
 	{
-	    HttpServletRequest httpRequest=(HttpServletRequest) request;
-		String tenant= tokenUtils.getIssuerFromToken(httpRequest.getHeader(AUTHORIZATION));
-	    if(StringUtils.isNotEmpty(tenant))
-	    {
-            TenantContext.setTenantId(tenant);
-        }
+		HttpServletRequest httpRequest=(HttpServletRequest) request;
+		if(!httpRequest.getRequestURL().toString().contains("/internal/")) {
+			String tenant = tokenUtils.getIssuerFromToken(httpRequest.getHeader(AUTHORIZATION));
+			if (StringUtils.isNotEmpty(tenant)) {
+				TenantContext.setTenantId(tenant);
+			}
+		}
 		chain.doFilter(request, response);
 	}
 }

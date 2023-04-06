@@ -10,6 +10,7 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.BulkUserService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.util.StringUtils;
@@ -20,7 +21,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.FILTER_OR_Q_REQUIRED;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor(onConstructor_ = {@Autowired})
 public class BulkUserControllerImpl implements BulkUserController
 {
     private final GlobalMessageSource globalMessageSource;
