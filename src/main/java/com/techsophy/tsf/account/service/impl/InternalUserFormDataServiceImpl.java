@@ -48,7 +48,6 @@ public class InternalUserFormDataServiceImpl implements InternalUserFormDataServ
     private final UserDetails userDetails;
     private final UserDefinitionRepository userDefinitionRepository;
     private final UserPreferencesThemeService userPreferencesThemeService;
-
     @Override
     public InternalUserFormDataSchema saveUserFormData(String signature, InternalUserFormDataSchema userFormDataSchema)
     {
