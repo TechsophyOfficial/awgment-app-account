@@ -56,6 +56,7 @@ public class ErrorConstants
     public static final String EMAIL_ID_ALREADY_EXISTS="AWGMENT-ACCOUNT-1048";
     public static final String UPLOAD_CSV_FILE_EXTENSION_ONLY="AWGMENT-ACCOUNT-1049";
     public static final String MENU_NOT_FOUND_EXCEPTION="AWGMENT-ACCOUNT-1050";
+    public static final String UN_AUTHORIZED_EXCEPTION="AWGMENT-ACCOUNT-1062";
     public static final String GIVEN_GROUPS_NOT_FOUND="AWGMENT-ACCOUNT-1051";
     public static final String GIVEN_ROLES_NOT_FOUND="AWGMENT-ACCOUNT-1052";
     public static final String FILE_SIZE_EXCEEDED="AWGMENT-ACCOUNT-1053";

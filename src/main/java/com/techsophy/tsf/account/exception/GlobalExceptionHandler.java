@@ -233,4 +233,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler
                 HttpStatus.INTERNAL_SERVER_ERROR, request.getDescription(false));
         return new ResponseEntity<>(errorDetails, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+    @ExceptionHandler(UnAuthorizedException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnAuthorizedException(UnAuthorizedException ex, WebRequest request)
+    {
+        ApiErrorResponse errorDetails = new ApiErrorResponse(Instant.now(),ex.getMessage(),ex.getMessage(),
+                HttpStatus.UNAUTHORIZED, request.getDescription(false));
+        return new ResponseEntity<>(errorDetails, HttpStatus.UNAUTHORIZED);
+    }
 }

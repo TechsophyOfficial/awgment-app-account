@@ -458,4 +458,18 @@ public class AccountConstants
  public static final String MENU_ROLE_TABLE="tp_menu_role";
  public static final String MENU_ROLE="/menurole";
  public static final String MENU_ROLE_ID="/{id}";
+
+ //InternalUserConstants
+ public static final String USERNAME_INTERNAL ="userName";
+ public static final String FIRSTNAME_INTERNAL="firstName";
+ public static final String LASTNAME_INTERNAL="lastName";
+ public static final String MOBILE_NUMBER_INTERNAL="mobileNumber";
+ public static final String DEPARTMENT_INTERNAL="department";
+ public static final String SIGNATURE_INTERNAL="signature";
+ public static final String USERNAME_INTERNAL_VALUE="rupali.t@techsophy.com";
+ public static final String FIRSTNAME_INTERNAL_VALUE="rupali";
+ public static final String LASTNAME_INTERNAL_VALUE="tomar";
+ public static final String MOBILE_NUMBER_INTERNAL_VALUE="9893453678";
+ public static final String DEPARTMENT_INTERNAL_VALUE="IT";
+ public static final String SIGNATURE_INTERNAL_VALUE="dfa0cy4+wono+hT939Sn09rPOeEG06R0rCEpAzYIQjKkX9t9LzBuAeowBN9AS4rHFhUpvpGPOPKQnY0jDAZimz2ZTCMff1hZqZvllncgA8BGmgPI46JXTlfKTFi4zwHYZ9AAR/C5Rt5H5VO4ftQ26HU9cioRnH+Skk65stGjvBz6QjwsRnqNne56gzvQnEegrY6CO28LUSUpTv3d6NXe15B+YsUvncLF86OnTsHQ9rB5zaaFcG0y3q7gciI0fbFeOBjgVmsA07reIA3rEnyNxJgsuNxFIVjlY59/1ITg5MBbmjM7VIcbN6fS83vQeHmQJFAFzoM5MIFYI9bWPWndbugxlzl9JfIq+5zmIbBDEPUAfozPPqE+0vGQE3vupDJAI13RWC9GK4tbeev2SmCWaVTXHVbBN2MTwc/+2aBbfGbUcc/sNG2dJVvvYaahHXp+X1RgGyLelt5pAso/5swHv64S5G+L1gvncONGTBMElmXjsbkOqcFiqTAnhocHq3AizbeWLONDYcBkqFi+0Vf6fsG2yHssVyS6nce9TxPE/BDR90JfDS1kFUTb4GaqRFVuN9579mLqrsNa1RZCruZQT3ejFGffTLUbPg/ENXnkmIhS7YTMSOuCUv8tTc9xGktcfb1BbAvjnfT7ukKSMa3KTQuq0ALHxBYQxOUIqslDIXU=";
 }
