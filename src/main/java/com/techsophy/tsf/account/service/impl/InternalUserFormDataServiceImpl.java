@@ -63,23 +63,10 @@ public class InternalUserFormDataServiceImpl implements InternalUserFormDataServ
                     .convertValue(userFormDataSchema,UserFormDataDefinition.class);
             UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(),UserData.class);
             userDetails.userNameValidations(userData.getUserName());
-
-            //String realmId = userFormDataSchema.getRealmId();
-            //TODO: Validate UserName within realmId
-            //Current Document does not contains the Realm Id in UserFormDataDefinition
-            //What Validation we need to put here for User Existence
-            //If Exists throw Exception
-
-//            UserFormDataDefinition existingFormDataDefinition =
-//                    this.userFormDataRepository.findByUserId(BigInteger.valueOf(Long.parseLong(realmId)))
-//                            .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION,globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION,realmId)));
-
-
             userData.setUserName(userData.getUserName().toLowerCase());
 
             userFormDataDefinition.setId(idGenerator.nextId());
             userFormDataDefinition.setCreatedOn(Instant.now());
-            //userFormDataDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             userFormDataDefinition.setVersion(1);
 
             UserDefinition userDefinition = saveUser(userData);
@@ -115,15 +102,8 @@ public class InternalUserFormDataServiceImpl implements InternalUserFormDataServ
                 userDefinition.setCreatedOn(Instant.now());
                 userDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong("1001")));
             }
-//            userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             userDefinition=this.userDefinitionRepository.save(userDefinition);
-           /* if(userData.getId()==null) {
-                Map<String, Object> map = new HashMap<>();
-                map.put(THEME_ID, DEFAULT_THEME_ID);
-                map.put(USER_ID, userDefinition.getId());
-                UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map, UserPreferencesSchema.class);
-                userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
-            }*/
+
             return userDefinition;
         }
         catch (ConstraintViolationException | BadRequestException e)
