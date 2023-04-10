@@ -17,12 +17,10 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 public interface UserPreferencesController
 {
     @PostMapping
-    @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesResponse> saveUserPreferencesTheme(@RequestBody @Validated UserPreferencesSchema themesSchema) throws JsonProcessingException;
 
 
     @GetMapping
-    @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<UserPreferencesSchema>  getUserPreferencesThemesDataByUserId() throws IOException;
 
     @DeleteMapping
@@ -30,10 +28,8 @@ public interface UserPreferencesController
     ApiResponse<Void> deleteUserPreferencesThemeDataByUserId() throws JsonProcessingException;
 
     @PostMapping(value =PROFILE_PICTURE_URL,consumes={MediaType.MULTIPART_FORM_DATA_VALUE })
-    @PreAuthorize(CREATE_OR_ALL_ACCESS)
     ApiResponse<ProfilePictureResponse> uploadProfilePictureByUserId(@RequestParam(FILE) MultipartFile file) throws IOException;
 
     @DeleteMapping(PROFILE_PICTURE_URL)
-    @PreAuthorize(DELETE_OR_ALL_ACCESS)
     ApiResponse<Void> deleteProfilePhotoByUserId() throws JsonProcessingException;
 }

@@ -88,7 +88,13 @@ public class UserDetails  implements AuditorAware<BigInteger>
     @Override
     public Optional<BigInteger> getCurrentAuditor()
     {
-        return Optional.ofNullable(BigInteger.valueOf(Long.parseLong(String.valueOf(getUserDetails().get(0).get(ID)))));
+
+        try {
+            return Optional.ofNullable(BigInteger.valueOf(Long.parseLong(String.valueOf(getUserDetails().get(0).get(ID)))));
+       }catch (Exception e){
+          return Optional.empty();
+       }
+
     }
 }
 
