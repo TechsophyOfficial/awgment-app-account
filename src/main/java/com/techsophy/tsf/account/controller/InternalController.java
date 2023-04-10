@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import static com.techsophy.tsf.account.constants.AccountConstants.VERSION_V1;
 
 @RequestMapping("/internal"+VERSION_V1+"/users/create/")
-public interface InternalUserFormDataController {
+public interface InternalController {
     @PostMapping
     ApiResponse<InternalUserFormDataSchema> saveUser(@RequestParam("signature") String signature, @RequestBody @Validated InternalUserFormDataSchema userFormDataSchema, @RequestHeader HttpHeaders headers) throws JsonProcessingException;
 }

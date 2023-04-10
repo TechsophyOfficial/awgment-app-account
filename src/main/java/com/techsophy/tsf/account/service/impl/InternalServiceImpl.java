@@ -13,12 +13,12 @@ import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UnAuthorizedException;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
-import com.techsophy.tsf.account.service.InternalUserFormDataService;
+import com.techsophy.tsf.account.service.InternalService;
 import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import com.techsophy.tsf.account.utils.Rsa4096;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -34,8 +34,8 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.UN_AUTHORIZED_E
 
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
-public class InternalUserFormDataServiceImpl implements InternalUserFormDataService
+@RequiredArgsConstructor(onConstructor_ = {@Autowired})
+public class InternalServiceImpl implements InternalService
 {
     private final UserFormDataDefinitionRepository userFormDataRepository;
     private final UserServiceImpl userServiceImpl;

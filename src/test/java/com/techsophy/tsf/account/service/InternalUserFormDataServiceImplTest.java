@@ -9,7 +9,7 @@ import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
-import com.techsophy.tsf.account.service.impl.InternalUserFormDataServiceImpl;
+import com.techsophy.tsf.account.service.impl.InternalServiceImpl;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
@@ -53,7 +53,7 @@ class InternalUserFormDataServiceImplTest {
     @Mock
     Logger log;
     @InjectMocks
-    InternalUserFormDataServiceImpl internalUserFormDataServiceImpl;
+    InternalServiceImpl internalUserFormDataServiceImpl;
     Map<String,Object> userDataMap = new HashMap<>();
 
 
@@ -83,14 +83,18 @@ class InternalUserFormDataServiceImplTest {
         userData.setLastName(LASTNAME_INTERNAL_VALUE);
         userData.setMobileNumber(MOBILE_NUMBER_INTERNAL_VALUE);
         userData.setEmailId(USERNAME_INTERNAL_VALUE);
+        InternalUserFormDataSchema internalUserFormDataSchema = new InternalUserFormDataSchema();
+        internalUserFormDataSchema.setUserData(userDataMap);
+        internalUserFormDataSchema.setRealmId("master");
+        internalUserFormDataSchema.setVersion("1");
 
         when(objectMapper.convertValue(any(),ArgumentMatchers.eq(UserFormDataDefinition.class))).thenReturn(userFormDataDefinition1);
         when(objectMapper.convertValue(any(),ArgumentMatchers.eq(UserData.class))).thenReturn(userData);
         when(userServiceImpl.validateUniqueConstraint(any())).thenReturn(List.of());
         testSaveUser();
         when(userFormDataRepository.save(any())).thenReturn(userFormDataDefinition1.withId(BigInteger.TWO));
-        when(objectMapper.convertValue(any(),ArgumentMatchers.eq(InternalUserFormDataSchema.class))).thenReturn(new InternalUserFormDataSchema(userDataMap, "master", "1"));
-        InternalUserFormDataSchema result = internalUserFormDataServiceImpl.saveUserFormData("signature", new InternalUserFormDataSchema(userDataMap, "master", "1"));
+        when(objectMapper.convertValue(any(),ArgumentMatchers.eq(InternalUserFormDataSchema.class))).thenReturn(internalUserFormDataSchema);
+        InternalUserFormDataSchema result = internalUserFormDataServiceImpl.saveUserFormData("signature", internalUserFormDataSchema);
         Assertions.assertNotNull(result);
     }
 

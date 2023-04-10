@@ -1,8 +1,8 @@
 package com.techsophy.tsf.account.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import lombok.RequiredArgsConstructor;
 
 import javax.validation.constraints.NotEmpty;
 import java.util.Map;
@@ -11,7 +11,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.USER_DATA_NOT
 
 @EqualsAndHashCode(callSuper = true)
 @Data
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class InternalUserFormDataSchema extends AuditableData
 {
     @NotEmpty(message = USER_DATA_NOT_EMPTY)
