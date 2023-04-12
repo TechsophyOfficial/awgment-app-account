@@ -15,7 +15,7 @@ public class RequestProperties {
     private String emailId;
     private String department;
     private String userId;
-    private String context;
+    private Map<String,String> context;
     private Map<String, Object> userInfo;
 }
 
