@@ -7,7 +7,9 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.constants.AccountConstants;
 import com.techsophy.tsf.account.constants.UserPreferencesConstants;
 import com.techsophy.tsf.account.dto.ACLSchema;
+import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.CheckACLSchema;
+import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.exception.EntityNotFoundByIdException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.repository.ACLRepository;
@@ -44,6 +46,8 @@ import static com.techsophy.tsf.account.constants.UserPreferencesConstants.FIRST
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.MOBILE_NUMBER;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.NULL;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.NUMBER;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 @ExtendWith(MockitoExtension.class)
 class ACLServiceExceptionTest
@@ -62,6 +66,8 @@ class ACLServiceExceptionTest
     UserDetails mockUserDetails;
     @Mock
     ACLRepository aclRepository;
+    @Mock
+    UserFormDataService userFormDataService;
     @InjectMocks
     ACLServiceImpl aclService;
 
@@ -105,6 +111,16 @@ class ACLServiceExceptionTest
     @Test
     void checkACLAccessEntityNotFoundExceptionTest()
     {
+        Map<String,Object> userData=new HashMap<>();
+        userData.put("emailId","nandini.k@techsophy.com");
+        userData.put("mobileNumber","9381837179");
+        userData.put("firstName","Ganga");
+        userData.put("lastName","nandini");
+        userData.put("userName","nandini");
+        AuditableData auditableData = new AuditableData();
+        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(userData,"12","1");
+        Mockito.when(userFormDataService.getUserFormDataByUserId(any(),any())).thenReturn(auditableData);
+        Mockito.when(mockObjectMapper.convertValue(any(),eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema);
         CheckACLSchema checkACLSchema=new CheckACLSchema();
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
         Assertions.assertThrows(EntityNotFoundByIdException.class,()->aclService.checkACLAccess(ID_VALUE,checkACLSchema));

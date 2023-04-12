@@ -68,6 +68,8 @@ class ACLServiceTest
     UserDetails mockUserDetails;
     @Mock
     ACLRepository aclRepository;
+    @Mock
+    UserFormDataService userFormDataService;
     @InjectMocks
     ACLServiceImpl aclService;
 
@@ -276,14 +278,23 @@ class ACLServiceTest
     {
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
         Map<String,Object> userData=new HashMap<>();
+        userData.put("emailId","nandini.k@techsophy.com");
+        userData.put("mobileNumber","9381837179");
+        userData.put("firstName","Ganga");
+        userData.put("lastName","nandini");
+        userData.put("userName","nandini");
+        AuditableData auditableData = new AuditableData();
         ACLDefinition aclDefinition=new ACLDefinition();
         aclDefinition.setName(ACL_NAME);
         List<ACLEntry> aclEntryList =new ArrayList<>();
         aclDefinition.setRead(aclEntryList);
         aclDefinition.setUpdate(aclEntryList);
         aclDefinition.setDelete(aclEntryList);
+        UserFormDataSchema userFormDataSchema = new UserFormDataSchema(userData,"12","1");
         Mockito.when(aclRepository.findById(any())).thenReturn(Optional.of(aclDefinition));
         Mockito.when(mockTokenUtils.getUserInformationMap(anyString())).thenReturn(userData);
+        Mockito.when(userFormDataService.getUserFormDataByUserId(any(),any())).thenReturn(auditableData);
+        Mockito.when(mockObjectMapper.convertValue(any(),eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema);
         CheckACLSchema checkACLSchema=new CheckACLSchema();
         ACLValidate aclValidate=aclService.checkACLAccess(ID_VALUE,checkACLSchema);
         org.junit.jupiter.api.Assertions.assertEquals(UNDEFINED,aclValidate.getRead().getDecision());
