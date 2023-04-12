@@ -8,9 +8,9 @@ import java.util.Map;
 public class ACLEntry
 {
     String decision;
-    Rules ruleType ;
+    Rules ruleType;
     Object data;
-    Map<String,String> additionalDetails;
+    Map<String,Object> additionalDetails;
 
     public ACLDecision evaluateDecision(Map<String,Object> userDetailsFromKeycloak, Map<?,?> context)
     {
