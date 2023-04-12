@@ -105,7 +105,7 @@ public class ACLServiceImpl implements ACLService
         UserFormDataSchema userFormDataSchema = objectMapper.convertValue(auditableData,UserFormDataSchema.class);
         RequestProperties requestProperties = new RequestProperties();
         requestProperties.setUserInfo(userDetailsFromKeycloak);
-        requestProperties.setContext(checkACLSchema.getContext()+"");
+        requestProperties.setContext(checkACLSchema.getContext());
         if(userFormDataSchema!=null&&userFormDataSchema.getUserData()!=null) {
         Map<String,Object> userData = userFormDataSchema.getUserData();
         requestProperties.setUserId(userFormDataSchema.getUserId());
