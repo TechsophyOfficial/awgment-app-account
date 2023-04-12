@@ -11,5 +11,5 @@ import java.util.Map;
 public class ACLDecision
 {
     String decision;
-    Map<String,String> additionalDetails;
+    Map<String,Object> additionalDetails;
 }
