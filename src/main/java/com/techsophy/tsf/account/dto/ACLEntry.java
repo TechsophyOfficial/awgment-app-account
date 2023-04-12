@@ -14,6 +14,6 @@ public class ACLEntry
 
     public ACLDecision evaluateDecision(Map<String,Object> userDetailsFromKeycloak, Map<?,?> context)
     {
-        return  ruleType.match(this.data,userDetailsFromKeycloak,context)?new ACLDecision(decision,null):null;
+        return  ruleType.match(this.data,userDetailsFromKeycloak,context)?new ACLDecision(decision,this.additionalDetails):null;
     }
 }
