@@ -14,7 +14,7 @@ import java.util.Map;
 public class ACLEntry
 {
     String decision;
-    Rules ruleType ;
+    Rules ruleType;
     Object data;
     Map<String,Object> additionalDetails;
 
