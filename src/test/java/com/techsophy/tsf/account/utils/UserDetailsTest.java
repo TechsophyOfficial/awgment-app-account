@@ -5,8 +5,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.constants.ThemesConstants;
+import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.exception.InvalidInputException;
+import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
+import com.techsophy.tsf.account.service.impl.UserServiceImpl;
+import com.techsophy.tsf.commons.user.UserDetailsNotFoundException;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,8 +41,7 @@ import static com.techsophy.tsf.account.constants.UserConstants.ID;
 import static com.techsophy.tsf.account.constants.UserPreferencesConstants.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class UserDetailsTest
@@ -51,6 +54,8 @@ class UserDetailsTest
     ObjectMapper mockObjectMapper;
     @Mock
     WebClientWrapper mockWebClientWrapper;
+    @Mock
+    UserServiceImpl userService;
     @InjectMocks
     UserDetails mockUserDetails;
 
@@ -80,20 +85,18 @@ class UserDetailsTest
     @Test
     void getUserDetailsTest() throws JsonProcessingException
     {
+        AuditableData auditableData = new AuditableData();
         ObjectMapper objectMapper=new ObjectMapper();
         ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
         Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
         Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
-        Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
-                (
-                        INITIALIZATION_DATA
-                );
-        Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
-                .thenReturn(response);
+        Mockito.when(userService.getAllUsersByFilter(any(),any())).thenReturn(List.of(auditableData));
         Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userList);
-        Assertions.assertNotNull(mockUserDetails.getUserDetails());
+        mockUserDetails.getUserDetails();
+        verify(userService,times(1)).getAllUsersByFilter(any(),any());
+
     }
+
 
     @Test
     void InvalidInputExceptionTest()
@@ -111,17 +114,8 @@ class UserDetailsTest
         Map<String, Object> map = new HashMap<>();
         map.put(ID, null);
         userListData.add(map);
-        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
-        Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
-                (
-                        INITIALIZATION_DATA
-                );
-        Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
-                .thenReturn(response);
-        Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userListData);
-       Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
-       Assertions.assertEquals(Optional.empty(),id);
+        Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
+        Assertions.assertEquals(Optional.empty(),id);
     }
     @Test
     void getCurrentAuditorSuccess() throws JsonProcessingException {
@@ -129,13 +123,6 @@ class UserDetailsTest
         ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
         Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
         Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
-        Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
-                (
-                        INITIALIZATION_DATA
-                );
-        Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
-                .thenReturn(response);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userList);
         Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
         Assertions.assertEquals(Optional.of(BigInteger.ONE),id);

@@ -6,12 +6,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
+import java.util.Optional;
 
 public interface UserFormDataDefinitionCustomRepository
 {
     List<UserFormDataDefinition> findByNameOrId(String idOrNameLike) throws UnsupportedEncodingException;
 
-   UserFormDataDefinition findByUserName(String userName);
+    Optional<UserFormDataDefinition> findByUserName(String userName);
     List<UserFormDataDefinition> findAll(Sort sort);
 
     Page<UserFormDataDefinition> findAll(Pageable pageable);

@@ -29,10 +29,9 @@ class UserDetailsExceptionTest
     UserDetails mockUserDetails;
 
     @Test
-    void getUserDetailsTest()
+    void getUserDetailsExceptionTest()
     {
-        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
+        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(null);
         Assertions.assertThrows(InvalidInputException.class, () ->
                 mockUserDetails.getUserDetails());
     }

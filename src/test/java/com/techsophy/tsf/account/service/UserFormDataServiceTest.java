@@ -8,6 +8,7 @@ import com.techsophy.tsf.account.dto.UserData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
+import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import com.techsophy.tsf.account.service.impl.UserFormDataServiceImpl;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
@@ -241,5 +242,24 @@ class UserFormDataServiceTest
         userFormDataService.getAllUsersByFilter(false,"abc","abc", (Sort) null,"");
         userFormDataService.getAllUsersByFilter(true,"abc","abc", (Sort) null,"q");
         verify(mockUserServiceImpl,times(1)).getAllUsersByFilter(any(),any());
+    }
+    @Test
+    void getUserFormData()
+    {
+        UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition();
+        userFormDataDefinition.setId(null);
+        userFormDataDefinition.setUserData(map);
+        when(mockUserFormDataDefinitionRepository.findByUserName(anyString())).thenReturn(Optional.of(userFormDataDefinition));
+        userFormDataService.getUserFormData("Nandini");
+        verify(mockUserFormDataDefinitionRepository,times(1)).findByUserName(anyString());
+    }
+    @Test
+    void getUserFormDataNotFoundException()
+    {
+        UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition();
+        userFormDataDefinition.setId(null);
+        userFormDataDefinition.setUserData(map);
+        when(mockUserFormDataDefinitionRepository.findByUserName(anyString())).thenReturn(Optional.empty());
+        Assertions.assertThrows(UserFormDataNotFoundException.class,()->userFormDataService.getUserFormData("Nandini"));
     }
 }

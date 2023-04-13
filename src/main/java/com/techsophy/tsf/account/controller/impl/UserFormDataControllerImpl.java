@@ -8,9 +8,7 @@ import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.BadRequestException;
-import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
-import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
@@ -22,9 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigInteger;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
-import static com.techsophy.tsf.account.constants.ErrorConstants.FORM_NOT_FOUND_EXCEPTION;
 
 @RestController
 @AllArgsConstructor(onConstructor_ = {@Autowired})
@@ -37,14 +35,18 @@ public class UserFormDataControllerImpl implements UserFormDataController
     private final ObjectMapper objectMapper;
 
     @Override
-    public ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() {
-        try {
-            String userId = (String) userDetails.getUserDetails().get(0).get(ID);
-            return new ApiResponse<>(userFormDataService.getUserFormDataByUserId(userId, false), true, "Logged In User details fetched successfully");
+    public ApiResponse<UserFormDataSchema> getUserDetailsOfLoggedInUser() {
+        Optional<BigInteger> userId =  userDetails.getUserId();
+        if(userId.isEmpty()){
+            String loginId = tokenUtils.getLoggedInUserId();
+            UserFormDataDefinition userFormDataDefinition = userFormDataService.getUserFormData(loginId);
+            UserFormDataSchema userFormDataSchema = objectMapper.convertValue(userFormDataDefinition,UserFormDataSchema.class);
+            return new ApiResponse<>(userFormDataSchema,true, "Logged In User details fetched successfully");
         }
-        catch (Exception e)
-        {
-            throw new RunTimeException(e.getMessage());
+        else {
+            AuditableData auditableData = userFormDataService.getUserFormDataByUserId(String.valueOf(userId.get()), false);
+            UserFormDataSchema userFormDataSchema = objectMapper.convertValue(auditableData,UserFormDataSchema.class);
+            return new ApiResponse<>(userFormDataSchema, true, "Logged In User details fetched successfully");
         }
     }
     @Override
