@@ -1,9 +1,12 @@
 package com.techsophy.tsf.account.utils;
 
 import javax.crypto.Cipher;
+import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
@@ -14,17 +17,16 @@ public class Rsa4096 {
     private KeyFactory keyFactory;
     private PrivateKey privateKey;
 
-    public Rsa4096() throws Exception {
+    public Rsa4096() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         setKeyFactory();
         setPrivateKey(PUBLIC_KEY_FILE);
     }
 
-    protected void setKeyFactory() throws Exception {
+    protected void setKeyFactory() throws NoSuchAlgorithmException {
         this.keyFactory = KeyFactory.getInstance(KEY_FACTORY);
     }
 
-    protected void setPrivateKey(String classpathResource)
-            throws Exception {
+    protected void setPrivateKey(String classpathResource) throws IOException, InvalidKeySpecException {
         InputStream is = this
                 .getClass()
                 .getClassLoader()
@@ -35,9 +37,9 @@ public class Rsa4096 {
         is.close();
 
         String stringAfter = stringBefore
-                .replaceAll("\\n", "")
-                .replaceAll(KEY_PREFIX, "")
-                .replaceAll(KEY_SUFFIX, "")
+                .replace("\n", "")
+                .replace(KEY_PREFIX, "")
+                .replace(KEY_SUFFIX, "")
                 .trim();
 
         byte[] decoded = Base64

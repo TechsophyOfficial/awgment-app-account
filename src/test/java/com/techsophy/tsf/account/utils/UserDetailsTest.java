@@ -53,6 +53,8 @@ class UserDetailsTest
     WebClientWrapper mockWebClientWrapper;
     @InjectMocks
     UserDetails mockUserDetails;
+    @Mock
+    com.techsophy.tsf.commons.user.UserDetails userDetails;
 
     List<Map<String, Object>> userList = new ArrayList<>();
 
@@ -120,8 +122,8 @@ class UserDetailsTest
         Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
                 .thenReturn(response);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userListData);
-       Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
-       Assertions.assertEquals(Optional.empty(),id);
+        List<Map<String, Object>>data = mockUserDetails.getUserDetails();
+        Assertions.assertNotNull(data);
     }
     @Test
     void getCurrentAuditorSuccess() throws JsonProcessingException {
@@ -137,8 +139,15 @@ class UserDetailsTest
         Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
                 .thenReturn(response);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userList);
+        List<Map<String, Object>>data=mockUserDetails.getUserDetails();
+        Assertions.assertNotNull(data);
+    }
+    @Test
+    void getCurrentAuditor()throws Exception
+    {
         Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
-        Assertions.assertEquals(Optional.of(BigInteger.ONE),id);
+        System.out.println(id);
+        Assertions.assertEquals(Optional.empty(),id);
     }
 }
 

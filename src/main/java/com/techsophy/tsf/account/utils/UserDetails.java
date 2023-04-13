@@ -88,13 +88,14 @@ public class UserDetails  implements AuditorAware<BigInteger>
     @Override
     public Optional<BigInteger> getCurrentAuditor()
     {
-
+        BigInteger userId;
         try {
-            return Optional.ofNullable(BigInteger.valueOf(Long.parseLong(String.valueOf(getUserDetails().get(0).get(ID)))));
-       }catch (Exception e){
-          return Optional.empty();
-       }
-
+            Optional<String> optionalUserId = new com.techsophy.tsf.commons.user.UserDetails(gatewayApi).getUserId();
+            userId = optionalUserId.map(BigInteger::new).orElseThrow();
+            return Optional.of(userId);
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
 }
 

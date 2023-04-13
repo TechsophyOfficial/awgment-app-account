@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import java.util.List;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
+import com.techsophy.tsf.commons.user.UserDetails;
 
 @Configuration
 public class ApplicationConfig
@@ -27,5 +28,10 @@ public class ApplicationConfig
         return new OpenAPI()
                 .info(new io.swagger.v3.oas.models.info.Info().title(ACCOUNT_MODELER).version(VERSION_1).description(ACCOUNT_MODELER_API_VERSION_1))
                 .servers( List.of(new Server().url(gatewayUrl)));
+    }
+    @Bean("CommonUserDetails")
+    public UserDetails userDetails(String gatewayUrl)
+    {
+        return new UserDetails(gatewayUrl);
     }
 }

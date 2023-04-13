@@ -21,13 +21,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
 import javax.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
@@ -46,6 +43,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
     private final IdGeneratorImpl idGenerator;
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
+    private final com.techsophy.tsf.commons.user.UserDetails userDetails1;
 
     @Override
     public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
@@ -58,14 +56,13 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userDetails.userNameValidations(userData.getUserName());
             String userId = userFormDataSchema.getUserId();
             userData.setUserName(userData.getUserName().toLowerCase());
-            Map<String,Object> loggedInUser = userServiceImpl.getCurrentlyLoggedInUserId().get(0);
-            if (userId == null)
+            BigInteger loggedInUserId = userDetails.getCurrentAuditor().orElse(null);
+            if(userId == null)
             {
                 userFormDataDefinition.setId(idGenerator.nextId());
                 userFormDataDefinition.setCreatedOn(Instant.now());
-                userFormDataDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
                 userFormDataDefinition.setVersion(1);
-
+                userFormDataDefinition.setCreatedById(loggedInUserId);
             }
             else
             {
@@ -79,7 +76,6 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userData.setId(userId);
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
-            userFormDataDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
             userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());

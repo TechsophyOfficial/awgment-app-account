@@ -98,7 +98,7 @@ class UserFormDataServiceTest
         userDefinition.setFirstName("user");
         userDefinition.setCreatedById(BigInteger.valueOf(234234234));
         userDefinition.setId(BigInteger.valueOf(345345));
-        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
+//        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
         when(mockUserServiceImpl.saveUser(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(1234)));
         when(mockObjectMapper.convertValue(any(),eq(UserFormDataDefinition.class))).thenReturn(userFormDataDefinition).thenReturn(userFormDataDefinition1);
         when(mockObjectMapper.convertValue(any(),eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema1);
@@ -113,7 +113,7 @@ class UserFormDataServiceTest
     void updateUserTest() throws IOException
     {
         UserFormDataSchema userFormDataSchema=new UserFormDataSchema(map,"12345","2");
-        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
+//        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
         UserFormDataDefinition userFormDataDefinition=new UserFormDataDefinition();
         userFormDataDefinition.setUserData(map);
         userFormDataDefinition.setUserId(BigInteger.valueOf(12345));
@@ -142,7 +142,7 @@ class UserFormDataServiceTest
         userDefinition.setFirstName("user");
         userDefinition.setCreatedById(BigInteger.valueOf(234234234));
         userDefinition.setId(BigInteger.valueOf(345345));
-        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
+//        when(mockUserServiceImpl.getCurrentlyLoggedInUserId()).thenReturn(list);
         when(mockUserServiceImpl.saveUser(any())).thenReturn(userDefinition.withId(BigInteger.valueOf(1234)));
         when(mockObjectMapper.convertValue(any(),eq(UserFormDataDefinition.class))).thenReturn(userFormDataDefinition).thenReturn(userFormDataDefinition1);
         when(mockObjectMapper.convertValue(any(),eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema1);
