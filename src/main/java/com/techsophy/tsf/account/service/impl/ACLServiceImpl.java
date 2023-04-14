@@ -52,9 +52,9 @@ public class ACLServiceImpl implements ACLService
     private  UserDetails userDetails;
     private  ACLRepository aclRepository;
     private  TokenUtils tokenUtils;
-    @Value("${delimiter.left:'<'}")
+    @Value("${delimiter.left:<}")
     private  char delimiterStart;
-    @Value("${delimiter.right:'>'}")
+    @Value("${delimiter.right:>}")
     private char delimiterEnd;
 
 
