@@ -68,4 +68,5 @@ public class ErrorConstants
     public static final String ACL_NOT_FOUND_WITH_GIVEN_ID="AWGMENT-ACCOUNT-1059";
     public static final String USER_NAME_VALIDATION_EXCEPTION="AWGMENT-ACCOUNT-1060";
     public static final String ACL_NAME_CANNOT_BE_BLANK="ACL name cannot be blank";
+    public static final String USENAME_NOT_FOUND_EXCEPTION="AWGMENT-ACCOUNT-1062";
 }

@@ -21,17 +21,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
 import javax.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.FORM_NOT_FOUND_EXCEPTION;
+import static com.techsophy.tsf.account.constants.ErrorConstants.USENAME_NOT_FOUND_EXCEPTION;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @Slf4j
@@ -94,6 +95,11 @@ public class UserFormDataServiceImpl implements UserFormDataService
         {
             throw new RunTimeException(e.getMessage());
         }
+    }
+
+    @Override
+    public UserFormDataDefinition getUserFormData(String userName) {
+      return userFormDataRepository.findByUserName(userName).orElseThrow(() -> new UserFormDataNotFoundException(USENAME_NOT_FOUND_EXCEPTION,globalMessageSource.get(USENAME_NOT_FOUND_EXCEPTION,userName)));
     }
 
     @Override
@@ -210,4 +216,5 @@ public class UserFormDataServiceImpl implements UserFormDataService
     {
         return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);
     }
+
 }

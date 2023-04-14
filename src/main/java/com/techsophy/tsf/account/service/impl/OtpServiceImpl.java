@@ -153,7 +153,7 @@ public class OtpServiceImpl implements OtpService
         return true;
     }
 
-    @SneakyThrows({JsonProcessingException.class})
+
     private OtpDefinition setCreatedByUserNameAndId(OtpDefinition otpDefinition)
     {
         Map<String,Object> loggedInUser = userService.getCurrentlyLoggedInUserId().get(0);

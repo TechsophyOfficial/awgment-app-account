@@ -12,8 +12,11 @@ public class ACLEntry
     Object data;
     Map<String,Object> additionalDetails;
 
-    public ACLDecision evaluateDecision(Map<String,Object> userDetailsFromKeycloak, Map<?,?> context)
+
+    public ACLDecision evaluateDecision(RequestProperties request, Map<?,?> context)
     {
-        return  ruleType.match(this.data,userDetailsFromKeycloak,context)?new ACLDecision(decision,this.additionalDetails):null;
+
+        return  ruleType.match(this.data, request.getUserInfo(),context)?new ACLDecision(decision, this.additionalDetails):null;
     }
+
 }
