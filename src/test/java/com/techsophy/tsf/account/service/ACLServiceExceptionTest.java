@@ -26,10 +26,8 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.math.BigInteger;
+import java.util.*;
 
 import static com.techsophy.tsf.account.constants.ACLConstants.TEST_TOKEN;
 import static com.techsophy.tsf.account.constants.AccountConstants.CREATED_ON;
@@ -121,6 +119,7 @@ class ACLServiceExceptionTest
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(userData,"12","1");
         Mockito.when(userFormDataService.getUserFormDataByUserId(any(),any())).thenReturn(auditableData);
         Mockito.when(mockObjectMapper.convertValue(any(),eq(UserFormDataSchema.class))).thenReturn(userFormDataSchema);
+        Mockito.when(mockUserDetails.getUserId()).thenReturn(Optional.of(BigInteger.valueOf(1)));
         CheckACLSchema checkACLSchema=new CheckACLSchema();
         Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
         Assertions.assertThrows(EntityNotFoundByIdException.class,()->aclService.checkACLAccess(ID_VALUE,checkACLSchema));

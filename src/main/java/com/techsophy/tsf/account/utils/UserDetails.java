@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.exception.InvalidInputException;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.exception.UserNameValidationException;
 import com.techsophy.tsf.account.service.UserFormDataService;
@@ -69,7 +70,7 @@ public class UserDetails  implements AuditorAware<BigInteger>
             }
             catch (Exception e)
             {
-                e.printStackTrace();
+                throw  new RunTimeException(e.getMessage());
             }
         }
         return Optional.empty();
