@@ -1,5 +1,6 @@
 package com.techsophy.tsf.account.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.OtpControllerImpl;
 import com.techsophy.tsf.account.dto.OtpRequestPayload;
@@ -29,7 +30,7 @@ import java.util.Map;
     GlobalMessageSource globalMessageSource;
 
     @Test
-    void generateOtp() {
+    void generateOtp() throws JsonProcessingException {
         Map<String, String> templateData = new HashMap<>();
         templateData.put("data", "data2");
         templateData.put("data1", "data3");

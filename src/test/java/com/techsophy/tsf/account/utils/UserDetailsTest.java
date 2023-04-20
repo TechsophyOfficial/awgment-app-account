@@ -15,8 +15,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -54,6 +59,10 @@ class UserDetailsTest
     WebClientWrapper mockWebClientWrapper;
     @Mock
     UserServiceImpl userService;
+    @Mock
+    SecurityContext securityContext;
+    @Mock
+    Authentication authentication;
     @InjectMocks
     UserDetails mockUserDetails;
 
@@ -95,7 +104,24 @@ class UserDetailsTest
 
     }
 
-
+    @Test
+    void getUserDetailsFormDevTest() throws JsonProcessingException {
+        AuditableData auditableData = new AuditableData();
+        ObjectMapper objectMapper = new ObjectMapper();
+        ApiResponse apiResponse = new ApiResponse(userList, true, USER_DETAILS_RETRIEVED_SUCCESS);
+        Map<String, Object> response = objectMapper.convertValue(apiResponse, Map.class);
+        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
+        Mockito.when(mockWebClientWrapper.webclientRequest(any(),any(),eq(GET),any())).thenReturn
+                (
+                        INITIALIZATION_DATA
+                );
+        Mockito.when(mockObjectMapper.readValue(anyString(),(TypeReference<Map<String,Object>>) any()))
+                .thenReturn(response);
+        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
+        Mockito.when(mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(userList);
+        mockUserDetails.getUserDetails();
+        verify(mockWebClientWrapper, times(1)).webclientRequest(any(), any(),eq(GET),any());
+    }
     @Test
     void InvalidInputExceptionTest()
     {
@@ -117,13 +143,26 @@ class UserDetailsTest
     }
     @Test
     void getCurrentAuditorSuccess() throws JsonProcessingException {
-        ObjectMapper objectMapper=new ObjectMapper();
-        ApiResponse apiResponse=new ApiResponse(userList,true,USER_DETAILS_RETRIEVED_SUCCESS);
-        Map<String,Object> response=objectMapper.convertValue(apiResponse,Map.class);
-        Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(mockObjectMapper.convertValue(any(),eq(List.class))).thenReturn(userList);
-        Optional<BigInteger> id =  mockUserDetails.getCurrentAuditor();
-        Assertions.assertEquals(Optional.of(BigInteger.ONE),id);
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
+        Jwt jwt = mock(Jwt.class);
+        when(authentication.getPrincipal()).thenReturn(jwt);
+            ObjectMapper objectMapper = new ObjectMapper();
+            ApiResponse apiResponse = new ApiResponse(userList, true, USER_DETAILS_RETRIEVED_SUCCESS);
+            Map<String, Object> response = objectMapper.convertValue(apiResponse, Map.class);
+            Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
+            Mockito.when(mockWebClientWrapper.webclientRequest(any(), any(), eq(GET), any())).thenReturn
+                    (
+                            INITIALIZATION_DATA
+                    );
+            Mockito.when(mockObjectMapper.readValue(anyString(), (TypeReference<Map<String, Object>>) any()))
+                    .thenReturn(response);
+            Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
+            Mockito.when(mockObjectMapper.convertValue(any(), eq(List.class))).thenReturn(userList);
+            Optional<BigInteger> id = mockUserDetails.getCurrentAuditor();
+            Assertions.assertEquals(Optional.of(BigInteger.ONE), id);
     }
 }
 

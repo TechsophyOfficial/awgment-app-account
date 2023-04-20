@@ -1,5 +1,6 @@
 package com.techsophy.tsf.account.controller.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.OtpController;
 import com.techsophy.tsf.account.dto.OtpRequestPayload;
@@ -20,8 +21,7 @@ public class OtpControllerImpl implements OtpController
     GlobalMessageSource globalMessageSource;
 
     @Override
-    public ApiResponse<Void> generateOtp(OtpRequestPayload otpRequestPayload)
-    {
+    public ApiResponse<Void> generateOtp(OtpRequestPayload otpRequestPayload) throws JsonProcessingException {
       otpService.generateOtp(otpRequestPayload);
       return new ApiResponse<>(null,true,globalMessageSource.get(OTP_GENERATED_SUCCESSFULLY));
     }
