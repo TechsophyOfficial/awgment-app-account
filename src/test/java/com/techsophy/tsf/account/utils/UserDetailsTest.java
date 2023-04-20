@@ -22,6 +22,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigInteger;
 import java.util.*;
@@ -87,6 +88,7 @@ class UserDetailsTest
         map.put(EMAIL_ID, MAIL_ID);
         map.put(DEPARTMENT, NULL);
         userList.add(map);
+        ReflectionTestUtils.setField(mockUserDetails,"executionLocal",true);
     }
 
     @Test

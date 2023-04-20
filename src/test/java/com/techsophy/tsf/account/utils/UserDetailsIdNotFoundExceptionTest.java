@@ -47,9 +47,6 @@ class UserDetailsIdNotFoundExceptionTest
     void userDetailsIdNotFoundExceptionTest() throws JsonProcessingException
     {
         Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
-        Mockito.when(userService.getAllUsersByFilter(any(),any())).thenReturn(null);
-        Mockito.when(mockTokenUtils.getTokenFromContext()).thenReturn(TEST_TOKEN);
-        Assertions.assertThrows(InvalidInputException.class,()->mockUserDetails.getUserDetails());
+        Assertions.assertThrows(UserDetailsIdNotFoundException.class,()->mockUserDetails.getUserDetails());
     }
 }
