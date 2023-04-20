@@ -59,12 +59,12 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userDetails.userNameValidations(userData.getUserName());
             String userId = userFormDataSchema.getUserId();
             userData.setUserName(userData.getUserName().toLowerCase());
-            Map<String,Object> loggedInUser = userServiceImpl.getCurrentlyLoggedInUserId().get(0);
+            BigInteger loggedInUserId = userDetails.getCurrentAuditor().orElse(null);
             if (userId == null)
             {
                 userFormDataDefinition.setId(idGenerator.nextId());
                 userFormDataDefinition.setCreatedOn(Instant.now());
-                userFormDataDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+                userFormDataDefinition.setCreatedById(loggedInUserId);
                 userFormDataDefinition.setVersion(1);
 
             }
@@ -80,7 +80,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userData.setId(userId);
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
-            userFormDataDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+//            userFormDataDefinition.setUpdatedById(loggedInUserId);
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
             userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());

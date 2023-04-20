@@ -15,8 +15,6 @@ public interface UserFormDataService
     @Transactional(rollbackFor = Exception.class)
     UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema);
 
-
-
     UserFormDataDefinition getUserFormData(String userName);
 
     AuditableData getUserFormDataByUserId(String userId, Boolean onlyMandatoryFields);
