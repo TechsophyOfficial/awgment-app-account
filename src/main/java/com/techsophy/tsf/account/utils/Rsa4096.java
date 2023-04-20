@@ -69,19 +69,17 @@ public class Rsa4096 {
         return sign.verify(digitalSignature);
     }
 
-    public UserFormDataSchema transform(UserFormDataSchema internalUserFormDataSchema)
+    public UserFormDataSchema transform(String headerSign,UserFormDataSchema internalUserFormDataSchema)
     {
         try
         {
             Rsa4096 rsa4096 = new Rsa4096();
             String signatureValue = (String)internalUserFormDataSchema.getUserData().get("userName");
-            Boolean isVerified = rsa4096.verifySignature((String) internalUserFormDataSchema.getUserData().get("signature"),signatureValue);
-            if(!isVerified)
+            Boolean isVerified = rsa4096.verifySignature(headerSign,signatureValue);
+            if(isVerified != null && !isVerified)
             {
                 throw new UnAuthorizedException(UN_AUTHORIZED_EXCEPTION,globalMessageSource.get(UN_AUTHORIZED_EXCEPTION));
             }
-            internalUserFormDataSchema.getUserData().remove("realmId");
-            internalUserFormDataSchema.getUserData().remove("signature");
             return internalUserFormDataSchema;
         }
         catch (ConstraintViolationException | BadRequestException e)

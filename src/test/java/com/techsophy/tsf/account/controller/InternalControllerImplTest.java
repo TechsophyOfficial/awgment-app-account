@@ -26,10 +26,13 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
+import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class})
 class InternalControllerImplTest {
@@ -87,8 +90,9 @@ class InternalControllerImplTest {
         userData.setMobileNumber(MOBILE_NUMBER_INTERNAL_VALUE);
         userData.setEmailId(USERNAME_INTERNAL_VALUE);
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(userDataMap,null,"1");
-        HttpHeaders headers = null;
-        Assertions.assertNotNull(internalUserFormDataServiceImpl.saveUser("signature", userFormDataSchema,headers));
+        HttpHeaders headers =new HttpHeaders();
+        headers.add("X-Signature", SIGNATURE_INTERNAL_VALUE);
+        Assertions.assertNotNull(internalUserFormDataServiceImpl.saveUser(userFormDataSchema,headers));
     }
 
 }

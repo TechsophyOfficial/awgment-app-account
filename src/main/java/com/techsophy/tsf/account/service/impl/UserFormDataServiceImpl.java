@@ -80,7 +80,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userData.setId(userId);
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
-//            userFormDataDefinition.setUpdatedById(loggedInUserId);
+            userFormDataDefinition.setUpdatedById(loggedInUserId);
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
             userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());

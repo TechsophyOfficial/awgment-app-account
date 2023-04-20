@@ -473,6 +473,9 @@ public class AccountConstants
  public static final String DEPARTMENT_INTERNAL_VALUE="IT";
  public static final String INTERNAL="/internal";
  public static final String USER_CREATE="/users/create/";
+ public static final String TENANT_NOT_FOUND="Unable to find tenant info in request";
+ public static final String SIGNATURE_MISSING = "AWGMENT-ACCOUNT-1064";
+
  public static final String SIGNATURE_INTERNAL_VALUE="FBgH28Z9HajTQgWt1+UKa5kOvTcqQTH7rJq5ARV1QDZwq1gr0b703xMqh0BuDdPt1rFHGXr1j8BCI5886i2Q2lKif7bl087uc+p0AI542im8LKXfntvp9UDIi/PEkZnTsBFHm/2u0CTU6K6I2LxebIeBV5byZwi5re40b67MNH/xsoNKVUI55xXpZ2OH2JRj21qcTediu7KFdiTMEyNN6LMGPCDxT42eCPmf74bjEuctjDzKtksMcD8MX7q7G9ITvGdywnhWPzHskS4TzbKebjLpXQ43KZ4LEpauHOTYh/eNJZt1H45zUdGN7+kim3ctVLat0MQf0gxKMyean4httH6g9CQAtruNpbaMbklDao3SQmszi2acBdbgyi9EWZM5gNCOgWHSv+2Zwxza8yNqZTvQK1KlsupWduc9IMp6PpVUrLK8alCOfJ4TuEL/kBL7QooA7Bur4709lp3GLvp89P+zSW0NtvwM92o4flimPT8Xs9anprENCcvnHlYsPidOETqtAABBmTMftIzOto+Wsv2CK3KVzbwu9zRHQXzNrUKj9zvG/AmTygFqQ90LlL8gd/fS2BTP0Bi4OoYQFW2ypEX/5GhJDbrLydxuIMoOPSvUXH9tAMrpwXOXL+uEGaqnkKLm0lAflMl3zCHHZhAuau81GQhGi9JCEgDeIE6v2uM=";
 
 }

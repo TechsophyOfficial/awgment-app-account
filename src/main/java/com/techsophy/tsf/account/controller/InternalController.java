@@ -12,5 +12,5 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 @RequestMapping(INTERNAL+VERSION_V1)
 public interface InternalController {
     @PostMapping(USER_CREATE)
-    ApiResponse<UserFormDataSchema> saveUser(@RequestParam("signature") String signature, @RequestBody @Validated UserFormDataSchema userFormDataSchema, @RequestHeader HttpHeaders headers) throws JsonProcessingException;
+    ApiResponse<UserFormDataSchema> saveUser( @RequestBody @Validated UserFormDataSchema userFormDataSchema, @RequestHeader HttpHeaders headers) throws JsonProcessingException;
 }
