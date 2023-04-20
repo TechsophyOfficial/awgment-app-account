@@ -46,6 +46,8 @@ public class UserDetails  implements AuditorAware<BigInteger>
     private final WebClientWrapper webClientWrapper;
     @Value(GATEWAY_URI)
     String gatewayApi;
+    @Value("${execution.local:false}")
+    boolean executionLocal;
     private static final ThreadLocal<BigInteger> USER_ID = new ThreadLocal<>();
 
 
@@ -82,41 +84,34 @@ public class UserDetails  implements AuditorAware<BigInteger>
     }
 
     public List<Map<String, Object>> getUserDetails() throws JsonProcessingException {
-        Map<String,Object> response;
+        Map<String, Object> response;
         List<Map<String, Object>> userDetailsResponse;
         WebClient webClient;
         String loggedInUserId = tokenUtils.getLoggedInUserId();
 
-        if (StringUtils.isEmpty(loggedInUserId))
-        {
-            throw new InvalidInputException(LOGGED_IN_USER_NOT_FOUND,globalMessageSource.get(LOGGED_IN_USER_NOT_FOUND,loggedInUserId));
+        if (StringUtils.isEmpty(loggedInUserId)) {
+            throw new InvalidInputException(LOGGED_IN_USER_NOT_FOUND, globalMessageSource.get(LOGGED_IN_USER_NOT_FOUND, loggedInUserId));
         }
-        List<AuditableData> userDetails = userServiceImpl.getAllUsersByFilter("loginId",loggedInUserId);
-        if(userDetails!=null&&!userDetails.isEmpty())
-        {
-            userDetailsResponse = objectMapper.convertValue(userDetails,List.class);
+        List<AuditableData> userDetails = userServiceImpl.getAllUsersByFilter("loginId", loggedInUserId);
+        if (userDetails != null && !userDetails.isEmpty()) {
+            userDetailsResponse = objectMapper.convertValue(userDetails, List.class);
             return userDetailsResponse;
-        }else {
+        }
+        if (executionLocal) {
             String token = tokenUtils.getTokenFromContext();
-            if (StringUtils.isNotEmpty(token))
-            {
+            if (StringUtils.isNotEmpty(token)) {
                 webClient = webClientWrapper.createWebClient(token);
+            } else {
+                throw new InvalidInputException(TOKEN_NOT_NULL, globalMessageSource.get(TOKEN_NOT_NULL, loggedInUserId));
             }
-            else
-            {
-                throw new InvalidInputException(TOKEN_NOT_NULL,globalMessageSource.get(TOKEN_NOT_NULL,loggedInUserId));
+            String devUserDetails = webClientWrapper.webclientRequest(webClient, gatewayApi + ACCOUNT_URL + FILTER_COLUMN + loggedInUserId + ONLY_MANDATORY_FIELDS_TRUE, GET, null);
+            if (StringUtils.isEmpty(devUserDetails) || devUserDetails.isEmpty()) {
+                throw new InvalidInputException(USER_DETAILS_NOT_FOUND, globalMessageSource.get(USER_DETAILS_NOT_FOUND, userDetails));
             }
-            String  devUserDetails = webClientWrapper.webclientRequest(webClient,gatewayApi + ACCOUNT_URL + FILTER_COLUMN+ loggedInUserId+ONLY_MANDATORY_FIELDS_TRUE,GET,null);
-            if (StringUtils.isEmpty(devUserDetails) || devUserDetails.isEmpty())
-            {
-                throw new InvalidInputException(USER_DETAILS_NOT_FOUND,globalMessageSource.get(USER_DETAILS_NOT_FOUND,userDetails));
-            }
-            response = this.objectMapper.readValue(devUserDetails, new TypeReference<>()
-            {
+            response = this.objectMapper.readValue(devUserDetails, new TypeReference<>() {
             });
             List<Map<String, Object>> data = (List<Map<String, Object>>) response.get(DATA);
-            if (!data.isEmpty())
-            {
+            if (!data.isEmpty()) {
                 userDetailsResponse = this.objectMapper.convertValue(response.get(DATA), List.class);
                 return userDetailsResponse;
             }
