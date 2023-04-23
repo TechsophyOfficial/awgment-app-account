@@ -3,9 +3,12 @@ package com.techsophy.tsf.account.utils;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.exception.BadRequestException;
+import com.techsophy.tsf.account.exception.InvalidDataException;
 import com.techsophy.tsf.account.exception.RunTimeException;
-import com.techsophy.tsf.account.exception.UnAuthorizedException;
+
 import javax.validation.ConstraintViolationException;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.*;
@@ -15,48 +18,53 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 import static com.techsophy.tsf.account.constants.ErrorConstants.UN_AUTHORIZED_EXCEPTION;
+import static com.techsophy.tsf.account.constants.PropertyConstant.*;
 
 public class Rsa4096 {
     private GlobalMessageSource globalMessageSource;
     private KeyFactory keyFactory;
     private PublicKey publicKey;
-    public Rsa4096() throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
+
+
+    public Rsa4096(String keyLocation) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         setKeyFactory();
-        setPublicKey("keys/public_key_rsa_4096_pkcs8-exported.pem");
+        setPublicKey(keyLocation);
     }
 
     protected void setKeyFactory() throws NoSuchAlgorithmException {
-        this.keyFactory = KeyFactory.getInstance("RSA");
+        this.keyFactory = KeyFactory.getInstance(RSA);
     }
 
-    protected void setPublicKey(String classpathResource)
-            throws IOException, InvalidKeySpecException {
-        InputStream is = this
-                .getClass()
-                .getClassLoader()
-                .getResourceAsStream(classpathResource);
+    protected void setPublicKey(String keyPath)
+            throws IOException, InvalidKeySpecException{
+        File publicKeyFile = new File(keyPath);
 
-        String stringBefore = new String(is.readAllBytes());
-        is.close();
+        try (InputStream is = new FileInputStream(publicKeyFile)) {
 
-        String stringAfter = stringBefore
-                .replace("\n", "")
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .trim();
+            String stringBefore = new String(is.readAllBytes());
 
-        byte[] decoded = Base64
-                .getDecoder()
-                .decode(stringAfter);
+            String stringAfter = stringBefore
+                    .replace("\n", "")
+                    .replace(KEY_PREFIX, "")
+                    .replace(KEY_SUFFIX, "")
+                    .trim();
 
-        KeySpec keySpec
-                = new X509EncodedKeySpec(decoded);
+            byte[] decoded = Base64
+                    .getDecoder()
+                    .decode(stringAfter);
 
-        publicKey = keyFactory.generatePublic(keySpec);
+            KeySpec keySpec
+                    = new X509EncodedKeySpec(decoded);
+
+            publicKey = keyFactory.generatePublic(keySpec);
+
+        } catch (IOException e) {
+            throw new RunTimeException(e.getMessage());
+        }
     }
 
     public Boolean verifySignature(String signature, String value) throws SignatureException, InvalidKeyException, NoSuchAlgorithmException {
-        Signature sign = Signature.getInstance("NONEwithRSA");
+        Signature sign = Signature.getInstance(SIGN_INSTANCE);
         byte[] digitalSignature = Base64
                 .getDecoder()
                 .decode(signature);
@@ -73,12 +81,11 @@ public class Rsa4096 {
     {
         try
         {
-            Rsa4096 rsa4096 = new Rsa4096();
-            String signatureValue = (String)internalUserFormDataSchema.getUserData().get("userName");
-            Boolean isVerified = rsa4096.verifySignature(headerSign,signatureValue);
+            String signatureValue = (String)internalUserFormDataSchema.getUserData().get(USERNAME_VERIFICATION);
+            Boolean isVerified = verifySignature(headerSign,signatureValue);
             if(isVerified != null && !isVerified)
             {
-                throw new UnAuthorizedException(UN_AUTHORIZED_EXCEPTION,globalMessageSource.get(UN_AUTHORIZED_EXCEPTION));
+                throw new InvalidDataException(UN_AUTHORIZED_EXCEPTION,globalMessageSource.get(UN_AUTHORIZED_EXCEPTION));
             }
             return internalUserFormDataSchema;
         }

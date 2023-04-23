@@ -11,11 +11,12 @@ import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.Rsa4096;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RestController;
 import javax.validation.ConstraintViolationException;
-import static com.techsophy.tsf.account.constants.AccountConstants.SAVE_FORM_SUCCESS;
-import static com.techsophy.tsf.account.constants.AccountConstants.SIGNATURE_MISSING;
+
+import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 
 @RestController
@@ -23,6 +24,8 @@ import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 public class InternalControllerImpl implements InternalController {
     private final UserFormDataService userFormDataService;
     private final GlobalMessageSource globalMessageSource;
+    @Value(ENCRYPTION_KEY_FILE)
+    String keyLocation;
     @Override
     public ApiResponse<UserFormDataSchema> saveUser(UserFormDataSchema internalUserFormDataSchema, HttpHeaders headers) throws JsonProcessingException
     {
@@ -30,7 +33,7 @@ public class InternalControllerImpl implements InternalController {
         {
             if(headers.containsKey(X_SIGNATURE)) {
                 String headerSign = headers.getFirst(X_SIGNATURE);
-                Rsa4096 rsa4096 = new Rsa4096();
+                Rsa4096 rsa4096 = new Rsa4096(keyLocation);
                 UserFormDataSchema userFormDataSchema = rsa4096.transform(headerSign, internalUserFormDataSchema);
                 return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, globalMessageSource.get(SAVE_FORM_SUCCESS));
             }

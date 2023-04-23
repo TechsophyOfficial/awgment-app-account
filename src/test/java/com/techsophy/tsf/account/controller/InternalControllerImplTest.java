@@ -11,6 +11,7 @@ import com.techsophy.tsf.account.repository.UserDefinitionRepository;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import com.techsophy.tsf.account.service.impl.UserFormDataServiceImpl;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
+import com.techsophy.tsf.account.utils.Rsa4096;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import org.junit.jupiter.api.Assertions;
@@ -22,8 +23,10 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -58,13 +61,22 @@ class InternalControllerImplTest {
     InternalControllerImpl internalUserFormDataServiceImpl;
     @Mock
     UserFormDataServiceImpl userFormDataService;
+
+
+    @Value(ENCRYPTION_KEY_FILE)
+    private String keyLocation;
+
+    @Mock
+    Rsa4096 rsa4096 ;
     Map<String,Object> userDataMap = new HashMap<>();
 
 
     @BeforeEach
     void setUp()
     {
+
         MockitoAnnotations.openMocks(this);
+        ReflectionTestUtils.setField(internalUserFormDataServiceImpl, "keyLocation", "/home/rupali/Documents/desktop/cyberRaksha/new-account/AccountFinal/public_key_rsa_4096_pkcs8-exported.pem");
     }
 
     @Test
