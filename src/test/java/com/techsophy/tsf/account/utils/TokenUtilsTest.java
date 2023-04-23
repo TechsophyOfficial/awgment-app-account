@@ -92,6 +92,10 @@ class TokenUtilsTest
 
     @Test
     void getLoggedInUserIdTest() {
+        Authentication authentication = mock(Authentication.class);
+        SecurityContext securityContext = mock(SecurityContext.class);
+        Mockito.when(securityContext.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(securityContext);
         assertThatExceptionOfType(SecurityException.class)
                 .isThrownBy(() -> tokenUtils.getLoggedInUserId());
     }
