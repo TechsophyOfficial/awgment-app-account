@@ -20,7 +20,6 @@ import java.util.Base64;
 
 import static com.techsophy.tsf.account.constants.ErrorConstants.UN_AUTHORIZED_EXCEPTION;
 import static com.techsophy.tsf.account.constants.PropertyConstant.*;
-@Component
 public class Rsa4096 {
     private GlobalMessageSource globalMessageSource;
     private KeyFactory keyFactory;
@@ -42,7 +41,6 @@ public class Rsa4096 {
             throws IOException, InvalidKeySpecException{
         File publicKeyFile = new File(keyPath);
         try (InputStream is = new FileInputStream(publicKeyFile)) {
-
             String stringBefore = new String(is.readAllBytes());
 
             String stringAfter = stringBefore
