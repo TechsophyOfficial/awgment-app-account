@@ -29,13 +29,14 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigInteger;
+import java.security.Signature;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
-import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
+import static com.techsophy.tsf.account.constants.PropertyConstant.*;
 
 @ExtendWith({MockitoExtension.class, SpringExtension.class})
 class InternalControllerImplTest {
@@ -65,6 +66,8 @@ class InternalControllerImplTest {
 
     @Value(ENCRYPTION_KEY_FILE)
     private String keyLocation;
+    @Mock
+    Signature signature;
 
     @Mock
     Rsa4096 rsa4096 ;
@@ -76,19 +79,17 @@ class InternalControllerImplTest {
     {
 
         MockitoAnnotations.openMocks(this);
-        ReflectionTestUtils.setField(internalUserFormDataServiceImpl, "keyLocation", "/home/rupali/Documents/desktop/cyberRaksha/new-account/AccountFinal/public_key_rsa_4096_pkcs8-exported.pem");
+        ReflectionTestUtils.setField(internalUserFormDataServiceImpl, KEY_LOCATION, KEY_LOCATION_VALUE);
     }
 
     @Test
     void testSaveUserFormData() throws Exception{
-
         userDataMap.put(USERNAME_INTERNAL,USERNAME_INTERNAL_VALUE);
         userDataMap.put(FIRSTNAME_INTERNAL,FIRSTNAME_INTERNAL_VALUE);
         userDataMap.put(LASTNAME_INTERNAL,LASTNAME_INTERNAL_VALUE);
         userDataMap.put(MOBILE_NUMBER_INTERNAL,MOBILE_NUMBER_INTERNAL_VALUE);
         userDataMap.put(DEPARTMENT_INTERNAL,DEPARTMENT_INTERNAL_VALUE);
         userDataMap.put(SIGNATURE_INTERNAL,SIGNATURE_INTERNAL_VALUE);
-        userDataMap.put("realmId","master");
 
         UserFormDataDefinition userFormDataDefinition1 = new UserFormDataDefinition();
         userFormDataDefinition1.setUserData(userDataMap);

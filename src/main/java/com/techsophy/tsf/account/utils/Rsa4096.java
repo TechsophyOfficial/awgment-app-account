@@ -5,6 +5,7 @@ import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.exception.BadRequestException;
 import com.techsophy.tsf.account.exception.InvalidDataException;
 import com.techsophy.tsf.account.exception.RunTimeException;
+import org.springframework.stereotype.Component;
 
 import javax.validation.ConstraintViolationException;
 import java.io.File;
@@ -19,16 +20,18 @@ import java.util.Base64;
 
 import static com.techsophy.tsf.account.constants.ErrorConstants.UN_AUTHORIZED_EXCEPTION;
 import static com.techsophy.tsf.account.constants.PropertyConstant.*;
-
+@Component
 public class Rsa4096 {
     private GlobalMessageSource globalMessageSource;
     private KeyFactory keyFactory;
     private PublicKey publicKey;
+    private Signature sign;
 
 
     public Rsa4096(String keyLocation) throws NoSuchAlgorithmException, IOException, InvalidKeySpecException {
         setKeyFactory();
         setPublicKey(keyLocation);
+        sign = Signature.getInstance(SIGN_INSTANCE);
     }
 
     protected void setKeyFactory() throws NoSuchAlgorithmException {
@@ -63,8 +66,7 @@ public class Rsa4096 {
         }
     }
 
-    public Boolean verifySignature(String signature, String value) throws SignatureException, InvalidKeyException, NoSuchAlgorithmException {
-        Signature sign = Signature.getInstance(SIGN_INSTANCE);
+    public Boolean verifySignature(String signature, String value) throws SignatureException, InvalidKeyException {
         byte[] digitalSignature = Base64
                 .getDecoder()
                 .decode(signature);

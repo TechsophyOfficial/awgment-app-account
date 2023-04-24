@@ -13,4 +13,6 @@ public class PropertyConstant {
     public static final String RSA = "RSA";
     public static final String SIGN_INSTANCE = "NONEwithRSA";
     public static final String USERNAME_VERIFICATION = "userName";
+    public static final String KEY_LOCATION_VALUE = "src/test/resources/testdata/public_key_rsa_4096_for_test.pem";
+    public static final String KEY_LOCATION = "keyLocation";
 }
