@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
+import com.techsophy.tsf.account.exception.InvalidInputException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.impl.UserFormDataServiceImpl;
@@ -15,6 +16,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +33,10 @@ class UserDetailsIdNotFoundExceptionTest
     @Mock
     UserServiceImpl userService;
     @Mock
+    WebClientWrapper webClientWrapper;
+    @Mock
+    WebClient webClient;
+    @Mock
     TokenUtils mockTokenUtils;
 
     @InjectMocks
@@ -39,9 +46,7 @@ class UserDetailsIdNotFoundExceptionTest
     @Test
     void userDetailsIdNotFoundExceptionTest() throws JsonProcessingException
     {
-        Mockito.when(mockGlobalMessageSource.get(anyString(),anyString())).thenReturn("abc");
         Mockito.when(mockTokenUtils.getLoggedInUserId()).thenReturn(ABC);
-        Mockito.when(userService.getAllUsersByFilter(any(),any())).thenReturn(null);
         Assertions.assertThrows(UserDetailsIdNotFoundException.class,()->mockUserDetails.getUserDetails());
     }
 }

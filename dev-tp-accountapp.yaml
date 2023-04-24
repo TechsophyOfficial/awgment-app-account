@@ -19,9 +19,17 @@ spec:
         name: account-app
         envFrom:
         - configMapRef:
-            name: accountapp-env
+            name: accountapp-env      
         ports:
         - containerPort: 8080
+        volumeMounts:
+        - name: certificate-pem
+          mountPath: /etc/ssl/certs/public_key_rsa_4096_pkcs8-exported.pem
+          subPath: public_key_rsa_4096_pkcs8-exported.pem
+      volumes:
+       - name: certificate-pem
+         configMap:
+           name: certificate-pem
       imagePullSecrets:
       - name: ts-platform
 
