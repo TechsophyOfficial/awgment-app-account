@@ -41,7 +41,6 @@ public class Rsa4096 {
     protected void setPublicKey(String keyPath)
             throws IOException, InvalidKeySpecException{
         File publicKeyFile = new File(keyPath);
-
         try (InputStream is = new FileInputStream(publicKeyFile)) {
 
             String stringBefore = new String(is.readAllBytes());
