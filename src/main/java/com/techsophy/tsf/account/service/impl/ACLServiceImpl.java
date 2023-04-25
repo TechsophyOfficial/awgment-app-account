@@ -125,10 +125,7 @@ public class ACLServiceImpl implements ACLService
         if(userFormDataSchema!=null&&userFormDataSchema.getUserData()!=null) {
         Map<String,Object> userData = userFormDataSchema.getUserData();
         requestProperties.setUserId(userFormDataSchema.getUserId());
-        requestProperties.setEmailId((String) userData.get("emailId"));
-        requestProperties.setMobileNumber((String) userData.get("mobileNumber"));
-        requestProperties.setFirstName((String) userData.get("firstName"));
-        requestProperties.setLastName((String) userData.get("lastName"));
+        requestProperties.setUser(userData);
         requestProperties.setUsername((String) userData.get("userName"));
         }
         ACLDefinition aclDefinition=aclRepository.findById(BigInteger.valueOf(Long.parseLong(id)))
