@@ -4,7 +4,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.InternalController;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
-import com.techsophy.tsf.account.exception.BadRequestException;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
@@ -14,7 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RestController;
-import javax.validation.ConstraintViolationException;
+
+import javax.annotation.PostConstruct;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
@@ -22,10 +22,15 @@ import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 @RestController
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
 public class InternalControllerImpl implements InternalController {
-    private final UserFormDataService userFormDataService;
-    private final GlobalMessageSource globalMessageSource;
+    UserFormDataService userFormDataService;
+    GlobalMessageSource globalMessageSource;
     @Value(ENCRYPTION_KEY_FILE)
-    String keyLocation;
+    String keycloakPublicFile;
+    Rsa4096 rsa4096;
+    @PostConstruct
+    void initializeRsa() {
+        rsa4096 = new Rsa4096(keycloakPublicFile);
+    }
     @Override
     public ApiResponse<UserFormDataSchema> saveUser(UserFormDataSchema internalUserFormDataSchema, HttpHeaders headers) throws JsonProcessingException
     {
@@ -33,7 +38,6 @@ public class InternalControllerImpl implements InternalController {
         {
             if(headers.containsKey(X_SIGNATURE)) {
                 String headerSign = headers.getFirst(X_SIGNATURE);
-                Rsa4096 rsa4096 = new Rsa4096(keyLocation);
                 UserFormDataSchema userFormDataSchema = rsa4096.transform(headerSign, internalUserFormDataSchema);
                 return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, globalMessageSource.get(SAVE_FORM_SUCCESS));
             }
@@ -42,11 +46,8 @@ public class InternalControllerImpl implements InternalController {
                 return new ApiResponse<>(null, false, globalMessageSource.get(SIGNATURE_MISSING));
             }
         }
-        catch (ConstraintViolationException | BadRequestException e)
+        catch (Exception e)
         {
-            throw e;
-        }
-        catch (Exception e) {
             throw new RunTimeException(e.getMessage());
         }
     }
