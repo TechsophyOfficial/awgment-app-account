@@ -16,7 +16,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 public interface UserFormDataController
 {
     @GetMapping("/loggedIn")
-    ApiResponse<AuditableData> getUserDetailsOfLoggedInUser() ;
+    ApiResponse<UserFormDataSchema> getUserDetailsOfLoggedInUser() ;
 
     @PostMapping("/loggedIn")
     ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema);

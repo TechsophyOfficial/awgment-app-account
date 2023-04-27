@@ -27,11 +27,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import java.math.BigInteger;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.mongodb.client.model.Filters.eq;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
@@ -63,22 +61,16 @@ class UserFormDataControllerTest
 
     @Test
     void getUserDetailsOfLoggedInUserSuccess() throws JsonProcessingException {
-        List<Map<String,Object>> list = new ArrayList<>();
-        Map<String,Object> map = new HashMap<>();
-        map.put("id","123");
-        list.add(map);
-        Mockito.when(userDetails.getUserDetails()).thenReturn(list);
+        Mockito.when(userDetails.getUserId()).thenReturn(Optional.of(BigInteger.ONE));
         userFormDataController.getUserDetailsOfLoggedInUser();
-        Mockito.verify(userFormDataService,Mockito.times(1)).getUserFormDataByUserId("123",false);
+        Mockito.verify(userFormDataService,Mockito.times(1)).getUserFormDataByUserId(String.valueOf(BigInteger.ONE),false);
     }
     @Test
     void getUserDetailsOfLoggedInUserNotFound() throws JsonProcessingException {
-            List<Map<String, Object>> list = new ArrayList<>();
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", "123");
-            list.add(map);
-            Mockito.when(userDetails.getUserDetails()).thenThrow(JsonProcessingException.class);
-            Assertions.assertThrows(RunTimeException.class, () -> userFormDataController.getUserDetailsOfLoggedInUser());
+            Mockito.when(userDetails.getUserId()).thenReturn(Optional.empty());
+            Mockito.when(tokenUtils.getLoggedInUserId()).thenReturn("abc");
+            userFormDataController.getUserDetailsOfLoggedInUser();
+            Mockito.verify(userFormDataService,Mockito.times(1)).getUserFormData("abc");
     }
     @ParameterizedTest
     @CsvSource({"1,1", ",1"}) //here i am verifying with passing id and their invocation for service layer
@@ -134,7 +126,6 @@ class UserFormDataControllerTest
         Map<String,Object> map = new HashMap<>();
         map.put("abc","abc");
         UserFormDataSchema userFormDataSchema = new UserFormDataSchema(map,"1","abc");
-        Mockito.when(userDetails.getUserDetails()).thenThrow(JsonProcessingException.class);
         Assertions.assertThrows(RunTimeException.class,()->userFormDataController.updateUserDetailsOfLoggedInUser(userFormDataSchema));
     }
     @Test

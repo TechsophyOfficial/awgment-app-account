@@ -4,6 +4,7 @@ import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserDataSchema;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,6 +14,8 @@ public interface UserFormDataService
 {
     @Transactional(rollbackFor = Exception.class)
     UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema);
+
+    UserFormDataDefinition getUserFormData(String userName);
 
     AuditableData getUserFormDataByUserId(String userId, Boolean onlyMandatoryFields);
 
@@ -26,4 +29,7 @@ public interface UserFormDataService
 
     @Transactional(rollbackFor = Exception.class)
     void deleteUserFormDataByUserId(String userId);
+
+
+
 }

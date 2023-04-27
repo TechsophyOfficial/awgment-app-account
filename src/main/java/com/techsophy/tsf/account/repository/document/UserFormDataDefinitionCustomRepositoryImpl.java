@@ -14,6 +14,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
@@ -33,11 +34,11 @@ public class UserFormDataDefinitionCustomRepositoryImpl implements UserFormDataD
     }
 
     @Override
-    public UserFormDataDefinition findByUserName(String userName)
+    public Optional<UserFormDataDefinition> findByUserName(String userName)
     {
        Query query=new Query();
        query.addCriteria(Criteria.where(USER_DATA+DOT+USER_NAME_DATA).is(userName));
-       return mongoTemplate.findOne(query,UserFormDataDefinition.class,TP_FORM_DATA_USER_COLLECTION);
+       return Optional.ofNullable(mongoTemplate.findOne(query, UserFormDataDefinition.class, TP_FORM_DATA_USER_COLLECTION));
     }
 
     @Override

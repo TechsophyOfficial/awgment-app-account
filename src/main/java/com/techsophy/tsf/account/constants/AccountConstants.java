@@ -458,4 +458,13 @@ public class AccountConstants
  public static final String MENU_ROLE_TABLE="tp_menu_role";
  public static final String MENU_ROLE="/menurole";
  public static final String MENU_ROLE_ID="/{id}";
+
+ //InternalUserConstants
+ public static final String USERNAME_INTERNAL ="userName";
+ public static final String INTERNAL="/internal";
+ public static final String USER_CREATE="/users/create";
+ public static final String TENANT_NOT_FOUND="Unable to find tenant info in request";
+ public static final String SIGNATURE_MISSING = "AWGMENT-ACCOUNT-1064";
+ public static final String ENCRYPTION_KEY_FILE ="${keycloak.public.key}";
+
 }

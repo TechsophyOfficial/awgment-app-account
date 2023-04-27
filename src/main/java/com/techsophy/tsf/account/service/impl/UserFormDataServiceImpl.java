@@ -21,17 +21,18 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
 import javax.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.FORM_NOT_FOUND_EXCEPTION;
+import static com.techsophy.tsf.account.constants.ErrorConstants.USENAME_NOT_FOUND_EXCEPTION;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @Slf4j
@@ -50,6 +51,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
     @Override
     public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
     {
+
         try
         {
             UserFormDataDefinition userFormDataDefinition = this.objectMapper
@@ -58,12 +60,12 @@ public class UserFormDataServiceImpl implements UserFormDataService
             userDetails.userNameValidations(userData.getUserName());
             String userId = userFormDataSchema.getUserId();
             userData.setUserName(userData.getUserName().toLowerCase());
-            Map<String,Object> loggedInUser = userServiceImpl.getCurrentlyLoggedInUserId().get(0);
+            BigInteger loggedInUserId = userDetails.getCurrentAuditor().orElse(null);
             if (userId == null)
             {
                 userFormDataDefinition.setId(idGenerator.nextId());
                 userFormDataDefinition.setCreatedOn(Instant.now());
-                userFormDataDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+                userFormDataDefinition.setCreatedById(loggedInUserId);
                 userFormDataDefinition.setVersion(1);
 
             }
@@ -79,7 +81,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userData.setId(userId);
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
-            userFormDataDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+            userFormDataDefinition.setUpdatedById(loggedInUserId);
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
             userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());
@@ -94,6 +96,11 @@ public class UserFormDataServiceImpl implements UserFormDataService
         {
             throw new RunTimeException(e.getMessage());
         }
+    }
+
+    @Override
+    public UserFormDataDefinition getUserFormData(String userName) {
+      return userFormDataRepository.findByUserName(userName).orElseThrow(() -> new UserFormDataNotFoundException(USENAME_NOT_FOUND_EXCEPTION,globalMessageSource.get(USENAME_NOT_FOUND_EXCEPTION,userName)));
     }
 
     @Override
@@ -210,4 +217,5 @@ public class UserFormDataServiceImpl implements UserFormDataService
     {
         return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);
     }
+
 }

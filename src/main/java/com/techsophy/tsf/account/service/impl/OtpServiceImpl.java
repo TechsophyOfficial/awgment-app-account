@@ -60,8 +60,7 @@ public class OtpServiceImpl implements OtpService
     private static Random random = new Random();
 
     @Override
-    public void generateOtp(OtpRequestPayload otpRequestPayload)
-    {
+    public void generateOtp(OtpRequestPayload otpRequestPayload) throws JsonProcessingException {
         log.info(GENERATING_OTP);
         if( !Boolean.parseBoolean(environment.getProperty(NOTIFICATION_ENABLED)))
         {
@@ -153,9 +152,8 @@ public class OtpServiceImpl implements OtpService
         return true;
     }
 
-    @SneakyThrows({JsonProcessingException.class})
-    private OtpDefinition setCreatedByUserNameAndId(OtpDefinition otpDefinition)
-    {
+
+    private OtpDefinition setCreatedByUserNameAndId(OtpDefinition otpDefinition) throws JsonProcessingException {
         Map<String,Object> loggedInUser = userService.getCurrentlyLoggedInUserId().get(0);
         otpDefinition.setCreatedOn(Instant.now());
         otpDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));

@@ -49,7 +49,7 @@ public class UserServiceImpl implements UserService
         try
         {
             UserDefinition userDefinition = this.objectMapper.convertValue(userData,UserDefinition.class);
-            Map<String,Object> loggedInUser = getCurrentlyLoggedInUserId().get(0);
+            BigInteger loggedInUserId = userDetails.getCurrentAuditor().orElse(null);
             if (userData.getId() == null)
             {
                 List<String> validationErrorMessages = validateUniqueConstraint(userDefinition);
@@ -60,7 +60,7 @@ public class UserServiceImpl implements UserService
                 }
                 userDefinition.setId(idGenerator.nextId());
                 userDefinition.setCreatedOn(Instant.now());
-                userDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+                userDefinition.setCreatedById(loggedInUserId);
             }
             else
             {
@@ -80,7 +80,7 @@ public class UserServiceImpl implements UserService
             }
             /*cannot change userName and emailId*/
             userDefinition.setUpdatedOn(Instant.now());
-            userDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+            userDefinition.setUpdatedById(loggedInUserId);
             userDefinition=this.userDefinitionRepository.save(userDefinition);
             if(userData.getId()==null) {
                 Map<String, Object> map = new HashMap<>();
@@ -214,8 +214,7 @@ public class UserServiceImpl implements UserService
         return List.of(LOGIN_ID);
     }
 
-    public List<Map<String,Object>> getCurrentlyLoggedInUserId() throws JsonProcessingException
-    {
+    public List<Map<String,Object>> getCurrentlyLoggedInUserId() throws JsonProcessingException {
         String loginId = tokenUtils.getLoggedInUserId();
         if (loginId.startsWith(SERVICE_ACCOUNT))
         {
