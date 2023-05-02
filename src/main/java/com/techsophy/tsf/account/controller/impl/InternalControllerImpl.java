@@ -9,6 +9,7 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.Rsa4096;
 import lombok.RequiredArgsConstructor;
+import java.util.logging.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -26,6 +27,7 @@ public class InternalControllerImpl implements InternalController {
     private final GlobalMessageSource globalMessageSource;
     @Value(ENCRYPTION_KEY_FILE)
     String keycloakPublicFile;
+    private static final Logger logger = Logger.getLogger("Inside InternalControllerImpl");
     Rsa4096 rsa4096;
     @PostConstruct
     void initializeRsa() {
@@ -40,6 +42,7 @@ public class InternalControllerImpl implements InternalController {
             if(headers.containsKey(X_SIGNATURE)) {
                 String headerSign = headers.getFirst(X_SIGNATURE);
                 UserFormDataSchema userFormDataSchema = rsa4096.transform(headerSign, internalUserFormDataSchema);
+                logger.info("userFormDataSchema in internalController");
                 return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, globalMessageSource.get(SAVE_FORM_SUCCESS));
             }
             else
