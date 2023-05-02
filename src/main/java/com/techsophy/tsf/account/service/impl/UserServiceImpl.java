@@ -16,6 +16,9 @@ import com.techsophy.tsf.account.service.UserService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -32,6 +35,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @Service
+@Slf4j
 @AllArgsConstructor(onConstructor_ = {@Autowired})
 public class UserServiceImpl implements UserService
 {
@@ -41,6 +45,7 @@ public class UserServiceImpl implements UserService
     private final IdGeneratorImpl idGenerator;
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final UserPreferencesThemeService userPreferencesThemeService;
 
@@ -87,6 +92,7 @@ public class UserServiceImpl implements UserService
                 map.put(THEME_ID, DEFAULT_THEME_ID);
                 map.put(USER_ID, userDefinition.getId());
                 UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map, UserPreferencesSchema.class);
+                logger.info("userPreferencesSchema in UserServiceImpl: "+ userPreferencesSchema);
                 userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
             }
             return userDefinition;

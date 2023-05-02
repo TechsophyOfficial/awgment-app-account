@@ -16,6 +16,8 @@ import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +49,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
     private final IdGeneratorImpl idGenerator;
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Override
     public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
@@ -54,6 +57,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
 
         try
         {
+            logger.info("Inside SaveUserFormData");
             UserFormDataDefinition userFormDataDefinition = this.objectMapper
                     .convertValue(userFormDataSchema,UserFormDataDefinition.class);
             UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(),UserData.class);
@@ -82,10 +86,12 @@ public class UserFormDataServiceImpl implements UserFormDataService
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
             userFormDataDefinition.setUpdatedById(loggedInUserId);
+            logger.info( "userFormDataServiceImpl: "+ userData);
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
             userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());
             userFormDataDefinition = this.userFormDataRepository.save(userFormDataDefinition);
+            logger.info("Saved to User Definition");
             return this.objectMapper.convertValue(userFormDataDefinition, UserFormDataSchema.class);
         }
         catch (ConstraintViolationException | BadRequestException e)
