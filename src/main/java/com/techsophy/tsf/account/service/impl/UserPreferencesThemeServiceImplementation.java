@@ -15,11 +15,13 @@ import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.logging.Level;
-import java.util.logging.Logger;
+
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bson.BsonBinarySubType;
 import org.bson.types.Binary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -45,7 +47,7 @@ public class UserPreferencesThemeServiceImplementation implements UserPreference
     private final GlobalMessageSource globalMessageSource;
     private final IdGeneratorImpl idGenerator;
     private final UserDetails userDetails;
-    private final Logger logger = Logger.getLogger("Inside UserPreferenceThemeServiceImpl");
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Override
     public UserPreferencesResponse saveUserPreferencesTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException
@@ -63,7 +65,7 @@ public class UserPreferencesThemeServiceImplementation implements UserPreference
     @Override
     public UserPreferencesResponse saveUserWithTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException {
         UserPreferencesDefinition userPreferenceData = new UserPreferencesDefinition();
-        logger.log(Level.SEVERE, "preference in userPreferenceThemeServiceImpl and userId: {0} ", preferencesSchema.getUserId());
+        logger.info("preference in userPreferenceThemeServiceImpl and userId: "+ preferencesSchema.getUserId());
         if(!userPreferencesDefinitionRepository.existsByUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())))) {
             logger.info("Inside existsByUserId");
             userPreferenceData.setId(idGenerator.nextId());
