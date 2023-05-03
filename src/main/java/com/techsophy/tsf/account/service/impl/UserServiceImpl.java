@@ -92,7 +92,7 @@ public class UserServiceImpl implements UserService
                 map.put(THEME_ID, DEFAULT_THEME_ID);
                 map.put(USER_ID, userDefinition.getId());
                 UserPreferencesSchema userPreferencesSchema = this.objectMapper.convertValue(map, UserPreferencesSchema.class);
-                logger.info("userPreferencesSchema in UserServiceImpl: "+ userPreferencesSchema);
+                log.info("userPreferencesSchema in UserServiceImpl: "+ userPreferencesSchema);
                 userPreferencesThemeService.saveUserWithTheme(userPreferencesSchema);
             }
             return userDefinition;
