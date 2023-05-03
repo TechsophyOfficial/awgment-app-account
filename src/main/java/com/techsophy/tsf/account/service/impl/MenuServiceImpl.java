@@ -46,7 +46,7 @@ public class MenuServiceImpl implements MenuService
         }
         else
         {
-            MenuDefinition menuDefinitionData =this.menuRepository.findById(Long.valueOf(menuId))
+            MenuDefinition menuDefinitionData =this.menuRepository.findById(BigInteger.valueOf(Long.valueOf(menuId)))
                     .orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION,menuId)));
             menuDefinition.setId(menuDefinition.getId());
             menuDefinition.setCreatedOn(menuDefinitionData.getCreatedOn());
