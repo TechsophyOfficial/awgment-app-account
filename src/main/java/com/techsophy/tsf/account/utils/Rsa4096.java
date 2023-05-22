@@ -80,9 +80,7 @@ public class Rsa4096 {
         try
         {
             String signatureValue = (String)internalUserFormDataSchema.getUserData().get(USERNAME_INTERNAL);
-            System.out.println("signatureValue : "+signatureValue);
             Boolean isVerified = verifySignature(headerSign,signatureValue);
-            System.out.println("isVerified : "+isVerified);
             if(isVerified != null && !isVerified)
             {
                 throw new InvalidDataException(UN_AUTHORIZED_EXCEPTION,globalMessageSource.get(UN_AUTHORIZED_EXCEPTION));
