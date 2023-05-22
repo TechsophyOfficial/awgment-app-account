@@ -22,8 +22,8 @@ import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 @RestController
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
 public class InternalControllerImpl implements InternalController {
-    UserFormDataService userFormDataService;
-    GlobalMessageSource globalMessageSource;
+    private final UserFormDataService userFormDataService;
+    private final GlobalMessageSource globalMessageSource;
     @Value(ENCRYPTION_KEY_FILE)
     String keycloakPublicFile;
     Rsa4096 rsa4096;
