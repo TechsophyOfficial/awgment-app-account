@@ -37,7 +37,6 @@ public class InternalControllerImpl implements InternalController {
         try
         {
             if(headers.containsKey(X_SIGNATURE)) {
-                System.out.println("Signature : "+headers.getFirst(X_SIGNATURE));
                 String headerSign = headers.getFirst(X_SIGNATURE);
                 UserFormDataSchema userFormDataSchema = rsa4096.transform(headerSign, internalUserFormDataSchema);
                 return new ApiResponse<>(userFormDataService.saveUserFormData(userFormDataSchema), true, globalMessageSource.get(SAVE_FORM_SUCCESS));

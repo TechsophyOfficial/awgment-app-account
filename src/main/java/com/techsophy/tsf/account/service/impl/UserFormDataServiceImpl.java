@@ -51,26 +51,34 @@ public class UserFormDataServiceImpl implements UserFormDataService
     @Override
     public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
     {
-
+        System.out.println("userFormDataSchema: "+userFormDataSchema.toString());
         try
         {
             UserFormDataDefinition userFormDataDefinition = this.objectMapper
                     .convertValue(userFormDataSchema,UserFormDataDefinition.class);
+            System.out.println("userFormDataDefinition: "+userFormDataDefinition.toString());
             UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(),UserData.class);
+            System.out.println("userData: "+userData.toString());
             userDetails.userNameValidations(userData.getUserName());
+            System.out.println("Validation Done");
             String userId = userFormDataSchema.getUserId();
+            System.out.println("userId: "+userId);
             userData.setUserName(userData.getUserName().toLowerCase());
             BigInteger loggedInUserId = userDetails.getCurrentAuditor().orElse(null);
             if (userId == null)
             {
+                System.out.println("userId is null");
                 userFormDataDefinition.setId(idGenerator.nextId());
+                System.out.println("Id Generated");
                 userFormDataDefinition.setCreatedOn(Instant.now());
                 userFormDataDefinition.setCreatedById(loggedInUserId);
                 userFormDataDefinition.setVersion(1);
+                System.out.println("IF Done");
 
             }
             else
             {
+                System.out.println("Else Started");
                 UserFormDataDefinition existingFormDataDefinition =
                         this.userFormDataRepository.findByUserId(BigInteger.valueOf(Long.parseLong(userId)))
                                 .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION,globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION,userId)));
@@ -79,6 +87,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
                 userFormDataDefinition.setCreatedById(existingFormDataDefinition.getCreatedById());
                 userFormDataDefinition.setVersion(existingFormDataDefinition.getVersion() + 1);
                 userData.setId(userId);
+                System.out.println("Else Done");
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
             userFormDataDefinition.setUpdatedById(loggedInUserId);
