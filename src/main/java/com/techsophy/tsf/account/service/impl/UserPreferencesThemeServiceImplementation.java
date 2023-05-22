@@ -59,8 +59,10 @@ public class UserPreferencesThemeServiceImplementation implements UserPreference
 
     @Override
     public UserPreferencesResponse saveUserWithTheme(UserPreferencesSchema preferencesSchema) throws JsonProcessingException {
+        log.info("In SaveUserInfo: {}", preferencesSchema);
         UserPreferencesDefinition userPreferenceData = new UserPreferencesDefinition();
         if(!userPreferencesDefinitionRepository.existsByUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())))) {
+            log.info("In SaveUserInfo: {}", preferencesSchema);
             userPreferenceData.setId(idGenerator.nextId());
             userPreferenceData.setThemeId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getThemeId())));
             userPreferenceData.setUserId(BigInteger.valueOf(Long.parseLong(preferencesSchema.getUserId())));
