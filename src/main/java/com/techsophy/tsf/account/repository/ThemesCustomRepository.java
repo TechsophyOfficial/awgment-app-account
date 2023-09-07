@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 @Repository
 public interface ThemesCustomRepository
 {
+    boolean existsByName(String name);
     List<ThemesDefinition> findByIdIn(List<String> idList);
     Stream<ThemesDefinition> findThemesByQSorting(String q, Sort sort);
     Page<ThemesDefinition> findThemesByQPageable(String q, Pageable pageable);

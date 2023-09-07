@@ -9,6 +9,7 @@ import com.techsophy.tsf.account.constants.AccountConstants;
 import com.techsophy.tsf.account.constants.ThemesConstants;
 import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.ThemesDefinition;
+import com.techsophy.tsf.account.exception.BadRequestException;
 import com.techsophy.tsf.account.exception.ThemesNotFoundByIdException;
 import com.techsophy.tsf.account.repository.ThemesDefinitionRepository;
 import com.techsophy.tsf.account.service.impl.ThemesServiceImplementation;
@@ -113,6 +114,14 @@ class ThemesServiceTest
     }
 
     @Test
+    void saveThemesDataDuplicateNameTest() throws IOException
+    {
+        ThemesSchema themesSchema=new ThemesSchema("101","theme_violet","violet_content");
+        Mockito.when(themesDefinitionRepository.existsByName("theme_violet")).thenReturn(true);
+        Assertions.assertThrows(BadRequestException.class,()->themesServiceImplementation.saveThemesData(themesSchema));
+    }
+
+    @Test
     void getThemesDataByIdTest() throws IOException
     {
         ObjectMapper objectMapper=new ObjectMapper();
@@ -212,6 +221,14 @@ class ThemesServiceTest
         themesServiceImplementation.uploadTheme(file,"name");
         themesServiceImplementation.uploadTheme(file,"name");
         verify(themesDefinitionRepository, times(2)).save(themesDefinition);
+    }
+
+    @Test
+    void uploadThemeDuplicateNameTest()
+    {
+        MockMultipartFile file = new MockMultipartFile("theme_violet",FILE, "json","abc".getBytes());
+        Mockito.when(themesDefinitionRepository.existsByName("theme_violet")).thenReturn(true);
+        Assertions.assertThrows(BadRequestException.class,()->themesServiceImplementation.uploadTheme(file,"theme_violet"));
     }
 }
 
