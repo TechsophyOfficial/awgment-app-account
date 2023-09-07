@@ -89,7 +89,7 @@ public class GroupsDataServiceImpl implements GroupsDataService
     public GroupsDataSchema getGroupById(String id) throws JsonProcessingException
     {
         var client = webClientWrapper.createWebClient(tokenUtils.getTokenFromContext());
-        GroupDefinition groupsDefinition = groupRepository.findById(BigInteger.valueOf(Long.parseLong(id)))
+        GroupDefinition groupsDefinition = groupRepository.findById(new BigInteger(id))
                 .orElseThrow(() -> new InvalidInputException(UNABLE_TO_GET_GROUPS_WITH_ID,globalMessageSource.get(UNABLE_TO_GET_GROUPS_WITH_ID,id)));
         GroupsDataSchema groupsDataSchema = this.objectMapper.convertValue(groupsDefinition, GroupsDataSchema.class);
         if(StringUtils.isNotEmpty(groupsDefinition.getGroupId()))
@@ -166,9 +166,10 @@ public class GroupsDataServiceImpl implements GroupsDataService
                 GroupsDataSchema groupsDataSchema = this.objectMapper.convertValue(groupsData, GroupsDataSchema.class).withId(String.valueOf(idGenerator.nextId()));
                 GroupDefinition groupDefinition = this.objectMapper.convertValue(groupsDataSchema, GroupDefinition.class);
                 groupDefinition.setCreatedOn(Instant.now());
-                groupDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+                BigInteger userId = new BigInteger(loggedInUser.get(ID).toString());
+                groupDefinition.setCreatedById(userId);
                 groupDefinition.setUpdatedOn(Instant.now());
-                groupDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+                groupDefinition.setUpdatedById(userId);
                 groupRepository.save(groupDefinition);
                 return this.objectMapper.convertValue(groupDefinition, GroupsDataSchema.class)
                         .withCreatedOn(groupDefinition.getCreatedOn());
@@ -183,14 +184,14 @@ public class GroupsDataServiceImpl implements GroupsDataService
             {
                 throw new InvalidInputException(UNABLE_TO_ADD_GROUP,globalMessageSource.get(UNABLE_TO_ADD_GROUP));
             }
-            if (groupRepository.existsById(BigInteger.valueOf(Long.parseLong(groupsData.getId()))))
+            if (groupRepository.existsById(new BigInteger(groupsData.getId())))
             {
-                GroupDefinition existingDetails = groupRepository.findById(BigInteger.valueOf(Long.parseLong(groupsData.getId()))).orElseThrow(() ->new GroupsNotFoundException(UNABLE_TO_GET_GROUPS,globalMessageSource.get(UNABLE_TO_GET_GROUPS)));
+                GroupDefinition existingDetails = groupRepository.findById(new BigInteger(groupsData.getId())).orElseThrow(() ->new GroupsNotFoundException(UNABLE_TO_GET_GROUPS,globalMessageSource.get(UNABLE_TO_GET_GROUPS)));
                 GroupDefinition groupDefinition = this.objectMapper.convertValue(groupsDataSchema, GroupDefinition.class);
                 groupDefinition.setCreatedOn(existingDetails.getCreatedOn());
                 groupDefinition.setCreatedById(existingDetails.getCreatedById());
                 groupDefinition.setUpdatedOn(Instant.now());
-                groupDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
+                groupDefinition.setUpdatedById(new BigInteger(loggedInUser.get(ID).toString()));
                 groupRepository.save(groupDefinition);
                 return this.objectMapper.convertValue(groupDefinition, GroupsDataSchema.class)
                         .withUpdatedOn(groupDefinition.getUpdatedOn());
@@ -211,9 +212,10 @@ public class GroupsDataServiceImpl implements GroupsDataService
     @Override
     public void deleteGroup(String id)
     {
-        if (groupRepository.existsById(BigInteger.valueOf(Long.parseLong(id))))
+        BigInteger groupId = new BigInteger(id);
+        if (groupRepository.existsById(groupId))
         {
-            groupRepository.deleteById(BigInteger.valueOf(Long.parseLong(id)));
+            groupRepository.deleteById(groupId);
         }
         else
         {
@@ -226,10 +228,11 @@ public class GroupsDataServiceImpl implements GroupsDataService
     public void assignRolesToGroup(String id,AssignGroupRoles groupRoles) throws JsonProcessingException
     {
         String token= tokenUtils.getTokenFromContext();
+        BigInteger bigId = new BigInteger(id);
         var client = webClientWrapper.createWebClient(tokenUtils.getTokenFromContext());
-        if (groupRepository.existsById(BigInteger.valueOf(Long.parseLong(id))))
+        if (groupRepository.existsById(bigId))
         {
-            String groupId= groupRepository.findById(BigInteger.valueOf(Long.parseLong(id))).orElseThrow(RuntimeException::new).getGroupId();
+            String groupId= groupRepository.findById(bigId).orElseThrow(RuntimeException::new).getGroupId();
             String response;
             try
             {

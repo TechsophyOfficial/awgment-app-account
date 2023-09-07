@@ -9,32 +9,36 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.Rsa4096;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import javax.annotation.PostConstruct;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 
 @RestController
+@Slf4j
 @RequiredArgsConstructor(onConstructor_ = {@Autowired})
 public class InternalControllerImpl implements InternalController {
-    UserFormDataService userFormDataService;
-    GlobalMessageSource globalMessageSource;
+    private final UserFormDataService userFormDataService;
+    private final GlobalMessageSource globalMessageSource;
     @Value(ENCRYPTION_KEY_FILE)
     String keycloakPublicFile;
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     Rsa4096 rsa4096;
     @PostConstruct
     void initializeRsa() {
         rsa4096 = new Rsa4096(keycloakPublicFile);
     }
+
     @Override
     public ApiResponse<UserFormDataSchema> saveUser(UserFormDataSchema internalUserFormDataSchema, HttpHeaders headers) throws JsonProcessingException
     {
-
         try
         {
             if(headers.containsKey(X_SIGNATURE)) {

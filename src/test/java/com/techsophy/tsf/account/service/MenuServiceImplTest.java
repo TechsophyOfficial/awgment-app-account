@@ -81,7 +81,7 @@ import static org.mockito.Mockito.*;
         when(mockUserDetails.getUserDetails()).thenReturn(userList);
         when(mockIdGeneratorImpl.nextId()).thenReturn(BigInteger.valueOf(Long.parseLong(USER_ID)));
         when(mockMenuRepository.save(any())).thenReturn(menuDefinition);
-        when(mockMenuRepository.findById(Long.valueOf(10))).thenReturn(Optional.of(menuDefinition));
+        when(mockMenuRepository.findById(BigInteger.valueOf(Long.valueOf(10)))).thenReturn(Optional.of(menuDefinition));
         mockMenuServiceImpl.saveMenu(menuSchema);
         mockMenuServiceImpl.saveMenu(menuSchema1);
         verify(mockMenuRepository, times(2)).save(any());
