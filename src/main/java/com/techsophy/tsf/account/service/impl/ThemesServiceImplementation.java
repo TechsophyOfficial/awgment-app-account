@@ -7,6 +7,7 @@ import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.ThemesDefinition;
+import com.techsophy.tsf.account.exception.BadRequestException;
 import com.techsophy.tsf.account.exception.ThemesNotFoundByIdException;
 import com.techsophy.tsf.account.exception.UserDetailsIdNotFoundException;
 import com.techsophy.tsf.account.repository.ThemesDefinitionRepository;
@@ -63,6 +64,10 @@ public class ThemesServiceImplementation implements ThemesService
     @Override
     public ThemesResponse saveThemesData(ThemesSchema themesSchema) throws JsonProcessingException
     {
+        if(themesDefinitionRepository.existsByName(themesSchema.getName()))
+        {
+            throw new BadRequestException(DUPLICATE_NAME_OF_THEME,globalMessageSource.get(DUPLICATE_NAME_OF_THEME));
+        }
         Map<String,Object> loggedInUserDetails =userDetails.getUserDetails().get(0);
         if (StringUtils.isEmpty(loggedInUserDetails.get(ID).toString()))
         {
@@ -177,6 +182,10 @@ public class ThemesServiceImplementation implements ThemesService
     @Override
     public ThemesResponse uploadTheme(MultipartFile file, String name) throws IOException
     {
+        if(themesDefinitionRepository.existsByName(name))
+        {
+            throw new BadRequestException(DUPLICATE_NAME_OF_THEME,globalMessageSource.get(DUPLICATE_NAME_OF_THEME));
+        }
         Map<String,Object> loggedInUserDetails =userDetails.getUserDetails().get(0);
         if (StringUtils.isEmpty(loggedInUserDetails.get(ID).toString()))
         {

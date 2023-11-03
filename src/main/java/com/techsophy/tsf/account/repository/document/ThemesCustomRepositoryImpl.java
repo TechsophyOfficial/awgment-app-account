@@ -23,6 +23,13 @@ public class ThemesCustomRepositoryImpl implements ThemesCustomRepository
     private final MongoTemplate mongoTemplate;
 
     @Override
+    public boolean existsByName(String name)
+    {
+        Query query=new Query(Criteria.where("name").is(name));
+       return mongoTemplate.exists(query,ThemesDefinition.class);
+    }
+
+    @Override
     public List<ThemesDefinition> findByIdIn(List<String> idList)
     {
         Query query = new Query(Criteria.where(UNDERSCORE_ID).in(idList));

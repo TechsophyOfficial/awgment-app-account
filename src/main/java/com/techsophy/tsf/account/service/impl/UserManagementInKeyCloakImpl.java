@@ -215,7 +215,13 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         List<RolesSchema> deleteRoles = getUserRoles(token,userRoles.getUserId());
         if (!deleteRoles.isEmpty())
         {
-            deleteUserRoles(token, userRoles.getUserId(),deleteRoles);
+            deleteUserRealmRoles(token, userRoles.getUserId(),deleteRoles);
+        }
+        deleteRoles.clear();
+        deleteRoles.addAll(getClientRolesAssignedToUser(token,userRoles.getUserId()));
+        if (!deleteRoles.isEmpty())
+        {
+            deleteUserClientRoles(token, userRoles.getUserId(),deleteRoles);
         }
         assignRole(token,userRoles);
     }
@@ -248,7 +254,50 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         }).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
-    private void deleteUserRoles(String token,String userId,List<RolesSchema> deleteRoles)
+    private List<RolesSchema> getClientRolesAssignedToUser(String token,String userId) throws JsonProcessingException
+    {
+        var client = webClientWrapper.createWebClient(token);
+
+        String response;
+        try
+        {
+            response = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromToken(tokenUtils.getTokenFromContext())+GET_ALL_CLIENTS_URL,GET,null);
+        }
+        catch(Exception e)
+        {
+            log.error(e.getMessage());
+            throw new ClientsUnableToRetrieveException(UNABLE_TO_FETCH_CLIENTS,globalMessageSource.get(UNABLE_TO_FETCH_CLIENTS));
+        }
+
+        Map<String,String> clientMap=getClientMap(token);
+        Map<String,List<RolesSchema>> totalAssignedRoles=new HashMap<>();
+        for(Map.Entry<String,String> clientName: clientMap.entrySet())
+        {
+            try
+            {
+                response = webClientWrapper.webclientRequest(client,keyCloakApi+tokenUtils.getIssuerFromContext()+userCreationApi +URL_SEPERATOR+ userId + ROLE_MAPPINGS_CLIENT_URL+clientName.getValue(),GET,null);
+            }
+            catch(Exception e)
+            {
+                log.error(e.getMessage());
+            }
+            List<Map<String,Object>> rolesMap= this.objectMapper.readValue(response, new TypeReference<>() {});
+            List<RolesSchema> rolesSchemas=new ArrayList<>();
+            for(Map<String,Object> role:rolesMap)
+            {
+                RolesSchema rolesSchema=new RolesSchema(String.valueOf(role.get(ID)),String.valueOf(role.get(NAME)));
+                rolesSchemas.add(rolesSchema);
+            }
+            totalAssignedRoles.put(clientName.getKey(),rolesSchemas);
+        }
+        List<RolesSchema> allRoles = new ArrayList<>();
+        for (List<RolesSchema> roles : totalAssignedRoles.values()) {
+            allRoles.addAll(roles);
+        }
+        return allRoles;
+    }
+
+    private void deleteUserRealmRoles(String token, String userId, List<RolesSchema> deleteRoles)
     {
         if (StringUtils.isEmpty(token))
         {
@@ -265,6 +314,31 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
         String roleResponse = webClientWrapper.webclientRequest(client, keyCloakApi+ tokenUtils.getIssuerFromContext() + userCreationApi +URL_SEPERATOR+ userId + ROLE_MAPPINGS_REALM_URL,DELETE,addRoleList);
         if (StringUtils.isNotEmpty(roleResponse))
             throw new InvalidInputException(UNABLE_TO_DELETE_ROLES,globalMessageSource.get(UNABLE_TO_DELETE_ROLES));
+    }
+
+    private void deleteUserClientRoles(String token, String userId, List<RolesSchema> deleteRoles) throws JsonProcessingException {
+        if (StringUtils.isEmpty(token)) {
+            throw new InvalidInputException(TOKEN_NOT_FOUND, globalMessageSource.get(TOKEN_NOT_FOUND));
+        }
+        var client = webClientWrapper.createWebClient(token);
+        Map<String, String> clientMap = getClientMap(token);
+        Map<String, List<RolesSchema>> allClientAndDefaultRoles = getAllClientAndDefaultRoles();
+        for (Map.Entry<String, String> clientName : clientMap.entrySet()) {
+            List<RolesSchema> roles = allClientAndDefaultRoles.get(clientName.getKey());
+            List<Map<String, Object>> addRoleList = deleteRoles.stream().map(role ->
+            {
+                Map<String, Object> addRole = new HashMap<>();
+                if(roles.contains(role)){
+                    addRole.put(ID, role.getRoleId());
+                    addRole.put(ROLE_NAME, role.getRoleName());
+                    return addRole;
+                }
+                return null;
+            }).filter(Objects::nonNull).collect(Collectors.toList());
+            String roleResponse = webClientWrapper.webclientRequest(client, keyCloakApi + tokenUtils.getIssuerFromContext() + userCreationApi + URL_SEPERATOR + userId + ROLE_MAPPINGS_CLIENT_URL + clientName.getValue(), DELETE, addRoleList);
+            if (StringUtils.isNotEmpty(roleResponse))
+                throw new InvalidInputException(UNABLE_TO_DELETE_ROLES, globalMessageSource.get(UNABLE_TO_DELETE_ROLES));
+        }
     }
 
     public Map<String,List<RolesSchema>> getAllClientAndDefaultRoles() throws JsonProcessingException

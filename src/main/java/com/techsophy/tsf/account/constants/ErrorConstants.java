@@ -70,4 +70,5 @@ public class ErrorConstants
     public static final String ACL_NAME_CANNOT_BE_BLANK="ACL name cannot be blank";
     public static final String USENAME_NOT_FOUND_EXCEPTION="AWGMENT-ACCOUNT-1062";
     public static final String UN_AUTHORIZED_EXCEPTION="AWGMENT-ACCOUNT-1063";
+    public static final String DUPLICATE_NAME_OF_THEME="AWGMENT-ACCOUNT-1065";
 }
