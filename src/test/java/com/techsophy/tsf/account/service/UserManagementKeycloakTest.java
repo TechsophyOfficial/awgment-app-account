@@ -332,10 +332,10 @@ import static org.mockito.Mockito.*;
         when(webClientWrapper.createWebClient(any())).thenReturn(webClient);
         when(this.mockObjectMapper.convertValue(any(),eq(HashMap.class))).thenReturn(hashMap);
         when(this.mockObjectMapper.convertValue(any(),eq(RolesSchema.class))).thenReturn(rolesSchema);
-        Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(map3);
-        when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(),anyString(), any())).thenReturn(response).thenReturn(response).thenReturn(null).thenReturn(response);
+        Mockito.when(mockObjectMapper.readValue(anyString(),any(TypeReference.class))).thenReturn(map).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(list).thenReturn(map3);
+        when(webClientWrapper.webclientRequest(any(WebClient.class), anyString(),anyString(), any())).thenReturn(response).thenReturn(response).thenReturn(null).thenReturn(response).thenReturn(response).thenReturn(response).thenReturn(response);
         Assertions.assertThrows(InvalidInputException.class,()->userManagementInKeyCloak.assignUserRole(userRolesSchema));
-        verify(mockTokenUtils,times(6)).getTokenFromContext();
+        verify(mockTokenUtils,times(8)).getTokenFromContext();
     }
 
     @Test
