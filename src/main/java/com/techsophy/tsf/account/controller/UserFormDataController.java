@@ -53,7 +53,7 @@ public interface UserFormDataController
      * @param endDate End Date
      * @return A List of Users.
      */
-    @GetMapping(USERS_REGISTERED_IN_A_DAY_URL)
+    @GetMapping(USERS_REGISTERED_BY_DATE_RANGE)
     @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<List<UserFormDataDefinition>> fetchRegisteredUsersByDateRange(@RequestParam(value = "startDate") String startDate,
                                                                               @RequestParam(value = "endDate") String endDate);

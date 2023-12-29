@@ -135,7 +135,7 @@ public class AccountConstants
 
  /*UserFormDataConstants*/
  public static final String USERS_URL ="/users";
- public static final String USERS_REGISTERED_IN_A_DAY_URL ="/getUsersRegisteredToday";
+ public static final String USERS_REGISTERED_BY_DATE_RANGE ="/getUsersRegisteredByDateRange";
  public static final String USER_ID_URL="/{userId}";
  public static final String USER_ID="userId";
  public static final String ONLY_MANDATORY_FIELDS="only-mandatory-fields";
