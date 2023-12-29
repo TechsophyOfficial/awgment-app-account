@@ -94,7 +94,7 @@ public class AccountConstants
  public static final String GET_ROLE_SUCCESS="GET.ROLE.SUCCESS";
  public static final String GROUPS_USER_SUCCESS="GROUPS.USER.SUCCESS";
  public static final String DELETE_USER_SUCCESS="DELETE.USER.SUCCESS";
- public static final String FETCH_USERS_REGISTERED_IN_A_DAY_MSG="Users registered within a day fetched successfully.";
+ public static final String FETCH_USERS_REGISTERED_BY_DATE_RANGE_MSG="Users registered within the provided range fetched successfully.";
  public static final String PASSWORD_UPDATED_SUCCESSFULLY="PASSWORD.UPDATED.SUCCESS";
  public static final String PASSWORD_SET_SUCCESSFULLY="PASSWORD.SET.SUCCESS";
 

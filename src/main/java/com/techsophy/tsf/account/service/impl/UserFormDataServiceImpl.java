@@ -219,9 +219,9 @@ public class UserFormDataServiceImpl implements UserFormDataService
     {
         return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);
     }
-   public List<UserFormDataDefinition> getUsersRegisteredInADay()
+   public List<UserFormDataDefinition> getUsersRegisteredByDateRange(String startDate, String endDate)
     {
-        return userFormDataRepository.findAllUsersRegisteredInADay();
+        return userFormDataRepository.findAllUsersRegisteredByDateRange(startDate,endDate);
     }
 
 }

@@ -163,7 +163,7 @@ class UserFormDataControllerTest
     @Test
     void getUsersRegisteredToday()
     {
-        ApiResponse<List<UserFormDataDefinition>> response = userFormDataController.getUsersRegisteredInDay();
+        ApiResponse<List<UserFormDataDefinition>> response = userFormDataController.fetchRegisteredUsersByDateRange("2023-04-10","2023-10-10");
         Assertions.assertNotNull(response);
     }
 }

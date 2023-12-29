@@ -113,7 +113,7 @@ class UserFormDataDefinitionCustomRepoTest
     {
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
         Mockito.when(mongoTemplate.find(any(),eq(UserFormDataDefinition.class))).thenReturn(List.of(userFormDataDefinition));
-        userFormDataDefinitionCustomRepository.findAllUsersRegisteredInADay();
+        userFormDataDefinitionCustomRepository.findAllUsersRegisteredByDateRange("2023-04-10","2023-10-10");
         verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
     }
 }

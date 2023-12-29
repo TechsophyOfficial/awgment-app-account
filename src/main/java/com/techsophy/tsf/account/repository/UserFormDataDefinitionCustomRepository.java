@@ -26,6 +26,6 @@ public interface UserFormDataDefinitionCustomRepository
 
     Page<UserFormDataDefinition> findByFilterColumnAndValue(String filterColumn, String filterValue, Pageable pageable,String q);
 
-    List<UserFormDataDefinition> findAllUsersRegisteredInADay();
+     List<UserFormDataDefinition> findAllUsersRegisteredByDateRange(String startDate, String endDate);
 
 }

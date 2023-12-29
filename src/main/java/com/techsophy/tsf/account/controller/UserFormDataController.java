@@ -46,7 +46,15 @@ public interface UserFormDataController
     @PreAuthorize(DELETE_OR_ALL_ACCESS)
     ApiResponse<Void> deleteUserByUserId(@PathVariable(USER_ID) String userId);
 
+    /**
+     * This API is used to get the users registered
+     * within a date range.
+     * @param startDate Start Date
+     * @param endDate End Date
+     * @return A List of Users.
+     */
     @GetMapping(USERS_REGISTERED_IN_A_DAY_URL)
     @PreAuthorize(READ_OR_ALL_ACCESS)
-    ApiResponse<List<UserFormDataDefinition>> getUsersRegisteredInDay();
+    ApiResponse<List<UserFormDataDefinition>> fetchRegisteredUsersByDateRange(@RequestParam(value = "startDate") String startDate,
+                                                                              @RequestParam(value = "endDate") String endDate);
 }

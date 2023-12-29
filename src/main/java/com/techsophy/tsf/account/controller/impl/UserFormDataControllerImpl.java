@@ -127,9 +127,9 @@ public class UserFormDataControllerImpl implements UserFormDataController
     }
 
     @Override
-    public ApiResponse<List<UserFormDataDefinition>> getUsersRegisteredInDay()
+    public ApiResponse<List<UserFormDataDefinition>> fetchRegisteredUsersByDateRange(String startDate, String endDate)
     {
-        List<UserFormDataDefinition> usersData = userFormDataService.getUsersRegisteredInADay();
-        return new ApiResponse<>(usersData, true, FETCH_USERS_REGISTERED_IN_A_DAY_MSG);
+        List<UserFormDataDefinition> usersData = userFormDataService.getUsersRegisteredByDateRange(startDate,endDate);
+        return new ApiResponse<>(usersData, true, FETCH_USERS_REGISTERED_BY_DATE_RANGE_MSG);
     }
 }

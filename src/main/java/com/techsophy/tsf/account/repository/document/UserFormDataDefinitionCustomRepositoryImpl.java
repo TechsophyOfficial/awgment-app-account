@@ -15,7 +15,9 @@ import org.springframework.data.mongodb.core.query.Query;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -145,15 +147,19 @@ public class UserFormDataDefinitionCustomRepositoryImpl implements UserFormDataD
     }
 
     @Override
-    public List<UserFormDataDefinition> findAllUsersRegisteredInADay()
+    public List<UserFormDataDefinition> findAllUsersRegisteredByDateRange(String startDate, String endDate)
     {
-        Query query = new Query();
-        Instant todayStart = Instant.now().truncatedTo(ChronoUnit.DAYS); // Today's start time
-        Instant todayEnd = todayStart.plus(1, ChronoUnit.DAYS); // Tomorrow's start time
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-        query.addCriteria(
-                Criteria.where(CREATED_ON).gte(todayStart).lt(todayEnd)
-        );
+        LocalDate startDateLimit = LocalDate.parse(startDate, formatter);
+        LocalDate endDateLimit = LocalDate.parse(endDate, formatter);
+
+        Instant startInstant = startDateLimit.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = endDateLimit.atStartOfDay(ZoneId.systemDefault()).plusDays(1).toInstant();
+
+        Query query = new Query();
+        query.addCriteria(Criteria.where(CREATED_ON).gte(startInstant).lt(endInstant));
+
         return mongoTemplate.find(query, UserFormDataDefinition.class);
     }
 }
