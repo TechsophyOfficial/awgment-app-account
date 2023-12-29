@@ -107,4 +107,13 @@ class UserFormDataDefinitionCustomRepoTest
         userFormDataDefinitionCustomRepository.findByFilterColumnAndValue("abc","abc",page,"abc");
         verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
     }
+
+    @Test
+    void findAllUsersRegisteredInADay()
+    {
+        UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
+        Mockito.when(mongoTemplate.find(any(),eq(UserFormDataDefinition.class))).thenReturn(List.of(userFormDataDefinition));
+        userFormDataDefinitionCustomRepository.findAllUsersRegisteredInADay();
+        verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
+    }
 }

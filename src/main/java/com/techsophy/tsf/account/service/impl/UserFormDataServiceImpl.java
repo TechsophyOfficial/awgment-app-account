@@ -7,7 +7,6 @@ import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.exception.BadRequestException;
-import com.techsophy.tsf.account.exception.InvalidInputException;
 import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.UserFormDataNotFoundException;
 import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
@@ -16,20 +15,18 @@ import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+
 import javax.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
@@ -221,6 +218,10 @@ public class UserFormDataServiceImpl implements UserFormDataService
     public UserDataSchema convertEntityToDTO(UserFormDataDefinition userFormDataDefinition)
     {
         return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);
+    }
+   public List<UserFormDataDefinition> getUsersRegisteredInADay()
+    {
+        return userFormDataRepository.findAllUsersRegisteredInADay();
     }
 
 }

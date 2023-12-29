@@ -4,6 +4,7 @@ import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Optional;
@@ -24,4 +25,7 @@ public interface UserFormDataDefinitionCustomRepository
     List<UserFormDataDefinition> findByFilterColumnAndValue(Sort sort,String filterColumn, String filterValue);
 
     Page<UserFormDataDefinition> findByFilterColumnAndValue(String filterColumn, String filterValue, Pageable pageable,String q);
+
+    List<UserFormDataDefinition> findAllUsersRegisteredInADay();
+
 }

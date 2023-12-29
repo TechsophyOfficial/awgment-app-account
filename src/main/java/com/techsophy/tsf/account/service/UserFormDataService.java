@@ -30,6 +30,8 @@ public interface UserFormDataService
     @Transactional(rollbackFor = Exception.class)
     void deleteUserFormDataByUserId(String userId);
 
+    List<UserFormDataDefinition> getUsersRegisteredInADay();
+
 
 
 }

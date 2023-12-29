@@ -6,8 +6,8 @@ import com.techsophy.tsf.account.controller.UserFormDataController;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
-import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.exception.BadRequestException;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
@@ -19,6 +19,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -123,5 +124,12 @@ public class UserFormDataControllerImpl implements UserFormDataController
     {
         userFormDataService.deleteUserFormDataByUserId(userId);
         return new ApiResponse<>(null, true, globalMessageSource.get(DELETE_USER_SUCCESS));
+    }
+
+    @Override
+    public ApiResponse<List<UserFormDataDefinition>> getUsersRegisteredInDay()
+    {
+        List<UserFormDataDefinition> usersData = userFormDataService.getUsersRegisteredInADay();
+        return new ApiResponse<>(usersData, true, FETCH_USERS_REGISTERED_IN_A_DAY_MSG);
     }
 }

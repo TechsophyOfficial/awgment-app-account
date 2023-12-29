@@ -11,11 +11,15 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 
@@ -138,7 +142,18 @@ public class UserFormDataDefinitionCustomRepositoryImpl implements UserFormDataD
                 ,Criteria.where(USER_DATA_USER_NAME).ne(SYSTEM)));
         long count=mongoTemplate.count(countQuery,UserFormDataDefinition.class);
         return new PageImpl<>(userFormDataDefinitions, pageable,count );
+    }
 
+    @Override
+    public List<UserFormDataDefinition> findAllUsersRegisteredInADay()
+    {
+        Query query = new Query();
+        Instant todayStart = Instant.now().truncatedTo(ChronoUnit.DAYS); // Today's start time
+        Instant todayEnd = todayStart.plus(1, ChronoUnit.DAYS); // Tomorrow's start time
 
+        query.addCriteria(
+                Criteria.where(CREATED_ON).gte(todayStart).lt(todayEnd)
+        );
+        return mongoTemplate.find(query, UserFormDataDefinition.class);
     }
 }
