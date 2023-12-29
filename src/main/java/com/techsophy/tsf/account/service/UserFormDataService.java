@@ -30,6 +30,14 @@ public interface UserFormDataService
     @Transactional(rollbackFor = Exception.class)
     void deleteUserFormDataByUserId(String userId);
 
+    /**
+     * This method is used to fetch all the users within a certain date range.
+     * @param startDate Start Date
+     * @param endDate End Date
+     * @return List of Users
+     */
+    List<UserFormDataDefinition> getUsersRegisteredByDateRange(String startDate, String endDate);
+
 
 
 }

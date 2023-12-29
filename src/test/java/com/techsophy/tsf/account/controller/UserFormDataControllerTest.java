@@ -6,8 +6,9 @@ import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.controller.impl.UserFormDataControllerImpl;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
-import com.techsophy.tsf.account.exception.RunTimeException;
+import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.exception.BadRequestException;
+import com.techsophy.tsf.account.exception.RunTimeException;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
@@ -31,11 +32,10 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
 
-import static com.mongodb.client.model.Filters.eq;
+import static com.techsophy.tsf.account.constants.AccountConstants.END_DATE;
+import static com.techsophy.tsf.account.constants.AccountConstants.START_DATE;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
-import static org.apache.commons.lang3.ArrayUtils.add;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doThrow;
 
 //@SpringBootTest
 @ActiveProfiles(TEST_ACTIVE_PROFILE)
@@ -159,6 +159,13 @@ class UserFormDataControllerTest
     void deleteUserByUserId()
     {
         ApiResponse response = userFormDataController.deleteUserByUserId("1");
+        Assertions.assertNotNull(response);
+    }
+
+    @Test
+    void getUsersRegisteredToday()
+    {
+        ApiResponse<List<UserFormDataDefinition>> response = userFormDataController.fetchRegisteredUsersByDateRange(START_DATE,END_DATE);
         Assertions.assertNotNull(response);
     }
 }

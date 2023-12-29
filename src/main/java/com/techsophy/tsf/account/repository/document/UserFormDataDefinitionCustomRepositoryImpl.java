@@ -11,11 +11,17 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Collation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 
@@ -138,7 +144,22 @@ public class UserFormDataDefinitionCustomRepositoryImpl implements UserFormDataD
                 ,Criteria.where(USER_DATA_USER_NAME).ne(SYSTEM)));
         long count=mongoTemplate.count(countQuery,UserFormDataDefinition.class);
         return new PageImpl<>(userFormDataDefinitions, pageable,count );
+    }
 
+    @Override
+    public List<UserFormDataDefinition> findAllUsersRegisteredByDateRange(String startDate, String endDate)
+    {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
+        LocalDate startDateLimit = LocalDate.parse(startDate, formatter);
+        LocalDate endDateLimit = LocalDate.parse(endDate, formatter);
+
+        Instant startInstant = startDateLimit.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant endInstant = endDateLimit.atStartOfDay(ZoneId.systemDefault()).plusDays(1).toInstant();
+
+        Query query = new Query();
+        query.addCriteria(Criteria.where(CREATED_ON).gte(startInstant).lt(endInstant));
+
+        return mongoTemplate.find(query, UserFormDataDefinition.class);
     }
 }

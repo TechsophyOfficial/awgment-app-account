@@ -3,13 +3,17 @@ package com.techsophy.tsf.account.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.techsophy.tsf.account.dto.AuditableData;
 import com.techsophy.tsf.account.dto.UserFormDataSchema;
+import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.model.ApiResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
 import javax.security.auth.login.AccountNotFoundException;
 import java.io.IOException;
+import java.util.List;
+
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RequestMapping(ACCOUNTS_URL+VERSION_V1+USERS_URL)
@@ -41,4 +45,16 @@ public interface UserFormDataController
     @DeleteMapping(USER_ID_URL)
     @PreAuthorize(DELETE_OR_ALL_ACCESS)
     ApiResponse<Void> deleteUserByUserId(@PathVariable(USER_ID) String userId);
+
+    /**
+     * This API is used to get the users registered
+     * within a date range.
+     * @param startDate Start Date
+     * @param endDate End Date
+     * @return A List of Users.
+     */
+    @GetMapping(USERS_REGISTERED_BY_DATE_RANGE)
+    @PreAuthorize(READ_OR_ALL_ACCESS)
+    ApiResponse<List<UserFormDataDefinition>> fetchRegisteredUsersByDateRange(@RequestParam(value = "startDate") String startDate,
+                                                                              @RequestParam(value = "endDate") String endDate);
 }

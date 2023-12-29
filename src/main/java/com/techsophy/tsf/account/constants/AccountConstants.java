@@ -94,6 +94,9 @@ public class AccountConstants
  public static final String GET_ROLE_SUCCESS="GET.ROLE.SUCCESS";
  public static final String GROUPS_USER_SUCCESS="GROUPS.USER.SUCCESS";
  public static final String DELETE_USER_SUCCESS="DELETE.USER.SUCCESS";
+ public static final String FETCH_USERS_REGISTERED_BY_DATE_RANGE_MSG="Users registered within the provided range fetched successfully.";
+ public static final String START_DATE= "2023-04-10";
+ public static final String END_DATE= "2023-10-10";
  public static final String PASSWORD_UPDATED_SUCCESSFULLY="PASSWORD.UPDATED.SUCCESS";
  public static final String PASSWORD_SET_SUCCESSFULLY="PASSWORD.SET.SUCCESS";
 
@@ -132,6 +135,7 @@ public class AccountConstants
 
  /*UserFormDataConstants*/
  public static final String USERS_URL ="/users";
+ public static final String USERS_REGISTERED_BY_DATE_RANGE ="/getUsersRegisteredByDateRange";
  public static final String USER_ID_URL="/{userId}";
  public static final String USER_ID="userId";
  public static final String ONLY_MANDATORY_FIELDS="only-mandatory-fields";
