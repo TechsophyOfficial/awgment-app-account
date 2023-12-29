@@ -32,6 +32,8 @@ import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
 
+import static com.techsophy.tsf.account.constants.AccountConstants.END_DATE;
+import static com.techsophy.tsf.account.constants.AccountConstants.START_DATE;
 import static com.techsophy.tsf.account.constants.ThemesConstants.TEST_ACTIVE_PROFILE;
 import static org.mockito.ArgumentMatchers.any;
 
@@ -163,7 +165,7 @@ class UserFormDataControllerTest
     @Test
     void getUsersRegisteredToday()
     {
-        ApiResponse<List<UserFormDataDefinition>> response = userFormDataController.fetchRegisteredUsersByDateRange("2023-04-10","2023-10-10");
+        ApiResponse<List<UserFormDataDefinition>> response = userFormDataController.fetchRegisteredUsersByDateRange(START_DATE,END_DATE);
         Assertions.assertNotNull(response);
     }
 }

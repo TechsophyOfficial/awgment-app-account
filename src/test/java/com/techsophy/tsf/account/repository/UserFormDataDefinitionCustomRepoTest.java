@@ -18,6 +18,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.techsophy.tsf.account.constants.AccountConstants.END_DATE;
+import static com.techsophy.tsf.account.constants.AccountConstants.START_DATE;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -113,7 +115,7 @@ class UserFormDataDefinitionCustomRepoTest
     {
         UserFormDataDefinition userFormDataDefinition = new UserFormDataDefinition(BigInteger.ONE,map,BigInteger.ONE,1);
         Mockito.when(mongoTemplate.find(any(),eq(UserFormDataDefinition.class))).thenReturn(List.of(userFormDataDefinition));
-        userFormDataDefinitionCustomRepository.findAllUsersRegisteredByDateRange("2023-04-10","2023-10-10");
+        userFormDataDefinitionCustomRepository.findAllUsersRegisteredByDateRange(START_DATE,END_DATE);
         verify(mongoTemplate,times(1)).find(any(),eq(UserFormDataDefinition.class));
     }
 }
