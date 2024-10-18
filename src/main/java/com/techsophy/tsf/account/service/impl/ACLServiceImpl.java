@@ -1,7 +1,6 @@
 package com.techsophy.tsf.account.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
@@ -157,13 +156,13 @@ public class ACLServiceImpl implements ACLService
             req2.setUser(request.getUser());
             req2.setUsername(request.getUsername());
             req2.setUserId(request.getUserId());
-            if(req2.getUserInfo()!=null&&req2.getUserInfo().containsKey("clientRoles")) {
-                List<Object> clientRoles = (List<Object>) req2.getUserInfo().get("clientRoles");
+            if(req2.getUserInfo()!=null&&req2.getUserInfo().containsKey(CLIENT_ROLES)) {
+                List<Object> clientRoles = (List<Object>) req2.getUserInfo().get(CLIENT_ROLES);
 
                     String formattedClientRoles = clientRoles.stream()
                             .map(role -> "\\" + "\"" + role + "\\" + "\"") // Escape quotes for each role
                             .collect(Collectors.joining(","));
-                req2.getUserInfo().put("clientRoles",formattedClientRoles);
+                req2.getUserInfo().put(CLIENT_ROLES,formattedClientRoles);
             }
             detailTemplate.add("request", req2);
             try {
