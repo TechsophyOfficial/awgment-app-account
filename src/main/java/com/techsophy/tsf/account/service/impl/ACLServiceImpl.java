@@ -1,7 +1,6 @@
 package com.techsophy.tsf.account.service.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
@@ -31,6 +30,7 @@ import java.math.BigInteger;
 import java.nio.file.AccessDeniedException;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.ACL_NOT_FOUND_WITH_GIVEN_ID;
@@ -150,9 +150,23 @@ public class ACLServiceImpl implements ACLService
         ObjectMapper mapper = new ObjectMapper();
         if(aclDecision!=null&&aclDecision.getAdditionalDetails()!=null) {
             ST detailTemplate = new ST(new JSONObject(aclDecision.getAdditionalDetails()).toString(), delimiterStart, delimiterEnd);
-            detailTemplate.add("request", request);
+            RequestProperties req2 = new RequestProperties();
+            req2.setUserInfo(new HashMap<>(request.getUserInfo()));
+            req2.setContext(request.getContext());
+            req2.setUser(request.getUser());
+            req2.setUsername(request.getUsername());
+            req2.setUserId(request.getUserId());
+            if(req2.getUserInfo()!=null&&req2.getUserInfo().containsKey(CLIENT_ROLES)) {
+                List<Object> clientRoles = (List<Object>) req2.getUserInfo().get(CLIENT_ROLES);
+
+                    String formattedClientRoles = clientRoles.stream()
+                            .map(role -> "\\" + "\"" + role + "\\" + "\"") // Escape quotes for each role
+                            .collect(Collectors.joining(","));
+                req2.getUserInfo().put(CLIENT_ROLES,formattedClientRoles);
+            }
+            detailTemplate.add("request", req2);
             try {
-                Map<String, Object> data = mapper.readValue(detailTemplate.render(), Map.class);
+                Map<String, Object> data = mapper.readValue(detailTemplate.render().replace("\\\"[","[").replace("]\\\"","]"), Map.class);
                 aclDecision.setAdditionalDetails(data);
             } catch (JsonProcessingException e) {
                 throw new RunTimeException(e.getMessage());
