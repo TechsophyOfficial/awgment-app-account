@@ -16,6 +16,7 @@ import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -47,7 +48,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 @RefreshScope
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class ThemesServiceImplementation implements ThemesService
 {
     private final GlobalMessageSource globalMessageSource;

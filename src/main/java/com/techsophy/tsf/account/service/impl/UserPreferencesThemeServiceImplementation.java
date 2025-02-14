@@ -13,6 +13,7 @@ import com.techsophy.tsf.account.repository.UserPreferencesDefinitionRepository;
 import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.logging.Level;
 
@@ -35,7 +36,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class UserPreferencesThemeServiceImplementation implements UserPreferencesThemeService
 {
     private static final Map<String, String> SUPPORTED_TYPES = Map.of(

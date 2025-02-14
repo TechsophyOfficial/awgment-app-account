@@ -2,7 +2,7 @@ package com.techsophy.tsf.account.constants;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigInteger;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

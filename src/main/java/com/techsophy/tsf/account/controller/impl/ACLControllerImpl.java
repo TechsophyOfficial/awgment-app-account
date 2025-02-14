@@ -10,6 +10,7 @@ import com.techsophy.tsf.account.entity.ACLDefinition;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.ACLService;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -18,7 +19,7 @@ import java.nio.file.AccessDeniedException;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ ={@Autowired})
+@RequiredArgsConstructor
 public class ACLControllerImpl implements ACLController
 {
     private final GlobalMessageSource globalMessageSource;

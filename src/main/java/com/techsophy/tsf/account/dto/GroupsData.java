@@ -2,7 +2,7 @@ package com.techsophy.tsf.account.dto;
 
 import lombok.Value;
 import lombok.With;
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import static com.techsophy.tsf.account.constants.AccountConstants.GROUP_ID_NOT_BLANK;
 
 @With

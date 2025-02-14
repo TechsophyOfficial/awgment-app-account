@@ -6,7 +6,7 @@ import com.techsophy.tsf.account.dto.GroupsSaveSchema;
 import com.techsophy.tsf.account.dto.GroupsSchema;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.stream.Stream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;

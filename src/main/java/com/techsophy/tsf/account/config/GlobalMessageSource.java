@@ -1,6 +1,7 @@
 package com.techsophy.tsf.account.config;
 
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
@@ -11,10 +12,10 @@ import java.util.Locale;
 import static com.techsophy.tsf.account.constants.AccountConstants.ERROR;
 
 @Component
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class GlobalMessageSource
 {
-private MessageSource messageSource;
+private final MessageSource messageSource;
 
     public String get(String key)
     {

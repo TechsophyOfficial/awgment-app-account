@@ -9,6 +9,7 @@ import com.techsophy.tsf.account.dto.UserPreferencesSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserPreferencesThemeService;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,7 +17,7 @@ import java.io.IOException;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class UserPreferencesControllerImplementation implements UserPreferencesController
 {
     private final UserPreferencesThemeService userPreferencesThemeService;

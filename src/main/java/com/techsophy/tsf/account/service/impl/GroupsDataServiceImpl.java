@@ -13,6 +13,7 @@ import com.techsophy.tsf.account.service.GroupsDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,7 +24,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import javax.validation.ConstraintViolationException;
+import jakarta.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
@@ -34,7 +35,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
 @RefreshScope
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class GroupsDataServiceImpl implements GroupsDataService
 {
     private final UserManagementInKeyCloakImpl userManagementInKeyCloak;

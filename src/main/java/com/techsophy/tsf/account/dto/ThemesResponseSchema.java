@@ -3,7 +3,7 @@ package com.techsophy.tsf.account.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Value;
 import lombok.With;
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import java.time.Instant;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 

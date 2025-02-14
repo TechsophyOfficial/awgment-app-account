@@ -16,6 +16,7 @@ import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,19 +40,18 @@ import static org.apache.commons.lang3.ObjectUtils.isEmpty;
 
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class ACLServiceImpl implements ACLService
 {
-    private  GlobalMessageSource globalMessageSource;
-    private  IdGeneratorImpl idGenerator;
-    private  ObjectMapper objectMapper;
+    private final GlobalMessageSource globalMessageSource;
+    private final IdGeneratorImpl idGenerator;
+    private final ObjectMapper objectMapper;
 
-    private  UserFormDataService userFormDataService;
+    private final UserFormDataService userFormDataService;
 
-    private  UserDetails userDetails;
-    private  ACLRepository aclRepository;
-    private  TokenUtils tokenUtils;
+    private final UserDetails userDetails;
+    private final ACLRepository aclRepository;
+    private final TokenUtils tokenUtils;
     @Value("${delimiter.left:<}")
     private  char delimiterStart;
     @Value("${delimiter.right:>}")

@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import javax.security.auth.login.AccountNotFoundException;
-import javax.validation.ConstraintViolationException;
+import jakarta.validation.ConstraintViolationException;
 import java.time.Instant;
 import java.util.Locale;
 import static com.techsophy.tsf.account.constants.ErrorConstants.FILE_SIZE_EXCEEDED;

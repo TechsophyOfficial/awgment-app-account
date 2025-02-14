@@ -8,16 +8,17 @@ import com.techsophy.tsf.account.dto.GroupsSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.stream.Stream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class GroupsControllerImpl implements GroupsController
 {
     private final UserManagementInKeyCloak userManagementInKeyCloak;

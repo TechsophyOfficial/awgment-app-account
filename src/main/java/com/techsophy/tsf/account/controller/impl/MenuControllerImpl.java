@@ -7,6 +7,7 @@ import com.techsophy.tsf.account.dto.MenuSchema;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.MenuService;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RestController;
 import java.io.IOException;
@@ -14,7 +15,7 @@ import java.util.stream.Stream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class MenuControllerImpl implements MenuController
 {
     private final GlobalMessageSource globalMessageSource;

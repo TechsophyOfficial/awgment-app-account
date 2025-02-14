@@ -1,13 +1,14 @@
 package com.techsophy.tsf.account.changelog;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.shaded.json.parser.ParseException;
+//import com.nimbusds.jose.shaded.json.parser.ParseException;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -19,7 +20,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.EXECUTION_IS_FAILED;
 
 @ChangeUnit(id = ADD_SYSTEM_USER, order = ORDER_2, systemVersion = SYSTEM_VERSION_1)
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 @Slf4j
 public class AddSystemUser {
     private  final MongoTemplate template;

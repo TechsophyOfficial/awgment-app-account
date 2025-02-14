@@ -10,6 +10,7 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.ThemesService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,7 @@ import java.io.IOException;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class ThemesControllerImplementation implements ThemesController
 {
     private final GlobalMessageSource globalMessageSource;

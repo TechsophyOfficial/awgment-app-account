@@ -3,7 +3,7 @@ package com.techsophy.tsf.account.dto;
 import com.techsophy.tsf.account.entity.Auditable;
 import lombok.*;
 import org.springframework.data.annotation.Id;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Map;

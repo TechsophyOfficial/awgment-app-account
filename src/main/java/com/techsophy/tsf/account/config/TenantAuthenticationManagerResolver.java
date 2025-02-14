@@ -2,6 +2,7 @@ package com.techsophy.tsf.account.config;
 
 import com.techsophy.tsf.account.utils.TokenUtils;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.context.config.annotation.RefreshScope;
@@ -11,7 +12,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.stereotype.Component;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.Map;
 import static com.techsophy.tsf.account.constants.AccountConstants.AUTHORIZATION;
@@ -19,13 +20,13 @@ import static com.techsophy.tsf.account.constants.AccountConstants.KEYCLOAK_ISSU
 
 @RefreshScope
 @Component
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class TenantAuthenticationManagerResolver implements AuthenticationManagerResolver<HttpServletRequest>
 {
 	private final Map<String, AuthenticationManager> authenticationManagers = new HashMap<>();
 	@Value(KEYCLOAK_ISSUER_URI)
 	private  String keycloakIssuerUri;
-	private JWTRoleConverter jwtRoleConverter;
+	private final JWTRoleConverter jwtRoleConverter;
 	private final TokenUtils tokenUtils;
 
 	@Override

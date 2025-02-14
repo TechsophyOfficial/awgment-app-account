@@ -9,6 +9,7 @@ import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -19,7 +20,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @ChangeUnit(id = CHANGE_ALL_USER_NAMES_TO_LOWER, order = ORDER_4, systemVersion = SYSTEM_VERSION_1)
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 @Slf4j
 public class ChangeToSmallLetters {
     private final MongoTemplate template;

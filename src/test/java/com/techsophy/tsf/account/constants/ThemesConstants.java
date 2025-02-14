@@ -20,6 +20,7 @@ public class ThemesConstants
     //TokenUtilsTest
     public static final String TOKEN_TXT_PATH = "testdata/token.txt";
     public static final String TECHSOPHY_PLATFORM="techsophy-platform";
+    public static final String TROVITY="trovity";
 
     //INITILIZATION CONSTANTS
     public static final String DEPARTMENT="department";

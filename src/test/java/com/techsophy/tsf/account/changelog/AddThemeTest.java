@@ -2,7 +2,8 @@ package com.techsophy.tsf.account.changelog;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoCollection;
-import com.nimbusds.jose.shaded.json.parser.ParseException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import com.techsophy.tsf.account.entity.ThemesDefinition;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserPreferencesDefinition;
@@ -46,7 +47,7 @@ class AddThemeTest {
     }
 
     @Test
-    void changeSetFormDefinitionWithNoDocumentTest() throws IOException, ParseException {
+    void changeSetFormDefinitionWithNoDocumentTest() throws IOException, JsonProcessingException {
         UserPreferencesDefinition userPreferencesDefinition = new UserPreferencesDefinition();
         userPreferencesDefinition.setUserId(BigInteger.valueOf(1));
         userPreferencesDefinition.setId(BigInteger.valueOf(1));
@@ -62,7 +63,7 @@ class AddThemeTest {
         Mockito.verify(template,Mockito.times(0)).save(any(),any());    }
 
     @Test
-    void changeSetFormDefinitionWithDocumentTest() throws IOException, ParseException {
+    void changeSetFormDefinitionWithDocumentTest() throws IOException, JsonProcessingException {
         MongoCollection mongoCollectionLocal = mock(MongoCollection.class);
         String abc = "abc";
         Document document = new Document();

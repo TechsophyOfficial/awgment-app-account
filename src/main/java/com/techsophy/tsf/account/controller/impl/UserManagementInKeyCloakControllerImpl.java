@@ -7,6 +7,7 @@ import com.techsophy.tsf.account.dto.*;
 import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,7 +20,7 @@ import java.util.Map;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class UserManagementInKeyCloakControllerImpl implements UserManagementInKeyCloakController
 {
     private final UserManagementInKeyCloak userManagementInKeyCloak;

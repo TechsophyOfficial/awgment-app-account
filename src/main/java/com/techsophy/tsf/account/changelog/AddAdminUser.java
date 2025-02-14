@@ -7,6 +7,7 @@ import io.mongock.api.annotations.ChangeUnit;
 import io.mongock.api.annotations.Execution;
 import io.mongock.api.annotations.RollbackExecution;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ClassPathResource;
@@ -18,7 +19,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.EXECUTION_IS_FAILED;
 
 @ChangeUnit(id = ADD_ADMIN_USER, order = ORDER_1, systemVersion = SYSTEM_VERSION_1)
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 @Slf4j
 public class AddAdminUser {
     private final MongoTemplate template;

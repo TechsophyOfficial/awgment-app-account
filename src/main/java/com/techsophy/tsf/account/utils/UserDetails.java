@@ -13,6 +13,7 @@ import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.service.impl.UserServiceImpl;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -37,15 +38,14 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 @RefreshScope
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class UserDetails  implements AuditorAware<BigInteger>
 {
-    private  GlobalMessageSource globalMessageSource;
-    private  TokenUtils tokenUtils;
-    private  ObjectMapper objectMapper;
-    private  UserServiceImpl userServiceImpl;
-    private  WebClientWrapper webClientWrapper;
+    private  final GlobalMessageSource globalMessageSource;
+    private  final TokenUtils tokenUtils;
+    private  final ObjectMapper objectMapper;
+    private  final UserServiceImpl userServiceImpl;
+    private  final WebClientWrapper webClientWrapper;
     @Value(GATEWAY_URI)
     String gatewayApi;
     @Value("${execution.local:false}")

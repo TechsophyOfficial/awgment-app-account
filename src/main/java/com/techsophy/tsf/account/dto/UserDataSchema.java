@@ -1,15 +1,27 @@
 package com.techsophy.tsf.account.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import lombok.*;
-import javax.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.validation.constraints.NotNull;
+import lombok.Value;
+import lombok.With;
+
 import java.util.Map;
 
 @With
 @Value
-@AllArgsConstructor(onConstructor = @__(@JsonCreator(mode = JsonCreator.Mode.PROPERTIES)))
 public class UserDataSchema
 {
-    @NotNull Map<String,Object> userData;
+    @NotNull
+    Map<String,Object> userData;
     String userId;
+
+    @JsonCreator
+    public UserDataSchema(
+            @JsonProperty("userData") Map<String, Object> userData,
+            @JsonProperty("userId") String userId
+    ) {
+        this.userData = userData;
+        this.userId = userId;
+    }
 }

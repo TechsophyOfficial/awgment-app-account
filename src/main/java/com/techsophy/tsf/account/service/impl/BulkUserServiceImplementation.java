@@ -14,6 +14,7 @@ import com.techsophy.tsf.account.service.BulkUserService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -38,7 +39,7 @@ import static org.apache.commons.lang3.StringUtils.*;
 
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class BulkUserServiceImplementation implements BulkUserService
 {
     @Value(USER_REGISTRATION_FAILURE_EMAIL_TO)

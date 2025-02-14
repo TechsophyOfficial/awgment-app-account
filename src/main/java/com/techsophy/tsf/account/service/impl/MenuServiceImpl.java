@@ -12,6 +12,7 @@ import com.techsophy.tsf.account.repository.MenuRepository;
 import com.techsophy.tsf.account.service.MenuService;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.math.BigInteger;
@@ -22,7 +23,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.MENU_NOT_FOUND_EXCEPTION;
 
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class MenuServiceImpl implements MenuService
 {
     private final MenuRepository menuRepository;

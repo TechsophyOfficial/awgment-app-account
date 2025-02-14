@@ -11,6 +11,7 @@ import com.techsophy.tsf.account.model.ApiResponse;
 import com.techsophy.tsf.account.service.GroupsDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class GroupsDataControllerImpl implements GroupsDataController
 {
     private final GroupsDataService groupsDataService;

@@ -14,6 +14,7 @@ import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -21,7 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import javax.validation.ConstraintViolationException;
+import jakarta.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,7 +37,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class UserFormDataServiceImpl implements UserFormDataService
 {
     private final UserFormDataDefinitionRepository userFormDataRepository;

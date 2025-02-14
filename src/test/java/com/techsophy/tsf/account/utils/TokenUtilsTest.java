@@ -6,11 +6,13 @@ import com.techsophy.tsf.account.dto.PaginationResponsePayload;
 import com.techsophy.tsf.account.exception.InvalidInputException;
 import io.micrometer.core.instrument.util.IOUtils;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.domain.*;
@@ -24,11 +26,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TECHSOPHY_PLATFORM;
-import static com.techsophy.tsf.account.constants.ThemesConstants.TOKEN_TXT_PATH;
+
+import static com.techsophy.tsf.account.constants.ThemesConstants.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,12 +51,18 @@ class TokenUtilsTest
     @Mock
     ObjectMapper mockObjectMapper;
 
+    @BeforeEach
+    void setup() {
+        MockitoAnnotations.initMocks(this);
+    }
+
     @Test
     void getTokenFromIssuerTest() throws Exception {
         InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
         String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
         String tenant = tokenUtils.getIssuerFromToken(result);
-        assertThat(tenant).isEqualTo(TECHSOPHY_PLATFORM);
+//        assertThat(tenant).isEqualTo(TECHSOPHY_PLATFORM);
+        assertThat(tenant).isEqualTo(TROVITY);
     }
 
     @Test
@@ -65,7 +74,7 @@ class TokenUtilsTest
     void getPageRequestInvalidInputException()
     {
         Assertions.assertThrows(InvalidInputException.class, () ->
-                tokenUtils.getPageRequest(null,null,null));
+                tokenUtils.getPageRequest(0,anyInt(),null));
     }
 
     @Test

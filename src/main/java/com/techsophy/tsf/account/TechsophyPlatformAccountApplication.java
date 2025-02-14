@@ -17,7 +17,7 @@ import static com.techsophy.tsf.account.constants.AccountConstants.MULTITENANCY_
 @SpringBootApplication
 @ComponentScan({CURRENT_PROJECT,MULTITENANCY_PROJECT})
 @OpenAPIDefinition
-@EnableMongock
+//@EnableMongock
 public class TechsophyPlatformAccountApplication
 {
     public static void main(String[] args)

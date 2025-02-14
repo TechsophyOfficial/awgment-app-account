@@ -11,6 +11,7 @@ import com.techsophy.tsf.account.service.UserManagementInKeyCloak;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.json.JSONArray;
@@ -30,7 +31,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
 @RefreshScope
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 @Slf4j
 public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
 {

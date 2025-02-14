@@ -39,7 +39,7 @@ class UserManagementKeycloakControllerTest
     UserManagementInKeyCloakControllerImpl userManagementInKeyCloakController;
     @Mock
     UserManagementInKeyCloak userManagementInKeyCloak;
-    @MockBean
+    @Mock
     WebClientWrapper webClientWrapper;
     @Value("${user.management.keycloak-api}")
     private String keyCloakApi;

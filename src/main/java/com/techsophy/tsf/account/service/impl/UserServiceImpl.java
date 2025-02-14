@@ -16,6 +16,7 @@ import com.techsophy.tsf.account.service.UserService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import javax.validation.ConstraintViolationException;
+import jakarta.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.*;
@@ -36,7 +37,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 @Service
 @Slf4j
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService
 {
     private final UserDefinitionRepository userDefinitionRepository;

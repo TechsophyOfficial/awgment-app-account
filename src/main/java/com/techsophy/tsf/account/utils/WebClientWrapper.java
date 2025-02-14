@@ -3,7 +3,8 @@ package com.techsophy.tsf.account.utils;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import javax.validation.constraints.NotBlank;
+
+import jakarta.validation.constraints.NotBlank;
 import java.util.Objects;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 

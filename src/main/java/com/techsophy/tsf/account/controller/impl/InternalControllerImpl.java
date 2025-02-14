@@ -16,14 +16,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.web.bind.annotation.RestController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.PropertyConstant.X_SIGNATURE;
 
 @RestController
 @Slf4j
-@RequiredArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class InternalControllerImpl implements InternalController {
     private final UserFormDataService userFormDataService;
     private final GlobalMessageSource globalMessageSource;

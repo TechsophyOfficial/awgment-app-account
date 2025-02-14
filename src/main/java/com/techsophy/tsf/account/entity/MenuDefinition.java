@@ -3,7 +3,7 @@ package com.techsophy.tsf.account.entity;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigInteger;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 

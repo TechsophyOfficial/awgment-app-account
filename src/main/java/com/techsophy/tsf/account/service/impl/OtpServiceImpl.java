@@ -18,6 +18,7 @@ import com.techsophy.tsf.account.service.OtpService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.WebClientWrapper;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,7 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
 @Slf4j
 @Service
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class OtpServiceImpl implements OtpService
 {
     @Value(NOTIFICATION_SMS_QUERY)

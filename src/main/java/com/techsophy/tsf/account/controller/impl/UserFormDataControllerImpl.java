@@ -13,6 +13,7 @@ import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.util.StringUtils;
@@ -26,7 +27,7 @@ import java.util.Optional;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 
 @RestController
-@AllArgsConstructor(onConstructor_ = {@Autowired})
+@RequiredArgsConstructor
 public class UserFormDataControllerImpl implements UserFormDataController
 {
     private final UserFormDataService userFormDataService;
