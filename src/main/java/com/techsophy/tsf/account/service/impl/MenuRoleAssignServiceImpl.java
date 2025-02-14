@@ -14,10 +14,8 @@ import com.techsophy.tsf.account.service.MenuRoleAssignService;
 import com.techsophy.tsf.account.service.MenuService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.time.Instant;
@@ -27,10 +25,14 @@ import java.util.stream.Stream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.MENU_NOT_FOUND_EXCEPTION;
 
+/**
+ * Service implementation for managing menu-role assignments.
+ * This service handles operations like assigning roles to menus, retrieving assigned roles,
+ * and deleting role assignments.
+ */
 @Service
 @RequiredArgsConstructor
-public class MenuRoleAssignServiceImpl implements MenuRoleAssignService
-{
+public class MenuRoleAssignServiceImpl implements MenuRoleAssignService {
     private final MenuRoleAssignRepository menuRoleAssignRepository;
     private final MenuService menuService;
     private final ObjectMapper objectMapper;
@@ -39,84 +41,104 @@ public class MenuRoleAssignServiceImpl implements MenuRoleAssignService
     private final UserDetails userDetails;
     private final TokenUtils tokenUtils;
 
+    /**
+     * Saves or updates a menu-role assignment.
+     *
+     * @param menuRoleAssignSchema DTO containing menu-role assignment details.
+     * @return Response containing the assigned role ID.
+     * @throws JsonProcessingException if JSON processing fails.
+     */
     @Override
-    public MenuRoleAssignResponseSchema saveMenuRole(MenuRoleAssignSchema menuRoleAssignSchema) throws JsonProcessingException
-    {
+    public MenuRoleAssignResponseSchema saveMenuRole(MenuRoleAssignSchema menuRoleAssignSchema) throws JsonProcessingException {
         MenuRoleAssignDefinition menuRoleAssignDefinition = objectMapper.convertValue(menuRoleAssignSchema, MenuRoleAssignDefinition.class);
-        Map<String,Object> loggedInUser = userDetails.getUserDetails().get(0);
+        Map<String, Object> loggedInUser = userDetails.getUserDetails().get(0);
         String menuId = menuRoleAssignSchema.getId();
-        if(menuId==null)
-        {
+
+        if (menuId == null) {
             menuRoleAssignDefinition.setId(idGenerator.nextId());
             menuRoleAssignDefinition.setVersion(1);
             menuRoleAssignDefinition.setCreatedOn(Instant.now());
             menuRoleAssignDefinition.setCreatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
-        }
-        else
-        {
+        } else {
             MenuRoleAssignDefinition menuRoleAssignDefinitionData =
                     this.menuRoleAssignRepository.findById(Long.valueOf(menuId))
-                            .orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION,menuId)));
+                            .orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION, globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION, menuId)));
             menuRoleAssignDefinition.setId(menuRoleAssignDefinitionData.getId());
             menuRoleAssignDefinition.setCreatedOn(menuRoleAssignDefinitionData.getCreatedOn());
             menuRoleAssignDefinition.setCreatedById(menuRoleAssignDefinitionData.getCreatedById());
             menuRoleAssignDefinition.setVersion(menuRoleAssignDefinitionData.getVersion() + 1);
         }
+
         menuRoleAssignDefinition.setUpdatedOn(Instant.now());
         menuRoleAssignDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
         MenuRoleAssignDefinition menuDefinitionResponse = this.menuRoleAssignRepository.save(menuRoleAssignDefinition);
-        MenuRoleAssignResponseSchema responseDto=new MenuRoleAssignResponseSchema();
+
+        MenuRoleAssignResponseSchema responseDto = new MenuRoleAssignResponseSchema();
         responseDto.setId(menuDefinitionResponse.getId().toString());
         return responseDto;
     }
 
+    /**
+     * Retrieves a menu-role assignment by its ID.
+     *
+     * @param id The ID of the menu-role assignment.
+     * @return The corresponding menu-role assignment schema.
+     */
     @Override
-    public MenuRoleAssignSchema getMenuRole(String id)
-    {
-        MenuRoleAssignDefinition menuRoleAssignDefinition = menuRoleAssignRepository.findById((BigInteger.valueOf(Long.parseLong(id)))).orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION,id)));
+    public MenuRoleAssignSchema getMenuRole(String id) {
+        MenuRoleAssignDefinition menuRoleAssignDefinition = menuRoleAssignRepository.findById((BigInteger.valueOf(Long.parseLong(id))))
+                .orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION, globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION, id)));
         return this.objectMapper.convertValue(menuRoleAssignDefinition, MenuRoleAssignSchema.class);
     }
 
+    /**
+     * Retrieves all menu-role assignments.
+     *
+     * @return A stream of menu-role assignment schemas.
+     */
     @Override
-    public Stream<MenuRoleAssignSchema> getAllMenuRole()
-    {
+    public Stream<MenuRoleAssignSchema> getAllMenuRole() {
         return this.menuRoleAssignRepository.findAll().stream()
                 .map(menuRoleDefinition ->
                         this.objectMapper.convertValue(menuRoleDefinition, MenuRoleAssignSchema.class));
     }
 
+    /**
+     * Retrieves menus assigned to user roles based on token data.
+     *
+     * @return A list of menu schemas assigned to the user's roles.
+     */
     @Override
-    public List<MenuSchema> getAssignedMenuToUserRoles()
-    {
+    public List<MenuSchema> getAssignedMenuToUserRoles() {
         List<MenuSchema> menuSchemas = new ArrayList<>();
-        List<String> roles=tokenUtils.getClientRoles(tokenUtils.getTokenFromContext());
-        roles.forEach(role ->
-        {
+        List<String> roles = tokenUtils.getClientRoles(tokenUtils.getTokenFromContext());
+
+        roles.forEach(role -> {
             MenuRoleAssignDefinition menuRoleAssignDefinition = menuRoleAssignRepository.findByRole(role);
-            if(menuRoleAssignDefinition !=null && StringUtils.isNotEmpty(menuRoleAssignDefinition.toString()))
-            {
+            if (menuRoleAssignDefinition != null && StringUtils.isNotEmpty(menuRoleAssignDefinition.toString())) {
                 List<String> menus = menuRoleAssignDefinition.getMenus();
-                menus.forEach(menu ->
-                {
-                    MenuSchema menuSchema=menuService.getMenuById(menu);
+                menus.forEach(menu -> {
+                    MenuSchema menuSchema = menuService.getMenuById(menu);
                     menuSchemas.add(menuSchema);
                 });
             }
-
         });
+
         return menuSchemas.stream().distinct().collect(Collectors.toList());
     }
 
+    /**
+     * Deletes a menu-role assignment by its ID.
+     *
+     * @param id The ID of the menu-role assignment to be deleted.
+     * @throws NoDataFoundException if the menu-role assignment does not exist.
+     */
     @Override
-    public void deleteMenuRoleById(String id)
-    {
-        if(menuRoleAssignRepository.existsById(BigInteger.valueOf(Long.parseLong(id))))
-        {
+    public void deleteMenuRoleById(String id) {
+        if (menuRoleAssignRepository.existsById(BigInteger.valueOf(Long.parseLong(id)))) {
             this.menuRoleAssignRepository.deleteById(BigInteger.valueOf(Long.parseLong(id)));
-        }
-        else
-        {
-            throw new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION,id));
+        } else {
+            throw new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION, globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION, id));
         }
     }
 }

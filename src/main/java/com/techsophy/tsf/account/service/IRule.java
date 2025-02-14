@@ -1,4 +1,4 @@
-package com.techsophy.tsf.account.service.impl;
+package com.techsophy.tsf.account.service;
 
 import java.util.Map;
 public interface IRule

@@ -11,9 +11,7 @@ import com.techsophy.tsf.account.exception.NoDataFoundException;
 import com.techsophy.tsf.account.repository.MenuRepository;
 import com.techsophy.tsf.account.service.MenuService;
 import com.techsophy.tsf.account.utils.UserDetails;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.time.Instant;
@@ -22,6 +20,9 @@ import java.util.stream.Stream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.MENU_NOT_FOUND_EXCEPTION;
 
+/**
+ * Service implementation for handling menu-related operations.
+ */
 @Service
 @RequiredArgsConstructor
 public class MenuServiceImpl implements MenuService
@@ -32,13 +33,20 @@ public class MenuServiceImpl implements MenuService
     private final GlobalMessageSource globalMessageSource;
     private final UserDetails userDetails;
 
+    /**
+     * Saves a menu entry. If the menu ID is null, a new menu is created; otherwise, the existing menu is updated.
+     *
+     * @param menuSchema The menu details to be saved.
+     * @return The response containing the saved menu ID.
+     * @throws JsonProcessingException If an error occurs while processing JSON.
+     */
     @Override
     public MenuResponseSchema saveMenu(MenuSchema menuSchema) throws JsonProcessingException
     {
         MenuDefinition menuDefinition = objectMapper.convertValue(menuSchema, MenuDefinition.class);
         Map<String,Object> loggedInUser = userDetails.getUserDetails().get(0);
         String menuId = menuSchema.getId();
-        if(menuId==null)
+        if(menuId == null)
         {
             menuDefinition.setId(idGenerator.nextId());
             menuDefinition.setVersion(1);
@@ -47,7 +55,7 @@ public class MenuServiceImpl implements MenuService
         }
         else
         {
-            MenuDefinition menuDefinitionData =this.menuRepository.findById(BigInteger.valueOf(Long.valueOf(menuId)))
+            MenuDefinition menuDefinitionData = this.menuRepository.findById(BigInteger.valueOf(Long.valueOf(menuId)))
                     .orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION,menuId)));
             menuDefinition.setId(menuDefinition.getId());
             menuDefinition.setCreatedOn(menuDefinitionData.getCreatedOn());
@@ -57,18 +65,30 @@ public class MenuServiceImpl implements MenuService
         menuDefinition.setUpdatedOn(Instant.now());
         menuDefinition.setUpdatedById(BigInteger.valueOf(Long.parseLong(loggedInUser.get(ID).toString())));
         MenuDefinition menuDefinitionResponse = this.menuRepository.save(menuDefinition);
-        MenuResponseSchema responseDto=new MenuResponseSchema();
+        MenuResponseSchema responseDto = new MenuResponseSchema();
         responseDto.setId(menuDefinitionResponse.getId().toString());
         return responseDto;
     }
 
+    /**
+     * Retrieves a menu by its ID.
+     *
+     * @param id The ID of the menu to retrieve.
+     * @return The menu details.
+     */
     @Override
     public MenuSchema getMenuById(String id)
     {
-        MenuDefinition menuDefinition = menuRepository.findById((BigInteger.valueOf(Long.parseLong(id)))).orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION, id)));
-        return this.objectMapper.convertValue(menuDefinition,MenuSchema.class);
+        MenuDefinition menuDefinition = menuRepository.findById((BigInteger.valueOf(Long.parseLong(id))))
+                .orElseThrow(() -> new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION, id)));
+        return this.objectMapper.convertValue(menuDefinition, MenuSchema.class);
     }
 
+    /**
+     * Retrieves all menus as a stream.
+     *
+     * @return A stream of all menu schemas.
+     */
     @Override
     public Stream<MenuSchema> getAllMenus()
     {
@@ -76,6 +96,12 @@ public class MenuServiceImpl implements MenuService
                 .map(menuDefinition -> this.objectMapper.convertValue(menuDefinition, MenuSchema.class));
     }
 
+    /**
+     * Deletes a menu by its ID.
+     *
+     * @param id The ID of the menu to be deleted.
+     * @throws NoDataFoundException If the menu does not exist.
+     */
     @Override
     public void deleteMenuById(String id)
     {
@@ -85,7 +111,7 @@ public class MenuServiceImpl implements MenuService
         }
         else
         {
-            throw new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION,id));
+            throw new NoDataFoundException(MENU_NOT_FOUND_EXCEPTION,globalMessageSource.get(MENU_NOT_FOUND_EXCEPTION, id));
         }
     }
 }

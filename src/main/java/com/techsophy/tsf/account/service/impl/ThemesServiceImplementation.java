@@ -45,6 +45,10 @@ import java.util.stream.Stream;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
+/**
+ * Service implementation for handling theme-related operations such as creating,
+ * updating, retrieving, and deleting themes.
+ */
 @RefreshScope
 @Slf4j
 @Service
@@ -62,6 +66,13 @@ public class ThemesServiceImplementation implements ThemesService
     @Value(GATEWAY_URI)
     private final String gatewayURL;
 
+    /**
+     * Saves a new theme or updates an existing theme based on the provided schema.
+     *
+     * @param themesSchema The theme schema containing theme details.
+     * @return The saved theme response.
+     * @throws JsonProcessingException If there is an error in JSON processing.
+     */
     @Override
     public ThemesResponse saveThemesData(ThemesSchema themesSchema) throws JsonProcessingException
     {
@@ -98,6 +109,13 @@ public class ThemesServiceImplementation implements ThemesService
         return this.objectMapper.convertValue(themesDefinition,ThemesResponse.class);
     }
 
+
+    /**
+     * Retrieves theme details by its unique identifier.
+     *
+     * @param id The ID of the theme.
+     * @return The theme response schema.
+     */
     @Override
     public ThemesResponseSchema getThemesDataById(String id)
     {
@@ -106,6 +124,14 @@ public class ThemesServiceImplementation implements ThemesService
         return this.objectMapper.convertValue(theme,ThemesResponseSchema.class);
     }
 
+    /**
+     * Retrieves all themes with optional filtering and sorting.
+     *
+     * @param deploymentIdList Comma-separated list of deployment IDs.
+     * @param q Search query string.
+     * @param sort Sorting criteria.
+     * @return A stream of theme response schemas.
+     */
     @Override
     public Stream<ThemesResponseSchema> getAllThemesData(String deploymentIdList, String q, Sort sort)
     {
@@ -128,6 +154,13 @@ public class ThemesServiceImplementation implements ThemesService
                         this.objectMapper.convertValue(themes,ThemesResponseSchema.class));
     }
 
+    /**
+     * Retrieves all themes with pagination support.
+     *
+     * @param q Search query string.
+     * @param pageable Pagination information.
+     * @return Paginated response of themes.
+     */
     @Override
     public PaginationResponsePayload getAllThemesData(String q, Pageable pageable)
     {
@@ -142,6 +175,12 @@ public class ThemesServiceImplementation implements ThemesService
         return tokenUtils.getPaginationResponsePayload(themesDefinitionPage,themesList);
     }
 
+
+    /**
+     * Deletes a theme by its ID.
+     *
+     * @param id The ID of the theme to delete.
+     */
     @Override
     public void deleteThemesDataById(String id)
     {
@@ -152,6 +191,13 @@ public class ThemesServiceImplementation implements ThemesService
         this.themesDefinitionRepository.deleteById(BigInteger.valueOf(Long.parseLong(id)));
     }
 
+    /**
+     * Downloads the theme details as a JSON file.
+     *
+     * @param id The ID of the theme to download.
+     * @return A response entity containing the theme JSON file as a resource.
+     * @throws IOException If an I/O error occurs.
+     */
     @Override
     public ResponseEntity<Resource> downloadTheme(String id) throws IOException
     {
@@ -180,6 +226,14 @@ public class ThemesServiceImplementation implements ThemesService
                 .body(resource);
     }
 
+    /**
+     * Uploads a theme from a file and saves it to the repository.
+     *
+     * @param file The theme file to upload.
+     * @param name The name of the theme.
+     * @return The response containing the theme ID.
+     * @throws IOException If an I/O error occurs.
+     */
     @Override
     public ThemesResponse uploadTheme(MultipartFile file, String name) throws IOException
     {
@@ -222,6 +276,12 @@ public class ThemesServiceImplementation implements ThemesService
        return new ThemesResponse(id);
     }
 
+    /**
+     * Converts a theme entity to a map representation.
+     *
+     * @param themesDefinition The theme entity to convert.
+     * @return A map containing theme details.
+     */
     public Map<String,Object> convertEntityToMap(ThemesDefinition themesDefinition)
     {
         ThemesResponseSchema themesResponseSchema=this.objectMapper.convertValue(themesDefinition,ThemesResponseSchema.class);

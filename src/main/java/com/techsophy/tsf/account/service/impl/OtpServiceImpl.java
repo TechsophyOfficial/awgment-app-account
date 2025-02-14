@@ -34,9 +34,13 @@ import java.util.*;
 import static com.techsophy.tsf.account.constants.AccountConstants.*;
 import static com.techsophy.tsf.account.constants.ErrorConstants.*;
 
+/**
+ * Service implementation for handling OTP generation, verification, and notifications.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
+
 public class OtpServiceImpl implements OtpService
 {
     @Value(NOTIFICATION_SMS_QUERY)
@@ -60,6 +64,9 @@ public class OtpServiceImpl implements OtpService
     Environment environment;
     private static Random random = new Random();
 
+    /**
+     * Generates an OTP, stores it securely, and sends it to the user via email or SMS.
+     */
     @Override
     public void generateOtp(OtpRequestPayload otpRequestPayload) throws JsonProcessingException {
         log.info(GENERATING_OTP);
@@ -125,6 +132,9 @@ public class OtpServiceImpl implements OtpService
         this.otpDefinitionRepository.save(setCreatedByUserNameAndId(otpDefinition1));
     }
 
+    /**
+     * Verifies the provided OTP against stored data.
+     */
     @Override
     public Boolean verifyOtp(OtpVerifyPayload otpVerifyPayload)
     {
@@ -163,6 +173,9 @@ public class OtpServiceImpl implements OtpService
         return otpDefinition;
     }
 
+    /**
+     * Sends an OTP via email or SMS.
+     */
     @SneakyThrows({JsonProcessingException.class})
     public void sendOtpToEmail(OtpRequestPayload otpRequestPayload)
     {
@@ -196,6 +209,9 @@ public class OtpServiceImpl implements OtpService
         }
     }
 
+    /**
+     * Generates a random numeric OTP.
+     */
     static String generateOtpNumber(int len)
     {
         // Using numeric values

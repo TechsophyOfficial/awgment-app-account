@@ -35,6 +35,10 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.FORM_NOT_FOUND_
 import static com.techsophy.tsf.account.constants.ErrorConstants.USENAME_NOT_FOUND_EXCEPTION;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 
+/**
+ * Implementation of the UserFormDataService interface.
+ * Handles CRUD operations for user form data.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -48,6 +52,12 @@ public class UserFormDataServiceImpl implements UserFormDataService
     private final TokenUtils tokenUtils;
     private final UserDetails userDetails;
 
+    /**
+     * Saves user form data. If userId exists, updates the existing record; otherwise, creates a new record.
+     *
+     * @param userFormDataSchema User form data schema.
+     * @return Saved user form data schema.
+     */
     @Override
     public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
     {
@@ -101,11 +111,24 @@ public class UserFormDataServiceImpl implements UserFormDataService
         }
     }
 
+    /**
+     * Retrieves user form data by username.
+     *
+     * @param userName Username.
+     * @return User form data.
+     */
     @Override
     public UserFormDataDefinition getUserFormData(String userName) {
       return userFormDataRepository.findByUserName(userName).orElseThrow(() -> new UserFormDataNotFoundException(USENAME_NOT_FOUND_EXCEPTION,globalMessageSource.get(USENAME_NOT_FOUND_EXCEPTION,userName)));
     }
 
+    /**
+     * Retrieves user form data by user ID.
+     *
+     * @param userId User ID.
+     * @param onlyMandatoryFields If true, retrieves only mandatory fields.
+     * @return Auditable user data.
+     */
     @Override
     public AuditableData getUserFormDataByUserId(String userId, Boolean onlyMandatoryFields)
     {
@@ -138,6 +161,7 @@ public class UserFormDataServiceImpl implements UserFormDataService
             return this.userServiceImpl.getAllUsers(q,sort);
         }
     }
+
 
     @Override
     public PaginationResponsePayload getAllUserFormDataObjects(Boolean onlyMandatoryFields, String q, Pageable pageable)
@@ -201,6 +225,12 @@ public class UserFormDataServiceImpl implements UserFormDataService
         return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage,userFormDataList);
     }
 
+
+    /**
+     * Deletes user form data by user ID.
+     *
+     * @param userId User ID.
+     */
     @Override
     public void deleteUserFormDataByUserId(String userId)
     {
@@ -216,6 +246,12 @@ public class UserFormDataServiceImpl implements UserFormDataService
         return stringObjectMap;
     }
 
+    /**
+     * Converts UserFormDataDefinition entity to a Map.
+     *
+     * @param userFormDataDefinition UserFormDataDefinition entity.
+     * @return Map representation of user form data.
+     */
     public UserDataSchema convertEntityToDTO(UserFormDataDefinition userFormDataDefinition)
     {
         return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);

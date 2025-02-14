@@ -38,6 +38,10 @@ import static com.techsophy.tsf.account.constants.ErrorConstants.ACL_NOT_FOUND_W
 import static com.techsophy.tsf.account.constants.ErrorConstants.LOGGED_IN_USER_ID_NOT_FOUND;
 import static org.apache.commons.lang3.ObjectUtils.isEmpty;
 
+/**
+ * Service implementation for managing ACL (Access Control List) operations.
+ * Provides methods to create, retrieve, update, delete, and validate ACL permissions.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -57,7 +61,13 @@ public class ACLServiceImpl implements ACLService
     @Value("${delimiter.right:>}")
     private char delimiterEnd;
 
-
+    /**
+     * Saves an ACL (Access Control List) entry.
+     *
+     * @param aclSchema The ACL schema containing the access control rules.
+     * @return The saved ACLSchema with the generated ID.
+     * @throws JsonProcessingException if there is an issue processing JSON data.
+     */
     @Override
     public ACLSchema saveACL(ACLSchema aclSchema) throws JsonProcessingException
     {
@@ -94,12 +104,25 @@ public class ACLServiceImpl implements ACLService
         return aclSchema;
     }
 
+    /**
+     * Retrieves all ACL records with pagination support.
+     *
+     * @param pageable Pagination details for retrieving ACL records.
+     * @return A page containing ACL definitions.
+     */
     @Override
     public Page<ACLDefinition> getAllACLs(Pageable pageable)
     {
      return aclRepository.findAll(pageable);
     }
 
+    /**
+     * Retrieves an ACL entry by its ID.
+     *
+     * @param id The ID of the ACL record.
+     * @return The corresponding ACLSchema object.
+     * @throws EntityNotFoundByIdException if the ACL record is not found.
+     */
     @Override
     public ACLSchema getACLById(String id)
     {
@@ -108,6 +131,15 @@ public class ACLServiceImpl implements ACLService
        return this.objectMapper.convertValue(aclDefinition,ACLSchema.class);
     }
 
+    /**
+     * Checks the ACL access permissions for a given user based on the provided context.
+     *
+     * @param id              The ID of the ACL entry.
+     * @param checkACLSchema  The schema containing context information for access validation.
+     * @return An ACLValidate object containing access details.
+     * @throws JsonProcessingException if JSON processing fails.
+     * @throws AccessDeniedException   if the user does not have required access.
+     */
     @Override
     public ACLValidate checkACLAccess(String id, CheckACLSchema checkACLSchema) throws JsonProcessingException, AccessDeniedException
     {
