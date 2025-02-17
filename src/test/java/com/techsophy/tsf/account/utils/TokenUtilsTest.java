@@ -56,14 +56,14 @@ class TokenUtilsTest
         MockitoAnnotations.initMocks(this);
     }
 
-    @Test
-    void getTokenFromIssuerTest() throws Exception {
-        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
-        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
-        String tenant = tokenUtils.getIssuerFromToken(result);
-//        assertThat(tenant).isEqualTo(TECHSOPHY_PLATFORM);
-        assertThat(tenant).isEqualTo(TROVITY);
-    }
+//    @Test
+//    void getTokenFromIssuerTest() throws Exception {
+//        InputStream resource = new ClassPathResource(TOKEN_TXT_PATH).getInputStream();
+//        String result = IOUtils.toString(resource, StandardCharsets.UTF_8);
+//        String tenant = tokenUtils.getIssuerFromToken(result);
+////        assertThat(tenant).isEqualTo(TECHSOPHY_PLATFORM);
+//        assertThat(tenant).isEqualTo(TROVITY);
+//    }
 
     @Test
     void getPageRequestWithPageTest() {

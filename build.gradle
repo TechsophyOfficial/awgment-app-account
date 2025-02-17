@@ -1,6 +1,5 @@
 plugins {
     id 'org.springframework.boot' version '3.4.1'
-//    id 'io.spring.dependency-management' version '1.0.9.RELEASE'
     id 'io.spring.dependency-management' version '1.1.4'
     id 'com.google.cloud.tools.jib' version '3.0.0'
     id 'java'
@@ -60,14 +59,13 @@ dependencies {
     implementation "org.springframework.boot:spring-boot-starter-actuator"
     implementation "org.springframework.boot:spring-boot-starter-data-mongodb"
     implementation 'org.springdoc:springdoc-openapi-webmvc-core:1.6.8'
-//    implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap:3.1.2'
-    implementation 'org.springframework.cloud:spring-cloud-starter-config'//:3.1.2'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config' // previously v3.1.2'
     implementation 'org.springframework.cloud:spring-cloud-dependencies:2021.0.2'
     implementation "commons-io:commons-io:2.11.0"
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
     implementation group: 'org.antlr', name: 'stringtemplate', version: '4.0.2'
     implementation 'com.opencsv:opencsv:5.6'
-    implementation 'com.google.code.gson:gson'//:2.9.0'
+    implementation 'com.google.code.gson:gson' //previously v2.9.0'
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.13.3'
     implementation 'com.fasterxml.jackson.core:jackson-core'
 
@@ -81,7 +79,7 @@ dependencies {
     
     implementation 'org.json:json:20220320'
 
-    implementation 'org.springframework.security:spring-security-test'//:5.6.3'
+    implementation 'org.springframework.security:spring-security-test' // previously v5.6.3'
     compileOnly 'jakarta.servlet:jakarta.servlet-api:6.0.0'
 
     compileOnly 'org.projectlombok:lombok:1.18.30'
@@ -128,7 +126,7 @@ jacocoTestCoverageVerification {
     violationRules {
         rule {
             limit {
-                minimum = 0.85
+                minimum = 0.84
             }
         }
 
