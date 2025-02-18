@@ -69,6 +69,10 @@ dependencies {
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.13.3'
     implementation 'com.fasterxml.jackson.core:jackson-core'
 
+    implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap:4.1.0'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config:4.1.0'
+    implementation 'org.springframework.cloud:spring-cloud-dependencies:2024.0.0'
+
     implementation "io.mongock:mongock:5.0.32"
     implementation "io.mongock:mongock-springboot:5.0.32"
     implementation "io.mongock:mongodb-springdata-v3-driver:5.0.32"
