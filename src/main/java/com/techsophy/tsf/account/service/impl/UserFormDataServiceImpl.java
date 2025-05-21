@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.GlobalMessageSource;
 import com.techsophy.tsf.account.dto.*;
+import com.techsophy.tsf.account.entity.BulkUserDefinition;
 import com.techsophy.tsf.account.entity.UserDefinition;
 import com.techsophy.tsf.account.entity.UserFormDataDefinition;
 import com.techsophy.tsf.account.exception.BadRequestException;
@@ -13,16 +14,14 @@ import com.techsophy.tsf.account.repository.UserFormDataDefinitionRepository;
 import com.techsophy.tsf.account.service.UserFormDataService;
 import com.techsophy.tsf.account.utils.TokenUtils;
 import com.techsophy.tsf.account.utils.UserDetails;
-import lombok.AllArgsConstructor;
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import jakarta.validation.ConstraintViolationException;
 import java.math.BigInteger;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,8 +41,7 @@ import static org.apache.commons.lang3.StringUtils.isEmpty;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class UserFormDataServiceImpl implements UserFormDataService
-{
+public class UserFormDataServiceImpl implements UserFormDataService {
     private final UserFormDataDefinitionRepository userFormDataRepository;
     private final UserServiceImpl userServiceImpl;
     private final ObjectMapper objectMapper;
@@ -59,32 +57,27 @@ public class UserFormDataServiceImpl implements UserFormDataService
      * @return Saved user form data schema.
      */
     @Override
-    public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema)
-    {
+    public UserFormDataSchema saveUserFormData(UserFormDataSchema userFormDataSchema) {
 
-        try
-        {
+        try {
             log.info("Inside SaveUserFormData");
             UserFormDataDefinition userFormDataDefinition = this.objectMapper
-                    .convertValue(userFormDataSchema,UserFormDataDefinition.class);
-            UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(),UserData.class);
+                    .convertValue(userFormDataSchema, UserFormDataDefinition.class);
+            UserData userData = this.objectMapper.convertValue(userFormDataSchema.getUserData(), UserData.class);
             userDetails.userNameValidations(userData.getUserName());
             String userId = userFormDataSchema.getUserId();
             userData.setUserName(userData.getUserName().toLowerCase());
             BigInteger loggedInUserId = userDetails.getCurrentAuditor().orElse(null);
-            if (userId == null)
-            {
+            if (userId == null) {
                 userFormDataDefinition.setId(idGenerator.nextId());
                 userFormDataDefinition.setCreatedOn(Instant.now());
                 userFormDataDefinition.setCreatedById(loggedInUserId);
                 userFormDataDefinition.setVersion(1);
 
-            }
-            else
-            {
+            } else {
                 UserFormDataDefinition existingFormDataDefinition =
                         this.userFormDataRepository.findByUserId(BigInteger.valueOf(Long.parseLong(userId)))
-                                .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION,globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION,userId)));
+                                .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION, globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION, userId)));
                 userFormDataDefinition.setId(existingFormDataDefinition.getId());
                 userFormDataDefinition.setCreatedOn(existingFormDataDefinition.getCreatedOn());
                 userFormDataDefinition.setCreatedById(existingFormDataDefinition.getCreatedById());
@@ -93,20 +86,16 @@ public class UserFormDataServiceImpl implements UserFormDataService
             }
             userFormDataDefinition.setUpdatedOn(Instant.now());
             userFormDataDefinition.setUpdatedById(loggedInUserId);
-            log.info( "userFormDataServiceImpl: "+ userData);
+            log.info("userFormDataServiceImpl: " + userData);
             UserDefinition userDefinition = this.userServiceImpl.saveUser(userData);
             userFormDataDefinition.setUserId(userDefinition.getId());
-            userFormDataDefinition.getUserData().put(USER_DATA_NAME,userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());
+            userFormDataDefinition.getUserData().put(USER_DATA_NAME, userFormDataDefinition.getUserData().get(USER_DATA_NAME).toString().toLowerCase());
             userFormDataDefinition = this.userFormDataRepository.save(userFormDataDefinition);
             log.info("Saved to User Definition");
             return this.objectMapper.convertValue(userFormDataDefinition, UserFormDataSchema.class);
-        }
-        catch (ConstraintViolationException | BadRequestException e)
-        {
+        } catch (ConstraintViolationException | BadRequestException e) {
             throw e;
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
             throw new RunTimeException(e.getMessage());
         }
     }
@@ -119,110 +108,92 @@ public class UserFormDataServiceImpl implements UserFormDataService
      */
     @Override
     public UserFormDataDefinition getUserFormData(String userName) {
-      return userFormDataRepository.findByUserName(userName).orElseThrow(() -> new UserFormDataNotFoundException(USENAME_NOT_FOUND_EXCEPTION,globalMessageSource.get(USENAME_NOT_FOUND_EXCEPTION,userName)));
+        return userFormDataRepository.findByUserName(userName).orElseThrow(() -> new UserFormDataNotFoundException(USENAME_NOT_FOUND_EXCEPTION, globalMessageSource.get(USENAME_NOT_FOUND_EXCEPTION, userName)));
     }
 
     /**
      * Retrieves user form data by user ID.
      *
-     * @param userId User ID.
+     * @param userId              User ID.
      * @param onlyMandatoryFields If true, retrieves only mandatory fields.
      * @return Auditable user data.
      */
     @Override
-    public AuditableData getUserFormDataByUserId(String userId, Boolean onlyMandatoryFields)
-    {
-        if (onlyMandatoryFields == null || !onlyMandatoryFields)
-        {
+    public AuditableData getUserFormDataByUserId(String userId, Boolean onlyMandatoryFields) {
+        if (onlyMandatoryFields == null || !onlyMandatoryFields) {
             UserFormDataDefinition userFormDataDefinition = this.userFormDataRepository.findByUserId(BigInteger.valueOf(Long.parseLong(userId)))
-                    .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION,globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION,userId)));
-            return this.objectMapper.convertValue(userFormDataDefinition,UserFormDataSchema.class);
-        }
-        else
-        {
+                    .orElseThrow(() -> new UserFormDataNotFoundException(FORM_NOT_FOUND_EXCEPTION, globalMessageSource.get(FORM_NOT_FOUND_EXCEPTION, userId)));
+            return this.objectMapper.convertValue(userFormDataDefinition, UserFormDataSchema.class);
+        } else {
             return this.userServiceImpl.getUserById(userId);
         }
     }
 
-    public List getAllUserFormDataObjects(Boolean onlyMandatoryFields, String q, Sort sort)
-    {
-        if (onlyMandatoryFields == null || !onlyMandatoryFields)
-        {
-            if(isEmpty(q))
-            {
+    public List getAllUserFormDataObjects(Boolean onlyMandatoryFields, String q, Sort sort) {
+        if (onlyMandatoryFields == null || !onlyMandatoryFields) {
+            if (isEmpty(q)) {
                 return this.userFormDataRepository.findAll(sort).stream()
                         .map(this::convertEntityToDTO).collect(Collectors.toList());
             }
-            return this.userFormDataRepository.findFormDataUserByQSort(q,sort).stream()
+            return this.userFormDataRepository.findFormDataUserByQSort(q, sort).stream()
                     .map(this::convertEntityToDTO).collect(Collectors.toList());
-        }
-        else
-        {
-            return this.userServiceImpl.getAllUsers(q,sort);
+        } else {
+            return this.userServiceImpl.getAllUsers(q, sort);
         }
     }
 
 
     @Override
-    public PaginationResponsePayload getAllUserFormDataObjects(Boolean onlyMandatoryFields, String q, Pageable pageable)
-    {
-        if (onlyMandatoryFields == null || !onlyMandatoryFields)
-        {
-            if(isEmpty(q))
-            {
+    public PaginationResponsePayload getAllUserFormDataObjects(Boolean onlyMandatoryFields, String q, Pageable pageable) {
+        if (onlyMandatoryFields == null || !onlyMandatoryFields) {
+            if (isEmpty(q)) {
                 Page<UserFormDataDefinition> userFormDataDefinitionPage = this.userFormDataRepository.findAll(pageable);
                 List<Map<String, Object>> userFormDataSchemaList = userFormDataDefinitionPage.stream()
                         .map(this::convertEntityToMap).collect(Collectors.toList());
                 return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage, userFormDataSchemaList);
             }
-            Page<UserFormDataDefinition> userFormDataDefinitionPage=this.userFormDataRepository.findFormDataUserByQPageable(q,pageable);
+            Page<UserFormDataDefinition> userFormDataDefinitionPage = this.userFormDataRepository.findFormDataUserByQPageable(q, pageable);
             List<Map<String, Object>> userFormDataSchemaList = userFormDataDefinitionPage.stream()
                     .map(this::convertEntityToMap).collect(Collectors.toList());
             return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage, userFormDataSchemaList);
-        }
-        else
-        {
-            return this.userServiceImpl.getAllUsers(q,pageable);
+        } else {
+            return this.userServiceImpl.getAllUsers(q, pageable);
         }
     }
 
     @Override
-    public List getAllUsersByFilter(Boolean onlyMandatoryFields, String filterColumn,String filterValue,Sort sort,String q)
-    {
-        if(Boolean.FALSE.equals(onlyMandatoryFields)&&isEmpty(q))
-        {
-                return this.userFormDataRepository.findByFilterColumnAndValue(sort,filterColumn,filterValue).stream()
-                        .map(this::convertEntityToMap).collect(Collectors.toList());
+    public List getAllUsersByFilter(Boolean onlyMandatoryFields, String filterColumn, String filterValue, Sort sort, String q) {
+        if (Boolean.FALSE.equals(onlyMandatoryFields) || onlyMandatoryFields == null) {
+            if (isEmpty(q)) {
+                return this.userFormDataRepository.findByFilterColumnAndValue(sort, filterColumn, filterValue).stream().map(this::convertBulkEntityToDTO).collect(Collectors.toList());
+            }
         }
-        return userServiceImpl.getAllUsersByFilter(filterColumn,filterValue);
+        return userServiceImpl.getAllUsersByFilter(filterColumn, filterValue);
     }
 
     @Override
-    public PaginationResponsePayload getAllUsersByFilter(Boolean onlyMandatoryFields,String filterColumn,String filterValue,Pageable pageable, String q)
-    {
-        if(Boolean.FALSE.equals(onlyMandatoryFields)||onlyMandatoryFields==null)
-        {
-            Page<UserFormDataDefinition> userFormDataDefinitionPage = this.userFormDataRepository.findByFilterColumnAndValue(filterColumn,filterValue,pageable,q);
+    public PaginationResponsePayload getAllUsersByFilter(Boolean onlyMandatoryFields, String filterColumn, String filterValue, Pageable pageable, String q) {
+        if (Boolean.FALSE.equals(onlyMandatoryFields) || onlyMandatoryFields == null) {
+            Page<UserFormDataDefinition> userFormDataDefinitionPage = this.userFormDataRepository.findByFilterColumnAndValue(filterColumn, filterValue, pageable, q);
             List<Map<String, Object>> userFormDataSchemaList = userFormDataDefinitionPage.stream()
                     .map(this::convertEntityToMap).collect(Collectors.toList());
             return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage, userFormDataSchemaList);
         }
-        Page<UserFormDataDefinition> userFormDataDefinitionPage = this.userFormDataRepository.findByFilterColumnAndValue(filterColumn,filterValue,pageable,q);
-        List<UserFormDataDefinition> userFormDataDefinitionList=userFormDataDefinitionPage.getContent();
-       List<Map<String,Object>> userFormDataList=new ArrayList<>();
-        for(UserFormDataDefinition userFormDataDefinition: userFormDataDefinitionList)
-        {
-            Map<String,Object> userMap=userFormDataDefinition.getUserData();
-            userMap.put(ID,userFormDataDefinition.getId());
-            userMap.put(USER_ID,userFormDataDefinition.getUserId());
-            userMap.put("version",userFormDataDefinition.getVersion());
-            userMap.put(CREATED_BY_ID,userFormDataDefinition.getCreatedById());
-            userMap.put(CREATED_ON,userFormDataDefinition.getCreatedOn());
-            userMap.put(UPDATED_BY_ID,userFormDataDefinition.getUpdatedById());
-            userMap.put(UPDATED_ON,userFormDataDefinition.getUpdatedOn());
+        Page<UserFormDataDefinition> userFormDataDefinitionPage = this.userFormDataRepository.findByFilterColumnAndValue(filterColumn, filterValue, pageable, q);
+        List<UserFormDataDefinition> userFormDataDefinitionList = userFormDataDefinitionPage.getContent();
+        List<Map<String, Object>> userFormDataList = new ArrayList<>();
+        for (UserFormDataDefinition userFormDataDefinition : userFormDataDefinitionList) {
+            Map<String, Object> userMap = userFormDataDefinition.getUserData();
+            userMap.put(ID, userFormDataDefinition.getId());
+            userMap.put(USER_ID, userFormDataDefinition.getUserId());
+            userMap.put("version", userFormDataDefinition.getVersion());
+            userMap.put(CREATED_BY_ID, userFormDataDefinition.getCreatedById());
+            userMap.put(CREATED_ON, userFormDataDefinition.getCreatedOn());
+            userMap.put(UPDATED_BY_ID, userFormDataDefinition.getUpdatedById());
+            userMap.put(UPDATED_ON, userFormDataDefinition.getUpdatedOn());
             userFormDataList.add(userMap);
         }
-        return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage,userFormDataList);
+        return tokenUtils.getPaginationResponsePayload(userFormDataDefinitionPage, userFormDataList);
     }
 
 
@@ -232,17 +203,15 @@ public class UserFormDataServiceImpl implements UserFormDataService
      * @param userId User ID.
      */
     @Override
-    public void deleteUserFormDataByUserId(String userId)
-    {
+    public void deleteUserFormDataByUserId(String userId) {
         this.userServiceImpl.deleteUserById(userId);
         this.userFormDataRepository.deleteByUserId(BigInteger.valueOf(Long.parseLong(userId)));
     }
 
-    public Map<String,Object> convertEntityToMap(UserFormDataDefinition userFormDataDefinition)
-    {
-        Map<String,Object> stringObjectMap=this.objectMapper.convertValue(userFormDataDefinition,Map.class);
-        stringObjectMap.replace(ID,String.valueOf(stringObjectMap.get(ID)));
-        stringObjectMap.replace(USER_ID,String.valueOf(stringObjectMap.get(USER_ID)));
+    public Map<String, Object> convertEntityToMap(UserFormDataDefinition userFormDataDefinition) {
+        Map<String, Object> stringObjectMap = this.objectMapper.convertValue(userFormDataDefinition, Map.class);
+        stringObjectMap.replace(ID, String.valueOf(stringObjectMap.get(ID)));
+        stringObjectMap.replace(USER_ID, String.valueOf(stringObjectMap.get(USER_ID)));
         return stringObjectMap;
     }
 
@@ -252,13 +221,20 @@ public class UserFormDataServiceImpl implements UserFormDataService
      * @param userFormDataDefinition UserFormDataDefinition entity.
      * @return Map representation of user form data.
      */
-    public UserDataSchema convertEntityToDTO(UserFormDataDefinition userFormDataDefinition)
-    {
+    public UserDataSchema convertEntityToDTO(UserFormDataDefinition userFormDataDefinition) {
         return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);
     }
-   public List<UserFormDataDefinition> getUsersRegisteredByDateRange(String startDate, String endDate)
-    {
-        return userFormDataRepository.findAllUsersRegisteredByDateRange(startDate,endDate);
+
+    public List<UserFormDataDefinition> getUsersRegisteredByDateRange(String startDate, String endDate) {
+        return userFormDataRepository.findAllUsersRegisteredByDateRange(startDate, endDate);
+    }
+
+    public UserDataSchema convertBulkEntityToDTO(UserFormDataDefinition userFormDataDefinition) {
+        return this.objectMapper.convertValue(userFormDataDefinition, UserDataSchema.class);
+    }
+
+    public BulkUploadSchema convertBulkEntityToDTO(BulkUserDefinition bulkUserDefinition) {
+        return this.objectMapper.convertValue(bulkUserDefinition, BulkUploadSchema.class);
     }
 
 }
