@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import javax.servlet.http.HttpServletRequest;
@@ -24,12 +23,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter
     @Override
     protected void configure(HttpSecurity http) throws Exception
     {
-        http.authorizeRequests(authorize -> authorize.anyRequest().authenticated())
+        http.authorizeRequests(authorize -> authorize
+                        .antMatchers(INTERNAL_ANT_MATCHER).permitAll()
+                        .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2->oauth2.authenticationManagerResolver(this.authenticationManagerResolver));
-    }
-
-    @Override
-    public void configure(WebSecurity web) throws Exception {
-        web.ignoring().antMatchers(INTERNAL_ANT_MATCHER);
     }
 }

@@ -20,9 +20,11 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 public interface UserFormDataController
 {
     @GetMapping("/loggedIn")
+    @PreAuthorize("isAuthenticated()")
     ApiResponse<UserFormDataSchema> getUserDetailsOfLoggedInUser() ;
 
     @PostMapping("/loggedIn")
+    @PreAuthorize("isAuthenticated()")
     ApiResponse<UserFormDataSchema> updateUserDetailsOfLoggedInUser(@RequestBody @Validated UserFormDataSchema userFormDataSchema);
 
     @PostMapping
@@ -36,8 +38,8 @@ public interface UserFormDataController
     @GetMapping
     @PreAuthorize(READ_OR_ALL_ACCESS)
     ApiResponse<Void> getAllUsers(@RequestParam(value = QUERY,required = false) String q, @RequestParam(value = ONLY_MANDATORY_FIELDS, required = false) Boolean onlyMandatoryFields,
-                            @RequestParam(value = PAGE, required = false) Integer page,
-                            @RequestParam(value = SIZE, required = false) Integer pageSize,
+                            @RequestParam(value = PAGE, defaultValue = "1") Integer page,
+                            @RequestParam(value = SIZE, defaultValue = "20") Integer pageSize,
                             @RequestParam(value = SORT_BY, required = false) String[] sortBy,
                             @RequestParam(value = FILTER_COLUMN_NAME, required = false) String filterColumn,
                             @RequestParam(value = FILTER_VALUE, required = false) String filterValue);

@@ -13,6 +13,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,8 +30,13 @@ public class JWTRoleConverter implements Converter<Jwt, Collection<GrantedAuthor
     @Override
     public Collection<GrantedAuthority> convert(Jwt jwt)
     {
-        List<String> awgmentRolesList =tokenUtils.getClientRoles(jwt.getTokenValue());
-        return (awgmentRolesList).stream()
+        List<String> awgmentRolesList = tokenUtils.getClientRoles(jwt.getTokenValue());
+        if (awgmentRolesList == null)
+        {
+            log.warn("clientRoles claim missing from token - granting no authorities");
+            return Collections.emptyList();
+        }
+        return awgmentRolesList.stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toList());
     }

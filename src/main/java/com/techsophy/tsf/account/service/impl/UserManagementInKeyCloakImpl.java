@@ -89,7 +89,7 @@ public class UserManagementInKeyCloakImpl implements UserManagementInKeyCloak
             userModel.put(USER_SCHEMA_CREDENTIALS, List.of(passwordCred));
             userModel.put(USER_SCHEMA_REQUIRED_ACTIONS, List.of(USER_SCHEMA_UPDATE_PASSWORD));
             userModel.put(USER_NAME, userData.getUserData().get(USER_NAME_DATA));
-            log.info(USERCREDENTIALS+userModel.get(USERNAME)+PASSWORD+passwordCred.get(VALUE)+EMAIL_NAME+userModel.get(EMAIL));
+            log.info("Creating user in Keycloak: username={}, email={}", userSchema.getUserName(), userSchema.getEmailId());
             String response = webClientWrapper.webclientRequest(client,keyCloakApi + tokenUtils.getIssuerFromContext()+ userCreationApi,POST,userModel);
             if (StringUtils.isNotEmpty(response))
             {

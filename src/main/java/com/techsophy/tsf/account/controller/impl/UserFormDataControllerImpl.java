@@ -29,6 +29,10 @@ import static com.techsophy.tsf.account.constants.AccountConstants.*;
 @AllArgsConstructor(onConstructor_ = {@Autowired})
 public class UserFormDataControllerImpl implements UserFormDataController
 {
+    private static final int DEFAULT_PAGE = 1;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final UserFormDataService userFormDataService;
     private final GlobalMessageSource globalMessageSource;
     private final TokenUtils tokenUtils;
@@ -97,26 +101,19 @@ public class UserFormDataControllerImpl implements UserFormDataController
     @Override
     public ApiResponse getAllUsers(String q,Boolean onlyMandatoryFields,Integer page, Integer pageSize, String[] sortBy, String filterColumn, String filterValue)
     {
+        int safePage = (page == null || page <= 0) ? DEFAULT_PAGE : page;
+        int safePageSize = (pageSize == null || pageSize <= 0) ? DEFAULT_PAGE_SIZE : pageSize;
+        safePageSize = Math.min(safePageSize, MAX_PAGE_SIZE);
+
         if (StringUtils.hasText(filterColumn) && StringUtils.hasText(filterValue))
         {
-            if(page==null)
-            {
-                return new ApiResponse<>(userFormDataService.getAllUsersByFilter(onlyMandatoryFields,filterColumn,filterValue,tokenUtils.getSortBy(sortBy),q), true,
-                        globalMessageSource.get(GET_FORM_SUCCESS));
-            }
-            else
-            {
-                return new ApiResponse<>(userFormDataService.getAllUsersByFilter(onlyMandatoryFields, filterColumn, filterValue, tokenUtils.getPageRequest(page, pageSize, sortBy), q), true,
-                        globalMessageSource.get(GET_FORM_SUCCESS));
-            }
+            return new ApiResponse<>(userFormDataService.getAllUsersByFilter(onlyMandatoryFields, filterColumn, filterValue,
+                    tokenUtils.getPageRequest(safePage, safePageSize, sortBy), q), true,
+                    globalMessageSource.get(GET_FORM_SUCCESS));
         }
-        if (page == null)
-        {
-            return new ApiResponse<>(userFormDataService.getAllUserFormDataObjects(onlyMandatoryFields,q, tokenUtils.getSortBy(sortBy)), true,
-                        globalMessageSource.get(GET_FORM_SUCCESS));
-        }
-          return new ApiResponse<>(userFormDataService.getAllUserFormDataObjects(onlyMandatoryFields,q, tokenUtils.getPageRequest(page,pageSize,sortBy)), true,
-                        globalMessageSource.get(GET_FORM_SUCCESS));
+        return new ApiResponse<>(userFormDataService.getAllUserFormDataObjects(onlyMandatoryFields, q,
+                tokenUtils.getPageRequest(safePage, safePageSize, sortBy)), true,
+                globalMessageSource.get(GET_FORM_SUCCESS));
     }
 
     @Override
