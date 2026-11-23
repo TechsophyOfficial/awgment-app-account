@@ -3,7 +3,13 @@ package com.techsophy.tsf.account.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.error.ApiErrorCode;
 import com.techsophy.tsf.account.error.ProblemDetailFactory;
+import com.techsophy.tsf.account.security.AwgmentSecurityProperties;
+import com.techsophy.tsf.account.security.TenantAccessAuthenticationException;
+import com.techsophy.tsf.account.security.TenantAuthenticationManagerResolver;
+import com.techsophy.tsf.account.security.TenantContextCleanupFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
@@ -15,6 +21,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -24,14 +31,14 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 import java.util.Map;
 
 /**
- * Phase 0 baseline security configuration enforcing stateless sessions,
- * OWASP security headers, GET/HEAD-only public Actuator probes, dev-only Swagger chain,
- * and RFC 7807 ProblemDetail responses across 400/401/403 filter errors.
- * Phase 1 extends the API chain with multi-tenant JWT resolution and audience validation.
+ * Security configuration enforcing stateless sessions, OWASP security headers,
+ * GET/HEAD-only public Actuator probes, dev-only Swagger chain, RFC 7807 ProblemDetail
+ * responses, multi-tenant JWT resolution with SSRF protection, and TenantContext cleanup.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties(AwgmentSecurityProperties.class)
 public class BootstrapSecurityConfig {
 
     private static final String API_CSP = "default-src 'none'; frame-ancestors 'none'";
@@ -66,7 +73,14 @@ public class BootstrapSecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            ObjectMapper objectMapper,
+            TenantAuthenticationManagerResolver tenantAuthenticationManagerResolver,
+            TenantContextCleanupFilter tenantContextCleanupFilter) throws Exception {
+        AuthenticationEntryPoint entryPoint = problemDetailEntryPoint(objectMapper);
+        AccessDeniedHandler deniedHandler = problemDetailAccessDeniedHandler(objectMapper);
+
         http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(headers -> headers
@@ -80,12 +94,26 @@ public class BootstrapSecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .anyRequest().authenticated()
                 )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationManagerResolver(tenantAuthenticationManagerResolver)
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(deniedHandler)
+                )
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint(problemDetailEntryPoint(objectMapper))
-                        .accessDeniedHandler(problemDetailAccessDeniedHandler(objectMapper))
-                );
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(deniedHandler)
+                )
+                .addFilterAfter(tenantContextCleanupFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<TenantContextCleanupFilter> tenantContextCleanupFilterRegistration(
+            TenantContextCleanupFilter filter) {
+        FilterRegistrationBean<TenantContextCleanupFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
@@ -108,14 +136,27 @@ public class BootstrapSecurityConfig {
     }
 
     private AuthenticationEntryPoint problemDetailEntryPoint(ObjectMapper objectMapper) {
-        return (request, response, authException) -> ProblemDetailFactory.writeServletProblem(
-                objectMapper,
-                request,
-                response,
-                ApiErrorCode.INVALID_TOKEN,
-                "Authentication is required to access this resource.",
-                Map.of(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
-        );
+        return (request, response, authException) -> {
+            if (authException instanceof TenantAccessAuthenticationException tenantEx) {
+                ProblemDetailFactory.writeServletProblem(
+                        objectMapper,
+                        request,
+                        response,
+                        tenantEx.errorCode(),
+                        tenantEx.getMessage(),
+                        Map.of()
+                );
+                return;
+            }
+            ProblemDetailFactory.writeServletProblem(
+                    objectMapper,
+                    request,
+                    response,
+                    ApiErrorCode.INVALID_TOKEN,
+                    "Authentication is required to access this resource.",
+                    Map.of(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+            );
+        };
     }
 
     AccessDeniedHandler problemDetailAccessDeniedHandler(ObjectMapper objectMapper) {
