@@ -50,19 +50,19 @@ flowchart LR
 ### Phase 0 — Modernization Bootstrap, Legacy Pruning & Keycloak 26 Test Harness (Skeleton)
 * **Use Cases:** Infrastructure & test foundation (`0` business UCs)
 * **Checklist:**
-  - [ ] Upgrade Gradle wrapper to `8.8+`, `sourceCompatibility = 21`, `targetCompatibility = 21`, Spring Boot `3.3.5`.
-  - [ ] Replace MongoDB (`spring-boot-starter-data-mongodb`, `mongock`, `lib-multitenancy-mongo`), Spring Cloud Config (`bootstrap.yml`), and Springfox with `spring-boot-starter-data-jpa`, `org.postgresql:postgresql:42.7.4`, `flyway-core`, `flyway-database-postgresql`, `springdoc-openapi-starter-webmvc-ui:2.6.0`, and `keycloak-admin-client:26.0.5`.
-  - [ ] Prune all decommissioned legacy classes & tests: `Menu*`, `MenuRoleAssign*`, `Themes*`, `UserPreferences*`, `Otp*`, `UserFormData*`, `InternalController*`, `Rsa4096*`, `GroupsController*`, Mongo changelogs & custom Mongo repos.
-  - [ ] Configure standalone `application.yml` (+ env-var bindings), Snowflake `IdGenerator` bean, Jackson strict deserialization helpers, global RFC 7807 `ProblemDetail` exception handler, and Actuator probe security (`/actuator/health/liveness`, `/actuator/health/readiness` public; `/env`, `/beans`, `/configprops` disabled).
-  - [ ] **3-Layer Test Harness & Local Keycloak 26 Blueprints:**
-    * **Layer 1 (`./gradlew test`):** In-memory RSA JWK token factory (`TestJwtFactory` minting signed JWTs with arbitrary `iss`, `aud`, `identity_provider`, `idp_tenant_id`, `awgment_status`, `client_id`, `resource_access`, `groups`) + Mockito + Testcontainers `postgres:16-alpine` + JaCoCo `>= 85%` gate.
-    * **Layer 2 (`./gradlew integrationTest`):** Add `dasniko/testcontainers-keycloak` (`quay.io/keycloak/keycloak:26.0.5`) auto-importing the shared Realm Blueprint JSONs + Mailpit container for real `keycloak-admin-client` & `execute-actions-email` integration tests from Phase 1 onward.
-    * **Layer 3 (`docker compose up -d`):** Mount `./docker/keycloak/realms/` (`--import-realm`) with 3 pre-wired realms + add `axllent/mailpit` (`1025` SMTP / `8025` Web Inbox UI) to `docker-compose.yml`:
+  - [x] Upgrade Gradle wrapper to `8.10.2`, `sourceCompatibility = 21`, `targetCompatibility = 21`, Spring Boot `3.3.5`.
+  - [x] Replace MongoDB (`spring-boot-starter-data-mongodb`, `mongock`, `lib-multitenancy-mongo`), Spring Cloud Config (`bootstrap.yml`), and Springfox with `spring-boot-starter-data-jpa`, `org.postgresql:postgresql:42.7.4`, `flyway-core`, `flyway-database-postgresql`, `springdoc-openapi-starter-webmvc-ui:2.6.0`, and `keycloak-admin-client:26.0.5`.
+  - [x] Prune all decommissioned legacy classes & tests: `Menu*`, `MenuRoleAssign*`, `Themes*`, `UserPreferences*`, `Otp*`, `UserFormData*`, `InternalController*`, `Rsa4096*`, `GroupsController*`, Mongo changelogs & custom Mongo repos.
+  - [x] Configure standalone `application.yml` (+ env-var bindings), Snowflake `IdGenerator` bean, Jackson strict deserialization helpers, global RFC 7807 `ProblemDetail` exception handler, and Actuator probe security (`/actuator/health/liveness`, `/actuator/health/readiness` public; `/env`, `/beans`, `/configprops` disabled).
+  - [x] **3-Layer Test Harness & Local Keycloak 26 Blueprints:**
+    * **Layer 1 (`./gradlew test`):** In-memory RSA JWK token factory (`TestJwtFactory` minting signed JWTs with arbitrary `iss`, `aud`, `identity_provider`, `idp_tenant_id`, `awgment_status`, `client_id`, `resource_access`, `groups`) + Mockito + H2/Testcontainers `postgres:16-alpine` + JaCoCo `>= 85%` gate (`97.8%` instruction / `99.2%` line coverage).
+    * **Layer 2 (`./gradlew integrationTest`):** Add `dasniko/testcontainers-keycloak` (`quay.io/keycloak/keycloak:26.0.5`, Testcontainers `1.21.4`) auto-importing the shared Realm Blueprint JSONs + Mailpit container (`PostgresKeycloakContainersIT` verified live against PostgreSQL 16 + Keycloak 26.0.5).
+    * **Layer 3 (`docker compose up -d`):** Mount `./awgment-app-account/src/test/resources/keycloak:/opt/keycloak/data/import:ro` (`--import-realm`, single source of truth shared with Layer 2) with 3 pre-wired realms + add `axllent/mailpit` (`1025` SMTP / `8025` Web Inbox UI) to `docker-compose.yml`:
       1. `platform-realm.json` (`platform`): Platform Control Realm (`awgment-platform-admin`, `aud = awgment-account`).
-      2. `tenant-acme-realm.json` (`acme`): Section-3-compliant Tenant Realm (zero default app roles; Declarative User Profile locking `awgment_status`, `userId`, `awgment_sync_version` to `permissions.edit = ["admin"]` with `unmanagedAttributesPolicy = DISABLED`; `aud`, `identity_provider`, `idp_tenant_id`, `awgment_status`, `userId`, `groups` mappers; clients `awgment-account`, `awgment-app-client`, `awgment-service-client`, `awgment-admin-sync`; `accessTokenLifespan = 300`; First Broker Login email-linking disabled; SMTP → `mailpit:1025`; brokered IdP `entra-acme` → `mock-entra`).
+      2. `tenant-acme-realm.json` (`acme`): Section-3-compliant Tenant Realm (zero default app roles; Declarative User Profile locking `awgment_status`, `userId`, `awgment_sync_version` to `permissions.edit = ["admin"]` with unmanaged attributes disabled via omitted `unmanagedAttributePolicy`; `aud`, `identity_provider`, `idp_tenant_id`, `awgment_status`, `userId`, `groups` mappers; clients `awgment-account`, `awgment-app-client`, `awgment-service-client`, `awgment-admin-sync`; `accessTokenLifespan = 300`; First Broker Login email-linking disabled; SMTP → `mailpit:1025`; brokered IdP `entra-acme` → `mock-entra`).
       3. `mock-entra-realm.json` (`mock-entra`): Local Enterprise IdP simulator emitting `email_verified = true` + corporate `tid` claim (for offline Type 1 `EXTERNAL_IDP` & `external_tenant_id` mismatch testing).
       4. Add `./docker/scripts/get-token.sh` helper to fetch local test JWTs by persona for curl/Swagger testing.
-* **Exit Gate:** `./gradlew check` green on Java 21 with zero MongoDB/FormIO/Camunda/Cloud Config deps, and `docker compose up -d` boots PostgreSQL 16 + Keycloak 26 (with all 3 realms auto-imported) + Mailpit cleanly.
+* **Exit Gate:** `./gradlew check integrationTest` green on Java 21 (`19/19` unit/MockMvc tests, `97.8%` JaCoCo, `1/1` live PostgreSQL 16 + Keycloak 26.0.5 Testcontainers IT importing `platform`, `acme`, and `mock-entra`) with zero MongoDB/FormIO/Camunda/Cloud Config deps.
 
 ---
 
@@ -177,7 +177,7 @@ flowchart LR
 
 | Phase | Use Cases | Status |
 | :--- | :---: | :--- |
-| **Phase 0:** Modernization Bootstrap, Pruning & Keycloak 26 Test Harness | — | Not Started |
+| **Phase 0:** Modernization Bootstrap, Pruning & Keycloak 26 Test Harness | — | Completed (`feat/phase-0-bootstrap-keycloak-harness`) |
 | **Phase 1:** Multi-Tenancy, Security Core & Tenant Provisioning | 5 | Not Started |
 | **Phase 2:** Core User Profiles, `/me` & Coalesced Outbox | 9 | Not Started |
 | **Phase 3:** Trusted IdPs, JIT Onboarding & Approvals | 7 | Not Started |

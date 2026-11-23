@@ -1,28 +1,22 @@
 plugins {
-    id 'org.springframework.boot' version '2.6.7'
-    id 'io.spring.dependency-management' version '1.0.9.RELEASE'
-    id 'com.google.cloud.tools.jib' version '3.0.0'
     id 'java'
-    id 'maven-publish'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
     id 'jacoco'
-    id "org.sonarqube" version "3.3"
 }
 
-group 'com.techsophy.tsf'
-version '1.2.0'
-description = 'tp-app-account'
+group = 'com.techsophy.tsf'
+version = '2.0.0-SNAPSHOT'
+description = 'awgment-app-account'
 
-sonarqube {
-    properties {
-        property "sonar.projectKey", "TechsophyOfficial_awgment-app-account"
-        property "sonar.organization", "techsophyofficial"
-        property "sonar.host.url", "https://sonarcloud.io"
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
     }
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
-compileJava {
-    sourceCompatibility = 11
-    targetCompatibility = 11
-}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
@@ -34,101 +28,58 @@ repositories {
     mavenCentral()
 }
 
-jib {
-	container {
-		jvmFlags = [
-				'-Dotel.exporter=jaeger',
-				'-Dotel.exporter.jaeger.endpoint=http://jaeger:14250',
-				'-Dotel.exporter.jaeger.service.name=account-app',
-				'-Dapplication.name=account-app',
-				'-javaagent:/opentelemetry-javaagent-all.jar'
-		]
-	}
+ext {
+    springDocVersion = '2.6.0'
+    keycloakVersion = '26.0.5'
+    postgresqlVersion = '42.7.4'
+    set('testcontainers.version', '1.21.4')
+    testcontainersKeycloakVersion = '3.5.1'
+    stringTemplateVersion = '4.3.4'
+    idGeneratorVersion = '2.0.0'
 }
 
 dependencies {
-    implementation 'io.springfox:springfox-swagger2:3.0.0'
-    implementation 'io.springfox:springfox-swagger-ui:3.0.0'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework:spring-aspects:5.3.20'
-    implementation 'org.springframework.security:spring-security-oauth2-resource-server'
-    implementation 'org.springframework.security:spring-security-oauth2-jose'
-    implementation "org.springframework.boot:spring-boot-starter-actuator"
-    implementation "org.springframework.boot:spring-boot-starter-data-mongodb"
-    implementation 'org.springdoc:springdoc-openapi-webmvc-core:1.6.8'
-    implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap:3.1.2'
-    implementation 'org.springframework.cloud:spring-cloud-starter-config:3.1.2'
-    implementation 'org.springframework.cloud:spring-cloud-dependencies:2021.0.2'
-    implementation "commons-io:commons-io:2.11.0"
-    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
-    implementation group: 'org.antlr', name: 'stringtemplate', version: '4.0.2'
-    implementation 'com.opencsv:opencsv:5.6'
-    implementation 'com.google.code.gson:gson:2.9.0'
-    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv:2.13.3'
-    implementation 'com.fasterxml.jackson.core:jackson-core:2.13.3'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 
-    implementation "io.mongock:mongock:5.0.32"
-    implementation "io.mongock:mongock-springboot:5.0.32"
-    implementation "io.mongock:mongodb-springdata-v3-driver:5.0.32"
+    implementation "org.postgresql:postgresql:${postgresqlVersion}"
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
-    implementation 'com.techsophy:id-generator:2.0.0'
-    implementation 'com.techsophy:multitenancy-mongo:1.0.0'
-    implementation 'org.apache.commons:commons-lang3:3.12.0'
-    
-    implementation 'org.json:json:20220320'
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springDocVersion}"
+    implementation "org.keycloak:keycloak-admin-client:${keycloakVersion}"
+    implementation "com.techsophy:id-generator:${idGeneratorVersion}"
+    implementation "org.antlr:ST4:${stringTemplateVersion}"
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-csv'
+    implementation 'org.apache.commons:commons-lang3'
 
-    implementation 'org.springframework.security:spring-security-test:5.6.3'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 
-    compileOnly 'org.projectlombok:lombok:1.18.24'
-    annotationProcessor 'org.projectlombok:lombok:1.18.24'
-    testCompileOnly 'org.projectlombok:lombok:1.18.24'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
 
-    testImplementation('org.springframework.boot:spring-boot-starter-test') {
-        exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'
-        exclude group: "com.vaadin.external.google", module:"android-json"
-    }
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testRuntimeOnly 'com.h2database:h2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-test {
-    finalizedBy jacocoTestReport
-    useJUnitPlatform()
-}
-
-jacocoTestReport {
-    dependsOn test
-    reports {
-        xml.enabled true
-        html.enabled true
-    }
-}
-
-jar{
-    enabled = false
-}
-jacocoTestCoverageVerification {
-    violationRules {
-        rule {
-            limit {
-                minimum = 0.85
-            }
-        }
-
-    }
-}
-check.dependsOn jacocoTestCoverageVerification
-
-//Integration test configuration
-sourceSets{
+sourceSets {
     integrationTest {
-        java{
+        java {
             compileClasspath += main.output + test.output
             runtimeClasspath += main.output + test.output
             srcDir file('src/integrationTest/java')
-
+        }
+        resources {
+            srcDir file('src/integrationTest/resources')
         }
     }
 }
@@ -138,14 +89,68 @@ configurations {
     integrationTestRuntimeOnly.extendsFrom testRuntimeOnly
 }
 
+dependencies {
+    integrationTestImplementation "com.github.dasniko:testcontainers-keycloak:${testcontainersKeycloakVersion}"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.add('-parameters')
+}
+
+tasks.named('jar') {
+    enabled = false
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    finalizedBy tasks.named('jacocoTestReport')
+}
 
 tasks.register('integrationTest', Test) {
-    description = 'Runs integration tests.'
+    description = 'Runs integration tests requiring Docker (PostgreSQL 16 + Keycloak 26).'
     group = 'verification'
-    useJUnitPlatform()
     testClassesDirs = sourceSets.integrationTest.output.classesDirs
     classpath = sourceSets.integrationTest.runtimeClasspath
-    shouldRunAfter test
+    useJUnitPlatform()
+    shouldRunAfter tasks.named('test')
     outputs.upToDateWhen { false }
 }
-check.dependsOn compileIntegrationTestJava
+
+jacoco {
+    toolVersion = '0.8.12'
+}
+
+def jacocoExcludes = [
+        'com/techsophy/tsf/account/TechsophyPlatformAccountApplication.class'
+]
+
+tasks.named('jacocoTestReport') {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+    }
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: jacocoExcludes)
+    }))
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    dependsOn tasks.named('jacocoTestReport')
+    classDirectories.setFrom(files(classDirectories.files.collect {
+        fileTree(dir: it, exclude: jacocoExcludes)
+    }))
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.85
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('jacocoTestCoverageVerification')
+    dependsOn tasks.named('compileIntegrationTestJava')
+}

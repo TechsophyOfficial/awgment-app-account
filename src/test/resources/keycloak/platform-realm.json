@@ -1,0 +1,87 @@
+{
+  "realm": "platform",
+  "displayName": "Awgment Platform Control Realm",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "verifyEmail": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 3600,
+  "roles": {
+    "realm": [
+      {
+        "name": "default-roles-platform",
+        "description": "Default realm role with zero Awgment functional authorities",
+        "composite": false
+      }
+    ],
+    "client": {
+      "awgment-account": [
+        {
+          "name": "awgment-platform-admin",
+          "description": "Tier 0: Platform administrator authorized for /accounts/v2/tenants/**"
+        }
+      ]
+    }
+  },
+  "defaultRole": {
+    "name": "default-roles-platform"
+  },
+  "clients": [
+    {
+      "clientId": "awgment-account",
+      "name": "Awgment Account Resource Server",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "publicClient": false
+    },
+    {
+      "clientId": "awgment-platform-cli",
+      "name": "Awgment Platform Admin CLI (Local Dev/Test)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "platform-cli-dev-secret",
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "awgment-account-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "awgment-account",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "platform-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Platform",
+      "lastName": "Admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "PlatformAdminDev!",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "awgment-account": [
+          "awgment-platform-admin"
+        ]
+      }
+    }
+  ]
+}
