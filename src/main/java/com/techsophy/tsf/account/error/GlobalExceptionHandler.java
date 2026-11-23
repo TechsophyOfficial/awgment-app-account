@@ -5,10 +5,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -17,14 +20,19 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.validation.method.ParameterValidationResult;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.LinkedHashMap;
@@ -37,8 +45,6 @@ import java.util.Map;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
-    private static final int MAX_PROPERTY_NAME_LENGTH = 64;
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ProblemDetail> handleApiException(ApiException ex, HttpServletRequest request) {
@@ -55,10 +61,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ProblemDetail> handleMessageNotReadable(
             HttpMessageNotReadableException ex, HttpServletRequest request) {
         if (ex.getMostSpecificCause() instanceof UnrecognizedPropertyException unrecognized) {
-            String safeProp = ProblemDetailFactory.sanitizeForLog(unrecognized.getPropertyName());
-            if (safeProp.length() > MAX_PROPERTY_NAME_LENGTH) {
-                safeProp = safeProp.substring(0, MAX_PROPERTY_NAME_LENGTH);
-            }
+            String safeProp = ProblemDetailFactory.sanitizePropertyName(unrecognized.getPropertyName());
             return problemResponse(
                     ApiErrorCode.IMMUTABLE_FIELD_MODIFICATION,
                     "Field '" + safeProp + "' is not permitted or is immutable.",
@@ -91,6 +94,33 @@ public class GlobalExceptionHandler {
                 .body(problem);
     }
 
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ProblemDetail> handleHandlerMethodValidation(
+            HandlerMethodValidationException ex, HttpServletRequest request) {
+        Map<String, String> fieldErrors = new LinkedHashMap<>();
+        for (ParameterValidationResult result : ex.getAllValidationResults()) {
+            String paramName = result.getMethodParameter() != null
+                    && result.getMethodParameter().getParameterName() != null
+                    ? result.getMethodParameter().getParameterName()
+                    : "parameter";
+            for (MessageSourceResolvable error : result.getResolvableErrors()) {
+                String message = error.getDefaultMessage() != null ? error.getDefaultMessage() : "Invalid value";
+                fieldErrors.putIfAbsent(paramName, message);
+            }
+        }
+        ProblemDetail problem = ProblemDetailFactory.build(
+                ApiErrorCode.VALIDATION_FAILED,
+                "Request parameter validation failed.",
+                request
+        );
+        if (!fieldErrors.isEmpty()) {
+            problem.setProperty("fieldErrors", fieldErrors);
+        }
+        return ResponseEntity.status(ApiErrorCode.VALIDATION_FAILED.status())
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .body(problem);
+    }
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ProblemDetail> handleConstraintViolation(
             ConstraintViolationException ex, HttpServletRequest request) {
@@ -112,7 +142,12 @@ public class GlobalExceptionHandler {
                 .body(problem);
     }
 
-    @ExceptionHandler({MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class})
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            MissingServletRequestPartException.class,
+            ServletRequestBindingException.class
+    })
     public ResponseEntity<ProblemDetail> handleInvalidRequestParameter(Exception ex, HttpServletRequest request) {
         return problemResponse(
                 ApiErrorCode.VALIDATION_FAILED,
@@ -130,13 +165,27 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     public ResponseEntity<ProblemDetail> handleMethodNotSupported(
             HttpRequestMethodNotSupportedException ex, HttpServletRequest request) {
-        return problemResponse(ApiErrorCode.METHOD_NOT_ALLOWED, "HTTP method is not supported for this endpoint.", request);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(ApiErrorCode.METHOD_NOT_ALLOWED.status())
+                .contentType(MediaType.APPLICATION_PROBLEM_JSON);
+        if (ex.getSupportedHttpMethods() != null && !ex.getSupportedHttpMethods().isEmpty()) {
+            builder.allow(ex.getSupportedHttpMethods().toArray(HttpMethod[]::new));
+        }
+        return builder.body(ProblemDetailFactory.build(
+                ApiErrorCode.METHOD_NOT_ALLOWED,
+                "HTTP method is not supported for this endpoint.",
+                request
+        ));
     }
 
     @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
     public ResponseEntity<ProblemDetail> handleMediaTypeNotSupported(
             HttpMediaTypeNotSupportedException ex, HttpServletRequest request) {
         return problemResponse(ApiErrorCode.UNSUPPORTED_MEDIA_TYPE, "Content type is not supported.", request);
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotAcceptableException.class)
+    public ResponseEntity<Void> handleMediaTypeNotAcceptable(HttpMediaTypeNotAcceptableException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)

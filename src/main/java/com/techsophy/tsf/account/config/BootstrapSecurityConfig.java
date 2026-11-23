@@ -42,7 +42,7 @@ public class BootstrapSecurityConfig {
     @Bean
     @Order(1)
     @ConditionalOnProperty(name = "awgment.security.dev-docs-enabled", havingValue = "true")
-    public SecurityFilterChain devDocsSecurityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain devDocsSecurityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
         http.securityMatcher("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -56,6 +56,10 @@ public class BootstrapSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.HEAD, "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .anyRequest().denyAll()
+                )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(problemDetailEntryPoint(objectMapper))
+                        .accessDeniedHandler(problemDetailAccessDeniedHandler(objectMapper))
                 );
         return http.build();
     }
@@ -97,7 +101,8 @@ public class BootstrapSecurityConfig {
                         "X-Frame-Options", "DENY",
                         "Cache-Control", "no-cache, no-store, max-age=0, must-revalidate",
                         "Content-Security-Policy", API_CSP,
-                        "Referrer-Policy", "no-referrer"
+                        "Referrer-Policy", "no-referrer",
+                        "Permissions-Policy", PERMISSIONS_POLICY
                 )
         );
     }

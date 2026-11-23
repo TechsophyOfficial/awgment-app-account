@@ -23,11 +23,6 @@ configurations {
 
 repositories {
     mavenCentral()
-    mavenLocal {
-        content {
-            includeGroup 'com.techsophy'
-        }
-    }
 }
 
 ext {

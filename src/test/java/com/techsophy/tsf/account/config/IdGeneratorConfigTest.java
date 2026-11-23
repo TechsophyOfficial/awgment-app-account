@@ -1,6 +1,7 @@
 package com.techsophy.tsf.account.config;
 
 import com.techsophy.idgenerator.IdGeneratorImpl;
+import com.techsophy.idgenerator.exception.NodeLimitException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
@@ -16,13 +17,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class IdGeneratorConfigTest {
 
     @Test
     void shouldGenerateUniquePositiveMonotonicSnowflakeIds() {
         IdGeneratorConfig config = new IdGeneratorConfig();
-        IdGeneratorImpl generator = config.idGenerator();
+        IdGeneratorImpl generator = config.idGenerator(-1);
 
         Set<BigInteger> generated = new HashSet<>();
         BigInteger previous = BigInteger.ZERO;
@@ -36,8 +38,19 @@ class IdGeneratorConfigTest {
     }
 
     @Test
+    void shouldHonorExplicitDeterministicNodeIdForMultiReplicaDeploymentsAndRejectOutOfRange() {
+        IdGeneratorConfig config = new IdGeneratorConfig();
+        IdGeneratorImpl generator = config.idGenerator(42);
+        BigInteger id = generator.nextId();
+        assertThat(generator.parse(id.longValue())).containsEntry("nodeId", 42L);
+
+        assertThatThrownBy(() -> config.idGenerator(1024))
+                .isInstanceOf(NodeLimitException.class);
+    }
+
+    @Test
     void shouldGenerateZeroDuplicatesUnderConcurrentMultiThreadedContention() throws Exception {
-        IdGeneratorImpl generator = new IdGeneratorConfig().idGenerator();
+        IdGeneratorImpl generator = new IdGeneratorConfig().idGenerator(7);
         int threads = 8;
         int idsPerThread = 250;
         Set<BigInteger> allIds = ConcurrentHashMap.newKeySet();

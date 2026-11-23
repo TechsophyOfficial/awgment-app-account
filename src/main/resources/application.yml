@@ -65,6 +65,8 @@ springdoc:
     enabled: ${AWGMENT_OPENAPI_ENABLED:false}
 
 awgment:
+  id-generator:
+    node-id: ${AWGMENT_NODE_ID:-1}
   security:
     platform-realm: ${AWGMENT_PLATFORM_REALM:platform}
     expected-audience: ${AWGMENT_EXPECTED_AUDIENCE:awgment-account}

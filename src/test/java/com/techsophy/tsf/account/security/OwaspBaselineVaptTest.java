@@ -106,7 +106,8 @@ class OwaspBaselineVaptTest {
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                     .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
                     .andExpect(header().string("X-Content-Type-Options", "nosniff"))
-                    .andExpect(header().string("X-Frame-Options", "DENY"));
+                    .andExpect(header().string("X-Frame-Options", "DENY"))
+                    .andExpect(header().string("Permissions-Policy", "geolocation=(), microphone=(), camera=()"));
         }
     }
 
@@ -161,7 +162,15 @@ class OwaspBaselineVaptTest {
         assertThatThrownBy(() -> factory.decode(tamperedToken))
                 .isInstanceOf(JwtException.class);
 
-        // 4. Garbage non-JWT token
+        // 4. Future not-before (nbf) token attack
+        String futureNbfToken = factory.mintToken(
+                TestJwtFactory.TokenSpec.activeHuman("acme", "sub-future", "future-user", List.of("awgment-user")),
+                Instant.now().plusSeconds(180)
+        );
+        assertThatThrownBy(() -> factory.decode(futureNbfToken))
+                .isInstanceOf(JwtException.class);
+
+        // 5. Garbage non-JWT token
         assertThatThrownBy(() -> factory.decode("not.a.valid.jwt"))
                 .isInstanceOf(JwtException.class);
     }

@@ -47,6 +47,10 @@ public final class TestJwtFactory {
     }
 
     public String mintToken(TokenSpec spec) {
+        return mintToken(spec, null);
+    }
+
+    public String mintToken(TokenSpec spec, Instant notBefore) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(spec.expiresInSeconds());
         Instant issuedAt = spec.expiresInSeconds() > 0 ? now : expiresAt.minusSeconds(60);
@@ -58,6 +62,9 @@ public final class TestJwtFactory {
                 .expiresAt(expiresAt)
                 .claim("azp", spec.authorizedParty())
                 .claim("preferred_username", spec.preferredUsername());
+        if (notBefore != null) {
+            builder.notBefore(notBefore);
+        }
 
         if (spec.email() != null) {
             builder.claim("email", spec.email());

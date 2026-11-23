@@ -14,12 +14,13 @@ import java.util.Map;
 
 /**
  * Shared RFC 7807 ProblemDetail builder with safe RFC 3986 URI parsing,
- * CRLF log-forging sanitization, and UTF-8 servlet response writing.
+ * CRLF log-forging/property sanitization, and UTF-8 servlet response writing.
  */
 public final class ProblemDetailFactory {
 
     private static final URI ROOT_URI = URI.create("/");
     private static final int MAX_SANITIZED_LENGTH = 256;
+    private static final int MAX_PROPERTY_NAME_LENGTH = 64;
 
     private ProblemDetailFactory() {
     }
@@ -61,12 +62,20 @@ public final class ProblemDetailFactory {
     }
 
     public static String sanitizeForLog(String raw) {
+        return sanitize(raw, "/", MAX_SANITIZED_LENGTH);
+    }
+
+    public static String sanitizePropertyName(String raw) {
+        return sanitize(raw, "unknown", MAX_PROPERTY_NAME_LENGTH);
+    }
+
+    private static String sanitize(String raw, String blankFallback, int maxLength) {
         if (raw == null || raw.isBlank()) {
-            return "/";
+            return blankFallback;
         }
         String collapsed = raw.replaceAll("[\\r\\n\\t\\p{Cntrl}]+", "_");
-        return collapsed.length() > MAX_SANITIZED_LENGTH
-                ? collapsed.substring(0, MAX_SANITIZED_LENGTH)
+        return collapsed.length() > maxLength
+                ? collapsed.substring(0, maxLength)
                 : collapsed;
     }
 }

@@ -59,7 +59,10 @@ public enum ApiErrorCode {
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "rate-limit-exceeded", "Rate Limit Exceeded"),
 
     // 500 Internal Server Error
-    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error");
+    INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "internal-error", "Internal Server Error"),
+
+    // 502 Bad Gateway
+    UPSTREAM_IDENTITY_PROVIDER_ERROR(HttpStatus.BAD_GATEWAY, "upstream-identity-provider-error", "Upstream Identity Provider Error");
 
     private static final String ERROR_TYPE_BASE = "https://awgment.dev/errors/";
 

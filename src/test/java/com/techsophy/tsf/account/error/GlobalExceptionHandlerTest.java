@@ -12,6 +12,8 @@ import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.MethodParameter;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -26,17 +28,23 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.validation.ObjectError;
+import org.springframework.validation.method.ParameterValidationResult;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -124,6 +132,15 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errorCode").value("IMMUTABLE_FIELD_MODIFICATION"))
                 .andExpect(jsonPath("$.detail", not(containsString(longProp))));
+
+        // Blank/whitespace unknown property name normalizes safely to 'unknown' (never '/')
+        mockMvc.perform(post("/test/strict-dto")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"displayName\":\"ok\",\"code\":\"c1\",\"   \":\"x\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("IMMUTABLE_FIELD_MODIFICATION"))
+                .andExpect(jsonPath("$.detail", containsString("Field 'unknown'")));
     }
 
     @Test
@@ -157,9 +174,10 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldMapStandardSpringMvc4xxExceptionsInsteadOf500() throws Exception {
-        // 405 Method Not Allowed
+        // 405 Method Not Allowed (must emit RFC 9110 Allow header)
         mockMvc.perform(delete("/test/strict-dto"))
                 .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().string("Allow", containsString("POST")))
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("METHOD_NOT_ALLOWED"));
 
@@ -182,6 +200,22 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // 400 Missing required header (ServletRequestBindingException)
+        mockMvc.perform(get("/test/missing-header"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // 400 Missing multipart part (MissingServletRequestPartException)
+        mockMvc.perform(get("/test/missing-part"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // 406 Not Acceptable (HttpMediaTypeNotAcceptableException)
+        mockMvc.perform(get("/test/strict-dto-json").accept(MediaType.APPLICATION_XML))
+                .andExpect(status().isNotAcceptable());
 
         // 400 ConstraintViolationException
         mockMvc.perform(get("/test/constraint-violation"))
@@ -246,6 +280,69 @@ class GlobalExceptionHandlerTest {
 
         ProblemDetail withoutRequest = ProblemDetailFactory.build(ApiErrorCode.INTERNAL_ERROR, "err", null);
         assertThat(withoutRequest.getInstance()).isEqualTo(URI.create("/"));
+
+        assertThat(ProblemDetailFactory.sanitizePropertyName(null)).isEqualTo("unknown");
+        assertThat(ProblemDetailFactory.sanitizePropertyName("   ")).isEqualTo("unknown");
+        assertThat(ProblemDetailFactory.sanitizePropertyName("role\r\nName")).isEqualTo("role_Name");
+        assertThat(ProblemDetailFactory.sanitizePropertyName("a".repeat(80))).hasSize(64);
+    }
+
+    @Test
+    void shouldMapHandlerMethodValidationExceptionWithAndWithoutErrors() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/accounts/v2/tenants");
+
+        MethodParameter namedParam = Mockito.mock(MethodParameter.class);
+        Mockito.when(namedParam.getParameterName()).thenReturn("tenantId");
+        MessageSourceResolvable namedMsg = Mockito.mock(MessageSourceResolvable.class);
+        Mockito.when(namedMsg.getDefaultMessage()).thenReturn("must match ^[a-z][a-z0-9_]{1,49}$");
+        ParameterValidationResult namedResult =
+                new ParameterValidationResult(namedParam, "BAD", List.of(namedMsg), null, null, null);
+
+        MethodParameter unnamedParam = Mockito.mock(MethodParameter.class);
+        Mockito.when(unnamedParam.getParameterName()).thenReturn(null);
+        MessageSourceResolvable nullMsg = Mockito.mock(MessageSourceResolvable.class);
+        Mockito.when(nullMsg.getDefaultMessage()).thenReturn(null);
+        ParameterValidationResult unnamedResult =
+                new ParameterValidationResult(unnamedParam, -1, List.of(nullMsg), null, null, null);
+
+        ParameterValidationResult nullMethodParamResult = Mockito.mock(ParameterValidationResult.class);
+        Mockito.when(nullMethodParamResult.getMethodParameter()).thenReturn(null);
+        Mockito.when(nullMethodParamResult.getResolvableErrors()).thenReturn(List.of(nullMsg));
+
+        HandlerMethodValidationException populatedEx = Mockito.mock(HandlerMethodValidationException.class);
+        Mockito.when(populatedEx.getAllValidationResults())
+                .thenReturn(List.of(namedResult, unnamedResult, nullMethodParamResult));
+
+        ResponseEntity<ProblemDetail> populatedResp = handler.handleHandlerMethodValidation(populatedEx, request);
+        assertThat(populatedResp.getStatusCode().value()).isEqualTo(400);
+        assertThat(populatedResp.getBody()).isNotNull();
+        assertThat(populatedResp.getBody().getProperties()).containsEntry("errorCode", "VALIDATION_FAILED");
+        @SuppressWarnings("unchecked")
+        var fieldErrors = (java.util.Map<String, String>) populatedResp.getBody().getProperties().get("fieldErrors");
+        assertThat(fieldErrors)
+                .containsEntry("tenantId", "must match ^[a-z][a-z0-9_]{1,49}$")
+                .containsEntry("parameter", "Invalid value");
+
+        HandlerMethodValidationException emptyEx = Mockito.mock(HandlerMethodValidationException.class);
+        Mockito.when(emptyEx.getAllValidationResults()).thenReturn(List.of());
+
+        ResponseEntity<ProblemDetail> emptyResp = handler.handleHandlerMethodValidation(emptyEx, request);
+        assertThat(emptyResp.getStatusCode().value()).isEqualTo(400);
+        assertThat(emptyResp.getBody()).isNotNull();
+        assertThat(emptyResp.getBody().getProperties()).doesNotContainKey("fieldErrors");
+
+        // Also cover 405 when supportedMethods is null or empty
+        ResponseEntity<ProblemDetail> noAllowNull = handler.handleMethodNotSupported(
+                new HttpRequestMethodNotSupportedException("PATCH"), request);
+        assertThat(noAllowNull.getStatusCode().value()).isEqualTo(405);
+        assertThat(noAllowNull.getHeaders().getAllow()).isEmpty();
+
+        HttpRequestMethodNotSupportedException emptyAllowedEx =
+                new HttpRequestMethodNotSupportedException("PATCH", List.of());
+        ResponseEntity<ProblemDetail> noAllowEmpty = handler.handleMethodNotSupported(emptyAllowedEx, request);
+        assertThat(noAllowEmpty.getStatusCode().value()).isEqualTo(405);
+        assertThat(noAllowEmpty.getHeaders().getAllow()).isEmpty();
     }
 
     @Test
@@ -347,6 +444,21 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/param")
         int param(@RequestParam int size) {
             return size;
+        }
+
+        @GetMapping("/test/missing-header")
+        String missingHeader(@RequestHeader("X-Required") String header) {
+            return header;
+        }
+
+        @GetMapping("/test/missing-part")
+        void missingPart() throws MissingServletRequestPartException {
+            throw new MissingServletRequestPartException("file");
+        }
+
+        @GetMapping(value = "/test/strict-dto-json", produces = MediaType.APPLICATION_JSON_VALUE)
+        StrictPayload strictDtoJson() {
+            return new StrictPayload("ok", "c1", null);
         }
 
         @GetMapping("/test/constraint-violation")

@@ -48,6 +48,7 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 | Variable | Default | Required in Prod | Description |
 | :--- | :--- | :---: | :--- |
 | `SERVER_PORT` | `8081` | No | HTTP listen port for the service. |
+| `AWGMENT_NODE_ID` | `-1` | No | Optional deterministic Snowflake node ID (`0..1023`) for multi-replica K8s pods; `-1` auto-derives from NIC MAC. |
 | `AWGMENT_DB_URL` | `jdbc:postgresql://localhost:5432/awgment_account` | **Yes** | PostgreSQL 16 JDBC URL (use `?sslmode=require` in production). |
 | `AWGMENT_DB_USERNAME` | `awgment` | **Yes** | PostgreSQL username (needs `CREATE` schema privilege on `awgment_account` for tenant provisioning). |
 | `AWGMENT_DB_PASSWORD` | `awgment_local_dev_password` | **Yes** | PostgreSQL password (inject via secret manager / protected env file). |
