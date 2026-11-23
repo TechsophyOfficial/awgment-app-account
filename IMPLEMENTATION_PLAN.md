@@ -69,12 +69,12 @@ flowchart LR
 ### Phase 1 — Multi-Tenancy, Security Core & Tenant Provisioning (`5` UCs)
 * **Use Cases:** `UC-TENANT-01`, `UC-TENANT-02`, `UC-TENANT-03`, `UC-TENANT-04`, `UC-AUTH-01`
 * **Tests Written First:**
-  - [ ] `TenantIdValidatorTest`: valid IDs (`2..50` chars), 51-char rejection, uppercase/special char rejection, reserved denylist (`public`, `master`, `platform`, `information_schema`, `admin`, `system`, `pg_catalog`, `pg_toast`).
-  - [ ] `MultiTenantConnectionProviderIT` (Testcontainers PG 16): `SET search_path TO tenant_<id>` (no `, public` fallback), unconditional `RESET search_path` on release, connection eviction on reset failure, zero cross-tenant leakage under concurrent pool reuse.
-  - [ ] `TenantAuthenticationManagerResolverTest` & `JwtSecurityIT`: Platform Control Realm isolation for `/accounts/v2/tenants/**` (rejects tenant tokens), active `tp_tenant` check before decoder creation (SSRF prevention), mandatory `aud` validation, single-client `JWTRoleConverter`, `ServiceAccountPrincipalDetector` (rejects `preferred_username=service-account-*` spoofing).
-  - [ ] `TenantProvisioningIT`: `POST /tenants` (`PROVISIONING` → `ACTIVE`), failure → `PROVISIONING_FAILED` + `UC-TENANT-02` retry, boot Flyway migration skipping `SUSPENDED`, `PATCH /tenants/{id}/status` disabling KC realm on suspend & running pending Flyway + `KeycloakRealmContractVerifier` before reactivation.
+  - [x] `TenantIdValidatorTest`: valid IDs (`2..50` chars), 51-char rejection, uppercase/special char rejection, reserved denylist (`public`, `master`, `platform`, `information_schema`, `admin`, `system`, `pg_catalog`, `pg_toast`).
+  - [x] `MultiTenantConnectionProviderIT` (Testcontainers PG 16): `SET search_path TO tenant_<id>` (no `, public` fallback), unconditional `RESET search_path` on release, connection eviction on reset failure, zero cross-tenant leakage under concurrent pool reuse.
+  - [x] `TenantAuthenticationManagerResolverTest` & `JwtSecurityVaptTest`: Platform Control Realm isolation for `/accounts/v2/tenants/**` (rejects tenant tokens), active `tp_tenant` check before decoder creation (SSRF prevention), mandatory `aud` validation, single-client `JwtRoleConverter`, `ServiceAccountPrincipalDetector` (rejects `preferred_username=service-account-*` spoofing).
+  - [x] `TenantProvisioningIT`: `POST /tenants` (`PROVISIONING` → `ACTIVE`), failure → `PROVISIONING_FAILED` + `UC-TENANT-02` retry, boot Flyway migration skipping `SUSPENDED`/`PROVISIONING_FAILED`, `PATCH /tenants/{id}/status` disabling KC realm on suspend & running pending Flyway + `KeycloakRealmContractVerifier` before reactivation.
 * **Implementation:**
-  - [ ] Flyway `V1` migrations (`public.tp_tenant` + tenant baseline schemas), `TenantContext`, Hibernate 6 `CurrentTenantIdentifierResolver` & `MultiTenantConnectionProvider`, `SecurityFilterChain`, `KeycloakRealmContractVerifier`, `tp_security_audit_log`, `TenantController`/`TenantService`.
+  - [x] Flyway `V1` migrations (`public.tp_tenant` + tenant baseline schemas), `TenantContext`, Hibernate 6 `CurrentTenantIdentifierResolver` & `MultiTenantConnectionProvider`, `SecurityFilterChain`, `KeycloakRealmContractVerifier`, `tp_security_audit_log`, `TenantController`/`TenantService`.
 * **Exit Gate:** All Phase 1 unit & Testcontainers tests green; `>= 85%` coverage.
 
 ---
@@ -178,7 +178,7 @@ flowchart LR
 | Phase | Use Cases | Status |
 | :--- | :---: | :--- |
 | **Phase 0:** Modernization Bootstrap, Pruning & Keycloak 26 Test Harness | — | Completed (`feat/phase-0-bootstrap-keycloak-harness`) |
-| **Phase 1:** Multi-Tenancy, Security Core & Tenant Provisioning | 5 | Not Started |
+| **Phase 1:** Multi-Tenancy, Security Core & Tenant Provisioning | 5 | Completed (`feat/phase-1-multitenancy-tenant-lifecycle`) |
 | **Phase 2:** Core User Profiles, `/me` & Coalesced Outbox | 9 | Not Started |
 | **Phase 3:** Trusted IdPs, JIT Onboarding & Approvals | 7 | Not Started |
 | **Phase 4A:** Governed Roles & Action Emails | 7 | Not Started |
@@ -186,4 +186,4 @@ flowchart LR
 | **Phase 5:** Fine-Grained ACL Engine & Delegation | 6 | Not Started |
 | **Phase 6:** Crash-Safe Durable Bulk Queue | 4 | Not Started |
 | **Phase 7:** Production Keycloak 26 Packaging, Full E2E & Developer Guide | — | Not Started |
-| **Total Core Implementation** | **44** | **0 / 44** |
+| **Total Core Implementation** | **44** | **5 / 44** |

@@ -56,12 +56,34 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 | `AWGMENT_DB_POOL_MIN_IDLE` | `5` | No | HikariCP minimum idle connections. |
 | `AWGMENT_DB_CONN_TIMEOUT_MS` | `9500` | No | HikariCP connection acquisition timeout (ms). |
 | `AWGMENT_DB_LEAK_THRESHOLD_MS` | `0` | No | HikariCP leak detection threshold (ms; `0` disabled by default to avoid false alarms during migrations/bulk imports). |
-| `AWGMENT_FLYWAY_ENABLED` | `true` | No | Enables Flyway migrations on startup. |
+| `AWGMENT_FLYWAY_ENABLED` | `true` | No | Enables Spring Boot Flyway migrations on `public` schema at startup. |
+| `AWGMENT_FLYWAY_MIGRATE_ON_STARTUP` | `true` | No | Enables `TenantFlywayMigrator` startup migration of `public` and all `ACTIVE` tenant schemas (`SUSPENDED` and `PROVISIONING_FAILED` tenants are skipped). |
+| `AWGMENT_MULTITENANCY_ENABLED` | `true` | No | Enables Hibernate 6 schema-per-tenant connection routing (`SET search_path TO tenant_<id>`). |
+| `AWGMENT_TENANT_STATUS_CACHE_TTL_SECONDS` | `60` | No | Bounded TTL (seconds, capped at `60`) for `TenantLookupService` status cache. |
 | `AWGMENT_KEYCLOAK_URL` | `http://localhost:8080` | **Yes** | Base URL of the Keycloak 26 server (no trailing slash). |
 | `AWGMENT_PLATFORM_REALM` | `platform` | **Yes** | Dedicated Platform Control Realm authorized for `/accounts/v2/tenants/**`. |
 | `AWGMENT_EXPECTED_AUDIENCE` | `awgment-account` | **Yes** | Mandatory JWT `aud` claim verified on every bearer token. |
 | `AWGMENT_TRUSTED_CLIENT_ID` | `awgment-account` | **Yes** | Single trusted Keycloak client from which Awgment RBAC roles are extracted. |
+| `AWGMENT_SERVICE_ACCOUNT_CLIENTS` | `awgment-service-client` | No | Comma-separated allowlist of confidential client IDs accepted by `ServiceAccountPrincipalDetector`. |
+| `AWGMENT_KEYCLOAK_ADMIN_REALM` | `master` | **Yes** | Realm used by `KeycloakAdminRealmClient` when inspecting/updating tenant realms. |
+| `AWGMENT_KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | **Yes** | Client ID for Keycloak Admin REST access. |
+| `AWGMENT_KEYCLOAK_ADMIN_CLIENT_SECRET` | *(blank)* | Conditional | Confidential client secret; when non-blank uses `client_credentials` grant, otherwise uses `password` grant. |
+| `AWGMENT_KEYCLOAK_ADMIN_USERNAME` | `admin` | Conditional | Admin username when using `password` grant (`AWGMENT_KEYCLOAK_ADMIN_CLIENT_SECRET` blank). |
+| `AWGMENT_KEYCLOAK_ADMIN_PASSWORD` | `admin_local_dev_password` | Conditional | Admin password when using `password` grant (override via secret manager in production). |
+| `AWGMENT_KEYCLOAK_CONNECT_TIMEOUT_MS` | `5000` | No | Bounded HTTP connect timeout (ms) for Keycloak Admin REST calls. |
+| `AWGMENT_KEYCLOAK_READ_TIMEOUT_MS` | `8000` | No | Bounded HTTP read timeout (ms) for Keycloak Admin REST calls. |
 | `AWGMENT_OPENAPI_ENABLED` | `false` | No | Exposes `/v3/api-docs` & `/swagger-ui.html`. **Must remain `false` in production.** |
+
+### Implemented Phase 1 Endpoints (`/accounts/v2/tenants/**`)
+
+All tenant management endpoints strictly require a valid bearer JWT issued by `AWGMENT_PLATFORM_REALM` (`iss` prefix-validated before any JWKS fetch), containing `aud = AWGMENT_EXPECTED_AUDIENCE`, and holding the `awgment-platform-admin` role on `AWGMENT_TRUSTED_CLIENT_ID`. Tenant-realm tokens are rejected with `403 TENANT_NOT_ACTIVE`.
+
+| Use Case | Method & Path | Description |
+| :--- | :--- | :--- |
+| `UC-TENANT-01` | `POST /accounts/v2/tenants` | Validates `tenantId` (`^[a-z][a-z0-9_]{1,49}$` + reserved denylist), creates `tenant_<tenantId>`, runs Flyway migrations, seeds `system` + optional bootstrap approver, verifies Keycloak 26 Section 3 realm security contract, and activates tenant (`201 Created`). Commits `PROVISIONING_FAILED` on downstream error. |
+| `UC-TENANT-02` | `POST /accounts/v2/tenants/{tenantId}/retry-provisioning` | Idempotently resumes a `PROVISIONING_FAILED` tenant (`200 OK`; `409 INVALID_STATE_TRANSITION` for other states). |
+| `UC-TENANT-03` | `GET /accounts/v2/tenants` | Paginated tenant listing with optional `status` filter, bounded `page >= 0` & `size` (`1..100`), and allowlisted `sort` fields (`tenantId`, `displayName`, `status`, `createdAt`, `updatedAt`). |
+| `UC-TENANT-04` | `PATCH /accounts/v2/tenants/{tenantId}/status` | Optimistic-locked (`version`) platform-wide suspension (`ACTIVE -> SUSPENDED`, disabling the Keycloak realm & evicting caches) or reactivation (`SUSPENDED -> ACTIVE`, executing pending Flyway migrations & Section 3 realm verification before admitting traffic). |
 
 ---
 

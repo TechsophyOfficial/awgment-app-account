@@ -4,19 +4,30 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.error.ApiErrorCode;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies Postman Collection v2.1 schema compliance, zero hardcoded secrets/tokens,
- * valid JSON & RFC 7807 ApiErrorCode parity in saved examples, and endpoint coverage.
+ * valid JSON & RFC 7807 ApiErrorCode parity in saved examples, and strict 1:1 endpoint
+ * parity with all Spring MVC {@code /accounts/v2/**} controller mappings.
  */
+@SpringBootTest
+@ActiveProfiles("test")
 class PostmanCollectionContractTest {
 
     private static final Path COLLECTION_PATH =
@@ -24,7 +35,12 @@ class PostmanCollectionContractTest {
     private static final Path ENVIRONMENT_PATH =
             Path.of("docs/postman/awgment-local.postman_environment.json");
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    @Qualifier("requestMappingHandlerMapping")
+    private RequestMappingHandlerMapping handlerMapping;
 
     @Test
     void postmanCollectionShouldConformToV21SchemaAndContainZeroHardcodedSecrets() throws IOException {
@@ -57,6 +73,42 @@ class PostmanCollectionContractTest {
                 "GET /accounts/v2/tenants",
                 "PATCH /accounts/v2/tenants/{{tenantId}}/status"
         );
+    }
+
+    @Test
+    void postmanCollectionShouldHave1To1ParityWithAllAccountsV2ControllerEndpoints() throws IOException {
+        Set<String> controllerApiEndpoints = new TreeSet<>();
+        for (RequestMappingInfo info : handlerMapping.getHandlerMethods().keySet()) {
+            Set<RequestMethod> methods = info.getMethodsCondition().getMethods();
+            for (String pattern : info.getPatternValues()) {
+                if (!pattern.startsWith("/accounts/v2")) {
+                    continue;
+                }
+                String normalizedPath = pattern.replaceAll("\\{[^}]+\\}", "{var}");
+                for (RequestMethod method : methods) {
+                    controllerApiEndpoints.add(method.name() + " " + normalizedPath);
+                }
+            }
+        }
+
+        JsonNode root = objectMapper.readTree(Files.readString(COLLECTION_PATH));
+        Set<String> rawPostmanEndpoints = new HashSet<>();
+        validateItemsRecursively(root.path("item"), rawPostmanEndpoints);
+
+        Set<String> postmanApiEndpoints = new TreeSet<>();
+        for (String entry : rawPostmanEndpoints) {
+            int spaceIdx = entry.indexOf(' ');
+            String method = entry.substring(0, spaceIdx);
+            String path = entry.substring(spaceIdx + 1);
+            if (path.startsWith("/accounts/v2")) {
+                postmanApiEndpoints.add(method + " " + path.replaceAll("\\{\\{[^}]+\\}\\}", "{var}"));
+            }
+        }
+
+        assertThat(controllerApiEndpoints).isNotEmpty();
+        assertThat(postmanApiEndpoints)
+                .as("Postman collection /accounts/v2 endpoints must match Spring controllers 1:1")
+                .containsExactlyInAnyOrderElementsOf(controllerApiEndpoints);
     }
 
     @Test
