@@ -5,7 +5,7 @@
 **Engineering Rules:** [GEMINI.md](../GEMINI.md) · [CLAUDE.md](../CLAUDE.md) · [CHATGPT_INSTRUCTIONS.md](../CHATGPT_INSTRUCTIONS.md)
 
 > **Mandatory Execution Discipline (Every Phase):**
-> 1. **Tests First (TDD):** Write unit & Testcontainers integration tests *before* production code — covering happy paths, boundary conditions, RBAC/escalation denials, tenant isolation, concurrency races, and failure/recovery flows.
+> 1. **Tests First & Exhaustive Edge Cases (TDD):** Write unit & Testcontainers integration tests *before* production code — always covering happy paths, boundary values (`null`/empty/`0`/negative/min-max), malformed payloads, RBAC/escalation denials, tenant isolation, multi-threaded & distributed concurrency races, negative security boundaries (expired/tampered JWTs, default-deny endpoints), contract invariants, and failure/recovery flows, with explicit branch coverage on every conditional.
 > 2. **Production Integrity:** Never alter production business logic just to force a test to pass.
 > 3. **Quality Gate:** Every phase ends with `./gradlew check` green and **>= 85% JaCoCo coverage**.
 > 4. **Lockstep Docs & Postman Collection:** Update OpenAPI annotations, Flyway docs, error codes, Postman Collection v2.1 (`docs/postman/awgment-app-account-v2.postman_collection.json` + `awgment-local.postman_environment.json` with 1:1 endpoint parity test), and developer guides at the close of every phase.

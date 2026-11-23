@@ -4,8 +4,16 @@ import com.techsophy.idgenerator.IdGeneratorImpl;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,6 +32,45 @@ class IdGeneratorConfigTest {
             assertThat(id).isGreaterThan(previous);
             assertThat(generated.add(id)).isTrue();
             previous = id;
+        }
+    }
+
+    @Test
+    void shouldGenerateZeroDuplicatesUnderConcurrentMultiThreadedContention() throws Exception {
+        IdGeneratorImpl generator = new IdGeneratorConfig().idGenerator();
+        int threads = 8;
+        int idsPerThread = 250;
+        Set<BigInteger> allIds = ConcurrentHashMap.newKeySet();
+        CountDownLatch ready = new CountDownLatch(threads);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(threads)) {
+            List<Future<Integer>> futures = new ArrayList<>();
+            for (int t = 0; t < threads; t++) {
+                Callable<Integer> task = () -> {
+                    ready.countDown();
+                    start.await();
+                    int added = 0;
+                    for (int i = 0; i < idsPerThread; i++) {
+                        BigInteger id = generator.nextId();
+                        assertThat(id).isNotNull().isGreaterThan(BigInteger.ZERO);
+                        if (allIds.add(id)) {
+                            added++;
+                        }
+                    }
+                    return added;
+                };
+                futures.add(pool.submit(task));
+            }
+            ready.await();
+            start.countDown();
+
+            int totalAdded = 0;
+            for (Future<Integer> future : futures) {
+                totalAdded += future.get();
+            }
+            assertThat(totalAdded).isEqualTo(threads * idsPerThread);
+            assertThat(allIds).hasSize(threads * idsPerThread);
         }
     }
 }

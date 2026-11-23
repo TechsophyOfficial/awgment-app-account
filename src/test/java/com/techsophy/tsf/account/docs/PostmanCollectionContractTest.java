@@ -2,6 +2,7 @@ package com.techsophy.tsf.account.docs;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.techsophy.tsf.account.error.ApiErrorCode;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -14,7 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Verifies Postman Collection v2.1 schema compliance, zero hardcoded secrets/tokens,
- * and endpoint coverage for all implemented REST endpoints (Phase 1 baseline).
+ * valid JSON & RFC 7807 ApiErrorCode parity in saved examples, and endpoint coverage.
  */
 class PostmanCollectionContractTest {
 
@@ -43,10 +44,10 @@ class PostmanCollectionContractTest {
     }
 
     @Test
-    void postmanCollectionShouldCoverAllPhase1EndpointsWithScriptsAndExamples() throws IOException {
+    void postmanCollectionShouldCoverAllPhase1EndpointsWithValidExamplesAndScripts() throws IOException {
         JsonNode root = objectMapper.readTree(Files.readString(COLLECTION_PATH));
         Set<String> endpoints = new HashSet<>();
-        collectEndpoints(root.path("item"), endpoints);
+        validateItemsRecursively(root.path("item"), endpoints);
 
         assertThat(endpoints).contains(
                 "GET /actuator/health/liveness",
@@ -76,15 +77,23 @@ class PostmanCollectionContractTest {
         assertThat(keys).contains("baseUrl", "keycloakUrl", "platformToken", "accessToken", "tenantId");
     }
 
-    private void collectEndpoints(JsonNode items, Set<String> endpoints) {
+    private void validateItemsRecursively(JsonNode items, Set<String> endpoints) throws IOException {
         for (JsonNode item : items) {
             if (item.has("item")) {
-                collectEndpoints(item.path("item"), endpoints);
+                validateItemsRecursively(item.path("item"), endpoints);
                 continue;
             }
+            String requestName = item.path("name").asText();
             JsonNode req = item.path("request");
             String method = req.path("method").asText();
             String rawUrl = req.path("url").path("raw").asText();
+
+            // Request URLs must always use parameterized host variables, never hardcoded localhost/http hosts
+            assertThat(rawUrl)
+                    .as("Request '%s' must parameterize host via {{baseUrl}} or {{keycloakUrl}}", requestName)
+                    .doesNotContain("http://")
+                    .doesNotContain("https://");
+
             String normalizedPath = rawUrl
                     .replace("{{baseUrl}}", "")
                     .replaceAll("\\?.*$", "");
@@ -101,8 +110,40 @@ class PostmanCollectionContractTest {
                 }
             }
             assertThat(hasPmTest)
-                    .as("Request '%s' must include a pm.test(...) script", item.path("name").asText())
+                    .as("Request '%s' must include a pm.test(...) script", requestName)
                     .isTrue();
+
+            // Validate every saved response example body is valid JSON and 4xx/5xx examples match ApiErrorCode
+            for (JsonNode responseExample : item.path("response")) {
+                int code = responseExample.path("code").asInt();
+                String body = responseExample.path("body").asText();
+                if (code != 204 && !body.isBlank()) {
+                    JsonNode parsedBody = objectMapper.readTree(body);
+                    if (code >= 400) {
+                        String errorCode = parsedBody.path("errorCode").asText();
+                        assertThat(errorCode)
+                                .as("Error example '%s' on '%s' must declare errorCode",
+                                        responseExample.path("name").asText(), requestName)
+                                .isNotBlank();
+                        ApiErrorCode enumValue = ApiErrorCode.valueOf(errorCode);
+                        assertThat(enumValue.status().value())
+                                .as("Example HTTP code must match ApiErrorCode.%s", errorCode)
+                                .isEqualTo(code);
+
+                        boolean hasProblemJsonHeader = false;
+                        for (JsonNode header : responseExample.path("header")) {
+                            if ("Content-Type".equalsIgnoreCase(header.path("key").asText())
+                                    && header.path("value").asText().contains("application/problem+json")) {
+                                hasProblemJsonHeader = true;
+                            }
+                        }
+                        assertThat(hasProblemJsonHeader)
+                                .as("Error example '%s' must use application/problem+json",
+                                        responseExample.path("name").asText())
+                                .isTrue();
+                    }
+                }
+            }
         }
     }
 }

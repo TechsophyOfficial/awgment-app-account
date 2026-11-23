@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -18,6 +20,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URI;
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
@@ -48,6 +55,7 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/pending"))
                 .andExpect(status().isForbidden())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(header().doesNotExist("Retry-After"))
                 .andExpect(jsonPath("$.status").value(403))
                 .andExpect(jsonPath("$.errorCode").value("ACCESS_PENDING_APPROVAL"))
                 .andExpect(jsonPath("$.detail").value("Account is pending administrator approval."))
@@ -55,10 +63,23 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldIncludeRetryAfterHeaderForRateLimitExceeded() throws Exception {
+    void shouldIncludeRetryAfterHeaderForPositiveRateLimitCooldown() throws Exception {
         mockMvc.perform(get("/test/rate-limit"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(header().string("Retry-After", "60"))
+                .andExpect(jsonPath("$.errorCode").value("RATE_LIMIT_EXCEEDED"));
+    }
+
+    @Test
+    void shouldOmitRetryAfterHeaderWhenCooldownIsZeroOrNegative() throws Exception {
+        mockMvc.perform(get("/test/rate-limit-zero"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().doesNotExist("Retry-After"))
+                .andExpect(jsonPath("$.errorCode").value("RATE_LIMIT_EXCEEDED"));
+
+        mockMvc.perform(get("/test/rate-limit-negative"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().doesNotExist("Retry-After"))
                 .andExpect(jsonPath("$.errorCode").value("RATE_LIMIT_EXCEEDED"));
     }
 
@@ -73,23 +94,33 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldMapMalformedJsonToValidationFailed() throws Exception {
+    void shouldMapMalformedAndEmptyJsonBodyToValidationFailed() throws Exception {
         mockMvc.perform(post("/test/strict-dto")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{malformed-json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        mockMvc.perform(post("/test/strict-dto")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(""))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
     }
 
     @Test
-    void shouldMapValidationErrorsToValidationFailedProblemDetail() throws Exception {
+    void shouldMapMultipleAndDuplicateFieldValidationErrorsDeterministically() throws Exception {
+        // Blank displayName violates @NotBlank, @Size, and @Pattern simultaneously; code violates @NotBlank
         mockMvc.perform(post("/test/strict-dto")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"displayName\":\"\"}"))
+                        .content("{\"displayName\":\"\",\"code\":\"\"}"))
                 .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
-                .andExpect(jsonPath("$.fieldErrors.displayName").exists());
+                .andExpect(jsonPath("$.fieldErrors.displayName").exists())
+                .andExpect(jsonPath("$.fieldErrors.code").exists());
     }
 
     @Test
@@ -115,8 +146,25 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.detail", not(containsString("SELECT * FROM secret"))));
     }
 
+    @Test
+    void everyApiErrorCodeShouldHaveUniqueTypeUriNonBlankTitleAndValidHttpStatus() {
+        Set<URI> seenTypes = new HashSet<>();
+        for (ApiErrorCode code : ApiErrorCode.values()) {
+            assertThat(code.status()).isNotNull();
+            assertThat(code.title()).isNotBlank();
+            assertThat(code.type()).isNotNull();
+            assertThat(code.type().toString()).startsWith("https://awgment.dev/errors/");
+            assertThat(seenTypes.add(code.type()))
+                    .as("Duplicate error type URI for %s", code.name())
+                    .isTrue();
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = false)
-    record StrictPayload(@NotBlank String displayName) {
+    record StrictPayload(
+            @NotBlank @Size(min = 2, max = 50) @Pattern(regexp = "^[a-zA-Z0-9 ]+$") String displayName,
+            @NotBlank String code
+    ) {
     }
 
     @RestController
@@ -129,6 +177,16 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/rate-limit")
         void rateLimit() {
             throw ApiException.rateLimited("Please wait before requesting another email.", 60L);
+        }
+
+        @GetMapping("/test/rate-limit-zero")
+        void rateLimitZero() {
+            throw ApiException.rateLimited("Cooldown edge zero.", 0L);
+        }
+
+        @GetMapping("/test/rate-limit-negative")
+        void rateLimitNegative() {
+            throw ApiException.rateLimited("Cooldown edge negative.", -5L);
         }
 
         @PostMapping("/test/strict-dto")

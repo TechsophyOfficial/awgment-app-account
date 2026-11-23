@@ -48,12 +48,14 @@ public final class TestJwtFactory {
 
     public String mintToken(TokenSpec spec) {
         Instant now = Instant.now();
+        Instant expiresAt = now.plusSeconds(spec.expiresInSeconds());
+        Instant issuedAt = spec.expiresInSeconds() > 0 ? now : expiresAt.minusSeconds(60);
         JwtClaimsSet.Builder builder = JwtClaimsSet.builder()
                 .issuer(spec.issuer())
                 .subject(spec.subject())
                 .audience(spec.audience())
-                .issuedAt(now)
-                .expiresAt(now.plusSeconds(spec.expiresInSeconds()))
+                .issuedAt(issuedAt)
+                .expiresAt(expiresAt)
                 .claim("azp", spec.authorizedParty())
                 .claim("preferred_username", spec.preferredUsername());
 

@@ -2,11 +2,14 @@ package com.techsophy.tsf.account.support;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.jwt.JwtValidationException;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TestJwtFactoryTest {
 
@@ -66,5 +69,66 @@ class TestJwtFactoryTest {
         assertThat(jwt.getClaimAsString("idp_tenant_id")).isEqualTo("acme-entra-tenant-uuid");
         assertThat(jwt.getClaimAsStringList("groups")).containsExactly("/engineering");
         assertThat(jwt.getClaimAsString("awgment_status")).isNull();
+    }
+
+    @Test
+    void shouldRejectExpiredJwtOnDecode() {
+        TestJwtFactory.TokenSpec expired = new TestJwtFactory.TokenSpec(
+                "http://localhost:8080/realms/acme",
+                "sub-expired",
+                List.of("awgment-account"),
+                "awgment-web",
+                "expired-user",
+                null,
+                true,
+                null,
+                null,
+                "ACTIVE",
+                null,
+                null,
+                null,
+                null,
+                -120
+        );
+
+        String token = factory.mintToken(expired);
+        assertThatThrownBy(() -> factory.decode(token))
+                .isInstanceOf(JwtValidationException.class);
+    }
+
+    @Test
+    void shouldRejectTokenSignedWithDifferentRsaKey() {
+        TestJwtFactory untrustedIssuer = new TestJwtFactory();
+        String forgedToken = untrustedIssuer.mintToken(TestJwtFactory.TokenSpec.activeHuman(
+                "acme", "sub-forged", "attacker", List.of("awgment-platform-admin")));
+
+        assertThatThrownBy(() -> factory.decoder().decode(forgedToken))
+                .isInstanceOf(JwtException.class);
+    }
+
+    @Test
+    void shouldHandleNullOptionalCollectionsGracefully() {
+        TestJwtFactory.TokenSpec minimal = new TestJwtFactory.TokenSpec(
+                "http://localhost:8080/realms/acme",
+                "sub-min",
+                List.of("awgment-account"),
+                "awgment-web",
+                "minimal-user",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                300
+        );
+
+        Jwt jwt = factory.decode(factory.mintToken(minimal));
+        assertThat(jwt.getSubject()).isEqualTo("sub-min");
+        assertThat(jwt.hasClaim("resource_access")).isFalse();
+        assertThat(jwt.hasClaim("groups")).isFalse();
     }
 }
