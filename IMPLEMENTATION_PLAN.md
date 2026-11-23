@@ -8,7 +8,7 @@
 > 1. **Tests First (TDD):** Write unit & Testcontainers integration tests *before* production code — covering happy paths, boundary conditions, RBAC/escalation denials, tenant isolation, concurrency races, and failure/recovery flows.
 > 2. **Production Integrity:** Never alter production business logic just to force a test to pass.
 > 3. **Quality Gate:** Every phase ends with `./gradlew check` green and **>= 85% JaCoCo coverage**.
-> 4. **Lockstep Docs:** Update OpenAPI annotations, Flyway docs, error codes, and developer guides at the close of every phase.
+> 4. **Lockstep Docs & Postman Collection:** Update OpenAPI annotations, Flyway docs, error codes, Postman Collection v2.1 (`docs/postman/awgment-app-account-v2.postman_collection.json` + `awgment-local.postman_environment.json` with 1:1 endpoint parity test), and developer guides at the close of every phase.
 
 ---
 
@@ -160,7 +160,7 @@ flowchart LR
 * **Deliverables:**
   - [ ] Finalize `awgment-keycloak` production Quarkus `26.0.5` `Dockerfile` (removing legacy WildFly/JBoss configs and retired `ts_awgment_user_register_spi` push callback; retaining modernized themes).
   - [ ] Full cross-domain E2E suite (`./gradlew integrationTest`) running real **PostgreSQL 16 + Keycloak 26.0.5 + Mailpit** containers verifying all 7 scenarios in `USE_CASES.md` Section 10 end-to-end.
-  - [ ] Export verified OpenAPI 3 specification (`openapi-v2.yaml`) and rewrite [awgment-app-account/README.md](./README.md) with architecture overview, local Keycloak/Mailpit setup, realm security contract verification, error catalog, and testing runbook.
+  - [ ] Export verified OpenAPI 3 specification (`openapi-v2.yaml`), finalize Postman Collection v2.1 (`docs/postman/awgment-app-account-v2.postman_collection.json` + `awgment-local.postman_environment.json` with 100% endpoint parity test), and verify [awgment-app-account/README.md](./README.md) with architecture overview, local Keycloak/Mailpit setup, realm security contract verification, error catalog, and testing/deployment runbooks.
 * **Exit Gate:** Clean `./gradlew check integrationTest` (`>= 85%` JaCoCo) + live `docker compose` smoke runbook green.
 
 ---
