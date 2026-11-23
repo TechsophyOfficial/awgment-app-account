@@ -1,0 +1,16 @@
+.git
+.gradle
+.circleci
+.github
+docs
+src
+gradle
+build/*
+!build/libs
+build/libs/*-plain.jar
+*.md
+*.yaml
+*.yml
+docker.env
+gradlew
+gradlew.bat

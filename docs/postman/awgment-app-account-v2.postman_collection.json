@@ -242,7 +242,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"displayName\": \"Acme Corporation\",\n  \"keycloakRealm\": \"{{tenantRealm}}\",\n  \"bootstrapAdminEmail\": \"{{bootstrapAdminEmail}}\",\n  \"bootstrapAdminFirstName\": \"Acme\",\n  \"bootstrapAdminLastName\": \"Approver\"\n}",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"displayName\": \"Acme Corporation\",\n  \"bootstrapAdminEmail\": \"{{bootstrapAdminEmail}}\",\n  \"bootstrapAdminFirstName\": \"Acme\",\n  \"bootstrapAdminLastName\": \"Approver\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -262,7 +262,7 @@
               "status": "Created",
               "code": 201,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"keycloakRealm\": \"acme\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 1,\n  \"createdAt\": \"2026-11-23T05:00:00Z\",\n  \"updatedAt\": \"2026-11-23T05:00:01Z\"\n}"
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 1,\n  \"createdAt\": \"2026-11-23T05:00:00Z\",\n  \"updatedAt\": \"2026-11-23T05:00:01Z\"\n}"
             },
             {
               "name": "400 Bad Request - INVALID_TENANT_ID",
@@ -330,7 +330,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"keycloakRealm\": \"acme\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 2,\n  \"updatedAt\": \"2026-11-23T05:05:00Z\"\n}"
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 2,\n  \"updatedAt\": \"2026-11-23T05:05:00Z\"\n}"
             },
             {
               "name": "409 Conflict - INVALID_STATE_TRANSITION",
@@ -398,7 +398,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"content\": [\n    {\n      \"tenantId\": \"acme\",\n      \"schemaName\": \"tenant_acme\",\n      \"displayName\": \"Acme Corporation\",\n      \"keycloakRealm\": \"acme\",\n      \"status\": \"ACTIVE\",\n      \"version\": 1,\n      \"createdAt\": \"2026-11-23T05:00:00Z\",\n      \"updatedAt\": \"2026-11-23T05:00:01Z\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 20,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
+              "body": "{\n  \"content\": [\n    {\n      \"tenantId\": \"acme\",\n      \"schemaName\": \"tenant_acme\",\n      \"displayName\": \"Acme Corporation\",\n      \"status\": \"ACTIVE\",\n      \"version\": 1,\n      \"createdAt\": \"2026-11-23T05:00:00Z\",\n      \"updatedAt\": \"2026-11-23T05:00:01Z\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 20,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
             }
           ]
         },

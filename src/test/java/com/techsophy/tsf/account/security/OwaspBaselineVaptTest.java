@@ -11,10 +11,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.security.oauth2.jwt.JwtException;
-import org.springframework.security.web.firewall.RequestRejectedException;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -23,7 +22,10 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
 
@@ -40,9 +42,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Phase 0 OWASP API Security Top 10 (2023) baseline VAPT suite covering:
- * API2 (JWT alg:none & payload tampering), API4 (deeply nested JSON DoS),
- * API5 (HTTP TRACE method tampering), API8 (strict security headers & StrictHttpFirewall),
- * and API9 (decommissioned v1 shadow route non-exposure).
+ * API2 (JWT alg:none, HS256 algorithm confusion, tampered payload, future nbf),
+ * API3 (Spring Boot auto-configured ObjectMapper BOPLA rejection),
+ * API4 (deeply nested JSON DoS),
+ * API5 (HTTP TRACE method tampering),
+ * API8 (strict security headers & StrictHttpFirewall RFC 7807 rejection),
+ * and API9 (authenticated check that decommissioned v1 shadow routes return 404).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -51,6 +56,9 @@ class OwaspBaselineVaptTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper springBootObjectMapper;
 
     @Test
     void api8_shouldEmitStrictOwaspSecurityHeadersWithoutServerBannersOnPublicAndProtectedRoutes() throws Exception {
@@ -84,29 +92,27 @@ class OwaspBaselineVaptTest {
     }
 
     @Test
-    void api8_strictHttpFirewallShouldRejectSemicolonEncodedSlashDoubleSlashAndNullByteTraversal() throws Exception {
+    void api8_strictHttpFirewallShouldReturnRfc7807BadRequestWithSecurityHeadersOnMaliciousPaths() throws Exception {
         String[] maliciousPaths = new String[]{
                 "/actuator/health/liveness;jsessionid=evil",
                 "/actuator/health/liveness/..%2fenv",
                 "/accounts/v2/users%00",
-                "/accounts/v2//users"
+                "/accounts/v2/%5cusers"
         };
 
         for (String malicious : maliciousPaths) {
-            try {
-                MvcResult result = mockMvc.perform(get(malicious)).andReturn();
-                assertThat(result.getResponse().getStatus())
-                        .as("Malicious path %s must be blocked with 400/401/403", malicious)
-                        .isIn(400, 401, 403);
-            } catch (RequestRejectedException expected) {
-                // Spring Security StrictHttpFirewall rejected the malformed path before servlet dispatch
-                assertThat(expected.getMessage()).isNotBlank();
-            }
+            mockMvc.perform(get(malicious))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                    .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                    .andExpect(header().string("X-Frame-Options", "DENY"));
         }
     }
 
     @Test
-    void api9_decommissionedV1ShadowEndpointsMustNeverBeExposed() throws Exception {
+    @WithMockUser(roles = "ADMIN")
+    void api9_decommissionedV1ShadowEndpointsMustReturn404EvenWhenAuthenticated() throws Exception {
         String[] retiredV1Paths = new String[]{
                 "/accounts/v1/users",
                 "/internal/v1/users/create",
@@ -117,25 +123,37 @@ class OwaspBaselineVaptTest {
 
         for (String path : retiredV1Paths) {
             mockMvc.perform(get(path))
-                    .andExpect(status().isUnauthorized())
+                    .andExpect(status().isNotFound())
                     .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                    .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
+                    .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
         }
     }
 
     @Test
-    void api2_shouldRejectAlgNoneTamperedPayloadAndMalformedJwtAttacks() {
+    void api2_shouldRejectAlgNoneHs256ConfusionTamperedPayloadAndMalformedJwtAttacks() throws Exception {
         TestJwtFactory factory = new TestJwtFactory();
 
         // 1. Unsigned alg:none JWT attack
         String noneHeader = base64Url("{\"alg\":\"none\",\"typ\":\"JWT\"}");
         String escalatedPayload = base64Url(
-                "{\"iss\":\"http://localhost:8080/realms/platform\",\"sub\":\"attacker\",\"aud\":[\"awgment-account\"]}");
+                "{\"iss\":\"http://localhost:8080/realms/platform\",\"sub\":\"attacker\",\"aud\":[\"awgment-account\"],\"exp\":"
+                        + Instant.now().plusSeconds(300).getEpochSecond() + "}");
         String algNoneToken = noneHeader + "." + escalatedPayload + ".";
         assertThatThrownBy(() -> factory.decode(algNoneToken))
                 .isInstanceOf(JwtException.class);
 
-        // 2. Tampered payload on a legitimately signed RS256 token
+        // 2. HS256 symmetric algorithm-confusion attack against RS256 decoder
+        String hs256Header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+        String signingInput = hs256Header + "." + escalatedPayload;
+        Mac hmac = Mac.getInstance("HmacSHA256");
+        hmac.init(new SecretKeySpec("attacker-known-public-key-secret".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        String hs256Sig = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(hmac.doFinal(signingInput.getBytes(StandardCharsets.UTF_8)));
+        String hs256Token = signingInput + "." + hs256Sig;
+        assertThatThrownBy(() -> factory.decode(hs256Token))
+                .isInstanceOf(JwtException.class);
+
+        // 3. Tampered payload on a legitimately signed RS256 token
         String validToken = factory.mintToken(TestJwtFactory.TokenSpec.activeHuman(
                 "acme", "sub-1", "normal-user", List.of("awgment-user")));
         String[] parts = validToken.split("\\.");
@@ -143,22 +161,28 @@ class OwaspBaselineVaptTest {
         assertThatThrownBy(() -> factory.decode(tamperedToken))
                 .isInstanceOf(JwtException.class);
 
-        // 3. Garbage non-JWT token
+        // 4. Garbage non-JWT token
         assertThatThrownBy(() -> factory.decode("not.a.valid.jwt"))
                 .isInstanceOf(JwtException.class);
     }
 
     @Test
-    void api4_shouldRejectDeeplyNestedJsonDosPayloadCleanlyWith400Not500() throws Exception {
-        ObjectMapper strictMapper = Jackson2ObjectMapperBuilder.json()
-                .failOnUnknownProperties(true)
-                .build();
+    void api3AndApi4_springBootObjectMapperShouldRejectMassAssignmentAndDeeplyNestedJsonDos() throws Exception {
+        // Uses the REAL Spring Boot auto-configured ObjectMapper (not a custom test-only ObjectMapper)
         MockMvc standaloneMvc = MockMvcBuilders.standaloneSetup(new JsonProbeController())
                 .setControllerAdvice(new GlobalExceptionHandler())
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(strictMapper))
+                .setMessageConverters(new MappingJackson2HttpMessageConverter(springBootObjectMapper))
                 .build();
 
-        // 1,500 nested JSON objects exceed Jackson's default max nesting depth (1,000)
+        // API3 BOPLA: unknown privileged field injected into a record WITHOUT @JsonIgnoreProperties
+        standaloneMvc.perform(post("/vapt/json-probe")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"ok\",\"roles\":[\"awgment-platform-admin\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("IMMUTABLE_FIELD_MODIFICATION"));
+
+        // API4 DoS: 1,500 nested JSON objects exceed Jackson's default max nesting depth (1,000)
         int depth = 1500;
         StringBuilder nestedJson = new StringBuilder(depth * 7);
         for (int i = 0; i < depth; i++) {

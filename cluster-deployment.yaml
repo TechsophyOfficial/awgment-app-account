@@ -1,36 +1,82 @@
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: account-app
+  name: awgment-app-account
+  labels:
+    app: awgment-app-account
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      name: account-app
+      app: awgment-app-account
   template:
     metadata:
       labels:
-        name: account-app
+        app: awgment-app-account
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
-      - image: techsophyofficial/awgment-app-account:$IMAGE_VERSION
-        name: account-app
-        imagePullPolicy: Always
-        envFrom:
-        - configMapRef:
-            name: $CONFIG_MAP
-
-        ports:
-        - containerPort: 8080
+        - name: awgment-app-account
+          image: awgment-app-account:2.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: awgment-app-account-config
+            - secretRef:
+                name: awgment-app-account-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: account-app
+  name: awgment-app-account
+  labels:
+    app: awgment-app-account
 spec:
-  type: ClusterIP
-  ports:
-  - port: 8080
   selector:
-    name: account-app
+    app: awgment-app-account
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+  type: ClusterIP

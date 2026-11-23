@@ -2,32 +2,49 @@ package com.techsophy.tsf.account.error;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.validation.BeanPropertyBindingResult;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.net.URI;
 import java.util.HashSet;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -84,13 +101,29 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldMapUnknownJsonPropertyToImmutableFieldModification() throws Exception {
+    void shouldMapUnknownJsonPropertyIncludingNestedDtoToImmutableFieldModification() throws Exception {
         mockMvc.perform(post("/test/strict-dto")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"displayName\":\"ok\",\"department\":\"Injected\"}"))
+                        .content("{\"displayName\":\"ok\",\"code\":\"c1\",\"department\":\"Injected\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("IMMUTABLE_FIELD_MODIFICATION"));
+
+        mockMvc.perform(post("/test/strict-dto")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"displayName\":\"ok\",\"code\":\"c1\",\"nested\":{\"secret\":\"x\"}}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("IMMUTABLE_FIELD_MODIFICATION"));
+
+        // Very long unknown property name (>64 chars) is truncated safely in ProblemDetail detail
+        String longProp = "x".repeat(90);
+        mockMvc.perform(post("/test/strict-dto")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"displayName\":\"ok\",\"code\":\"c1\",\"" + longProp + "\":\"v\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("IMMUTABLE_FIELD_MODIFICATION"))
+                .andExpect(jsonPath("$.detail", not(containsString(longProp))));
     }
 
     @Test
@@ -112,7 +145,6 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void shouldMapMultipleAndDuplicateFieldValidationErrorsDeterministically() throws Exception {
-        // Blank displayName violates @NotBlank, @Size, and @Pattern simultaneously; code violates @NotBlank
         mockMvc.perform(post("/test/strict-dto")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"displayName\":\"\",\"code\":\"\"}"))
@@ -121,6 +153,59 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.fieldErrors.displayName").exists())
                 .andExpect(jsonPath("$.fieldErrors.code").exists());
+    }
+
+    @Test
+    void shouldMapStandardSpringMvc4xxExceptionsInsteadOf500() throws Exception {
+        // 405 Method Not Allowed
+        mockMvc.perform(delete("/test/strict-dto"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("METHOD_NOT_ALLOWED"));
+
+        // 415 Unsupported Media Type
+        mockMvc.perform(post("/test/strict-dto")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("plain"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_MEDIA_TYPE"));
+
+        // 400 Missing required query parameter
+        mockMvc.perform(get("/test/param"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // 400 Parameter type mismatch
+        mockMvc.perform(get("/test/param").param("size", "not-a-number"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // 400 ConstraintViolationException
+        mockMvc.perform(get("/test/constraint-violation"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // 404 NoResourceFoundException
+        mockMvc.perform(get("/test/no-resource"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("RESOURCE_NOT_FOUND"));
+
+        // 413 MaxUploadSizeExceededException
+        mockMvc.perform(get("/test/too-large"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("PAYLOAD_TOO_LARGE"));
+
+        // 401 AuthenticationException
+        mockMvc.perform(get("/test/auth-error"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
     }
 
     @Test
@@ -147,6 +232,66 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void problemDetailFactoryShouldSanitizeCrlfTruncateLongInputsAndHandleInvalidUriSafely() {
+        assertThat(ProblemDetailFactory.sanitizeForLog("/accounts/v2/users\r\nFAKE LOG\tENTRY"))
+                .isEqualTo("/accounts/v2/users_FAKE LOG_ENTRY");
+        assertThat(ProblemDetailFactory.sanitizeForLog(null)).isEqualTo("/");
+        assertThat(ProblemDetailFactory.sanitizeForLog("   ")).isEqualTo("/");
+        assertThat(ProblemDetailFactory.sanitizeForLog("a".repeat(300))).hasSize(256);
+
+        assertThat(ProblemDetailFactory.safeInstanceUri("/accounts/v2/users")).isEqualTo(URI.create("/accounts/v2/users"));
+        assertThat(ProblemDetailFactory.safeInstanceUri("/accounts/{bad uri}")).isEqualTo(URI.create("/"));
+        assertThat(ProblemDetailFactory.safeInstanceUri("   ")).isEqualTo(URI.create("/"));
+        assertThat(ProblemDetailFactory.safeInstanceUri(null)).isEqualTo(URI.create("/"));
+
+        ProblemDetail withoutRequest = ProblemDetailFactory.build(ApiErrorCode.INTERNAL_ERROR, "err", null);
+        assertThat(withoutRequest.getInstance()).isEqualTo(URI.create("/"));
+    }
+
+    @Test
+    void shouldHandleGlobalObjectErrorsNullMessagesAndPopulatedConstraintViolations() {
+        GlobalExceptionHandler handler = new GlobalExceptionHandler();
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/test/validate");
+
+        BeanPropertyBindingResult bindingResult = new BeanPropertyBindingResult(new Object(), "payload");
+        bindingResult.addError(new FieldError("payload", "email", null));
+        bindingResult.addError(new ObjectError("payload", "Cross-field check failed"));
+        bindingResult.addError(new ObjectError("payloadNullMsg", null));
+
+        MethodArgumentNotValidException validationEx = Mockito.mock(MethodArgumentNotValidException.class);
+        Mockito.when(validationEx.getBindingResult()).thenReturn(bindingResult);
+
+        ResponseEntity<ProblemDetail> validationResp = handler.handleValidation(validationEx, request);
+        assertThat(validationResp.getStatusCode().value()).isEqualTo(400);
+        assertThat(validationResp.getBody()).isNotNull();
+        assertThat(validationResp.getBody().getProperties()).containsKey("fieldErrors");
+
+        @SuppressWarnings("unchecked")
+        ConstraintViolation<Object> populatedViolation = Mockito.mock(ConstraintViolation.class);
+        Path mockPath = Mockito.mock(Path.class);
+        Mockito.when(mockPath.toString()).thenReturn("tenantId");
+        Mockito.when(populatedViolation.getPropertyPath()).thenReturn(mockPath);
+        Mockito.when(populatedViolation.getMessage()).thenReturn("must match regex");
+
+        @SuppressWarnings("unchecked")
+        ConstraintViolation<Object> nullFieldsViolation = Mockito.mock(ConstraintViolation.class);
+        Mockito.when(nullFieldsViolation.getPropertyPath()).thenReturn(null);
+        Mockito.when(nullFieldsViolation.getMessage()).thenReturn(null);
+
+        ResponseEntity<ProblemDetail> cvResp = handler.handleConstraintViolation(
+                new ConstraintViolationException(Set.of(populatedViolation, nullFieldsViolation)), request);
+        assertThat(cvResp.getStatusCode().value()).isEqualTo(400);
+        assertThat(cvResp.getBody()).isNotNull();
+        assertThat(cvResp.getBody().getProperties()).containsKey("fieldErrors");
+    }
+
+    @Test
+    void apiExceptionShouldRejectNullErrorCodeImmediately() {
+        assertThatThrownBy(() -> new ApiException(null, "msg"))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void everyApiErrorCodeShouldHaveUniqueTypeUriNonBlankTitleAndValidHttpStatus() {
         Set<URI> seenTypes = new HashSet<>();
         for (ApiErrorCode code : ApiErrorCode.values()) {
@@ -161,9 +306,14 @@ class GlobalExceptionHandlerTest {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = false)
+    record NestedPayload(String label) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = false)
     record StrictPayload(
             @NotBlank @Size(min = 2, max = 50) @Pattern(regexp = "^[a-zA-Z0-9 ]+$") String displayName,
-            @NotBlank String code
+            @NotBlank String code,
+            @Valid NestedPayload nested
     ) {
     }
 
@@ -192,6 +342,31 @@ class GlobalExceptionHandlerTest {
         @PostMapping("/test/strict-dto")
         String strictDto(@Valid @RequestBody StrictPayload payload) {
             return payload.displayName();
+        }
+
+        @GetMapping("/test/param")
+        int param(@RequestParam int size) {
+            return size;
+        }
+
+        @GetMapping("/test/constraint-violation")
+        void constraintViolation() {
+            throw new ConstraintViolationException("Invalid constraint", Set.of());
+        }
+
+        @GetMapping("/test/no-resource")
+        void noResource() throws NoResourceFoundException {
+            throw new NoResourceFoundException(org.springframework.http.HttpMethod.GET, "/missing");
+        }
+
+        @GetMapping("/test/too-large")
+        void tooLarge() {
+            throw new MaxUploadSizeExceededException(5_242_880L);
+        }
+
+        @GetMapping("/test/auth-error")
+        void authError() {
+            throw new BadCredentialsException("Bad credentials");
         }
 
         @GetMapping("/test/concurrent")

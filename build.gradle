@@ -13,8 +13,6 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
 }
 
 configurations {
@@ -24,8 +22,12 @@ configurations {
 }
 
 repositories {
-    mavenLocal()
     mavenCentral()
+    mavenLocal {
+        content {
+            includeGroup 'com.techsophy'
+        }
+    }
 }
 
 ext {
@@ -95,7 +97,7 @@ dependencies {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.compilerArgs.add('-parameters')
+    options.compilerArgs.addAll(['-parameters', '-Xlint:deprecation', '-Xlint:unchecked'])
 }
 
 tasks.named('jar') {
@@ -144,6 +146,13 @@ tasks.named('jacocoTestCoverageVerification') {
     violationRules {
         rule {
             limit {
+                counter = 'INSTRUCTION'
+                value = 'COVEREDRATIO'
+                minimum = 0.85
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
                 minimum = 0.85
             }
         }

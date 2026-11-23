@@ -39,12 +39,21 @@ public enum ApiErrorCode {
     // 404 Not Found
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "resource-not-found", "Resource Not Found"),
 
+    // 405 Method Not Allowed
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "method-not-allowed", "Method Not Allowed"),
+
     // 409 Conflict
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "duplicate-resource", "Duplicate Resource"),
     EMAIL_ALREADY_CLAIMED(HttpStatus.CONFLICT, "email-already-claimed", "Email Already Claimed"),
     GROUP_HAS_SUBGROUPS(HttpStatus.CONFLICT, "group-has-subgroups", "Group Has Active Subgroups"),
     INVALID_STATE_TRANSITION(HttpStatus.CONFLICT, "invalid-state-transition", "Invalid State Transition"),
     CONCURRENT_MODIFICATION(HttpStatus.CONFLICT, "concurrent-modification", "Concurrent Modification"),
+
+    // 413 Payload Too Large
+    PAYLOAD_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "payload-too-large", "Payload Too Large"),
+
+    // 415 Unsupported Media Type
+    UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "unsupported-media-type", "Unsupported Media Type"),
 
     // 429 Too Many Requests
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "rate-limit-exceeded", "Rate Limit Exceeded"),

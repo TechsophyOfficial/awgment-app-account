@@ -54,7 +54,7 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 | `AWGMENT_DB_POOL_MAX` | `20` | No | HikariCP maximum pool size. |
 | `AWGMENT_DB_POOL_MIN_IDLE` | `5` | No | HikariCP minimum idle connections. |
 | `AWGMENT_DB_CONN_TIMEOUT_MS` | `9500` | No | HikariCP connection acquisition timeout (ms). |
-| `AWGMENT_DB_LEAK_THRESHOLD_MS` | `9500` | No | HikariCP connection leak detection threshold (ms). |
+| `AWGMENT_DB_LEAK_THRESHOLD_MS` | `0` | No | HikariCP leak detection threshold (ms; `0` disabled by default to avoid false alarms during migrations/bulk imports). |
 | `AWGMENT_FLYWAY_ENABLED` | `true` | No | Enables Flyway migrations on startup. |
 | `AWGMENT_KEYCLOAK_URL` | `http://localhost:8080` | **Yes** | Base URL of the Keycloak 26 server (no trailing slash). |
 | `AWGMENT_PLATFORM_REALM` | `platform` | **Yes** | Dedicated Platform Control Realm authorized for `/accounts/v2/tenants/**`. |
@@ -254,7 +254,7 @@ AWGMENT_DB_PASSWORD=<STRONG_DB_PASSWORD>
 AWGMENT_DB_POOL_MAX=20
 AWGMENT_DB_POOL_MIN_IDLE=5
 AWGMENT_DB_CONN_TIMEOUT_MS=9500
-AWGMENT_DB_LEAK_THRESHOLD_MS=9500
+AWGMENT_DB_LEAK_THRESHOLD_MS=0
 AWGMENT_FLYWAY_ENABLED=true
 AWGMENT_KEYCLOAK_URL=https://auth.example.com
 AWGMENT_PLATFORM_REALM=platform
@@ -276,7 +276,7 @@ docker run -d \
   --env-file /etc/awgment/account.env \
   -p 8081:8081 \
   --read-only \
-  --tmpfs /tmp:noexec,nosuid,size=64m \
+  --tmpfs /tmp:noexec,nosuid,size=128m \
   --cap-drop ALL \
   --security-opt no-new-privileges:true \
   --memory 1g \
@@ -428,3 +428,5 @@ server {
   * Enable **Annotation Processing** in IntelliJ settings and re-import the Gradle project.
 * **Swagger UI returns `401` / `404`:**
   * Swagger UI is intentionally disabled by default (`AWGMENT_OPENAPI_ENABLED=false`). Set `AWGMENT_OPENAPI_ENABLED=true` in local development only.
+* **Edited Keycloak realm blueprint JSONs are not picked up by `docker compose up -d`:**
+  * Keycloak `--import-realm` skips realms that already exist in the persistent PostgreSQL `postgres_data` volume. Run `docker compose down -v && docker compose up -d` to re-import updated blueprints cleanly.

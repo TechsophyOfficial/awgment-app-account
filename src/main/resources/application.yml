@@ -1,9 +1,16 @@
 spring:
   application:
     name: awgment-app-account
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     url: ${AWGMENT_DB_URL:jdbc:postgresql://localhost:5432/awgment_account}
     username: ${AWGMENT_DB_USERNAME:awgment}
@@ -12,11 +19,11 @@ spring:
       maximum-pool-size: ${AWGMENT_DB_POOL_MAX:20}
       minimum-idle: ${AWGMENT_DB_POOL_MIN_IDLE:5}
       connection-timeout: ${AWGMENT_DB_CONN_TIMEOUT_MS:9500}
-      leak-detection-threshold: ${AWGMENT_DB_LEAK_THRESHOLD_MS:9500}
+      leak-detection-threshold: ${AWGMENT_DB_LEAK_THRESHOLD_MS:0}
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     properties:
       hibernate:
         jdbc:
@@ -25,7 +32,7 @@ spring:
         order_updates: true
   flyway:
     enabled: ${AWGMENT_FLYWAY_ENABLED:true}
-    baseline-on-migrate: true
+    baseline-on-migrate: false
 
 server:
   port: ${SERVER_PORT:8081}
@@ -41,11 +48,11 @@ management:
         enabled: true
       show-details: never
     env:
-      access: none
+      enabled: false
     beans:
-      access: none
+      enabled: false
     configprops:
-      access: none
+      enabled: false
   endpoints:
     web:
       exposure:

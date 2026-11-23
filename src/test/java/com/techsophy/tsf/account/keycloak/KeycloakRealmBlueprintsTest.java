@@ -52,7 +52,12 @@ class KeycloakRealmBlueprintsTest {
         JsonNode flow = realm.path("authenticationFlows").get(0);
         assertThat(flow.path("alias").asText()).isEqualTo("first-broker-login-no-email-link");
         for (JsonNode execution : flow.path("authenticationExecutions")) {
-            assertThat(execution.path("authenticator").asText()).doesNotContain("auto-link");
+            String auth = execution.path("authenticator").asText();
+            assertThat(auth)
+                    .doesNotContain("auto-link")
+                    .doesNotContain("confirm-link")
+                    .doesNotContain("email-verification")
+                    .doesNotContain("detect-existing-broker-user");
         }
 
         // Control 5: Declarative User Profile locks awgment_status, userId, awgment_sync_version to admin-only edit
