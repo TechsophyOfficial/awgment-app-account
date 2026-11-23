@@ -28,7 +28,14 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
 
     @Override
     public Connection getAnyConnection() throws SQLException {
-        return dataSource.getConnection();
+        Connection connection = dataSource.getConnection();
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("RESET search_path");
+            return connection;
+        } catch (SQLException | RuntimeException ex) {
+            evictOrCloseOnFailure(connection, ex);
+            throw ex;
+        }
     }
 
     @Override
@@ -97,15 +104,35 @@ public class SchemaMultiTenantConnectionProvider implements MultiTenantConnectio
     }
 
     private void evictOrCloseOnFailure(Connection connection, Throwable rootCause) {
-        if (dataSource instanceof HikariDataSource hikari) {
+        HikariDataSource hikari = unwrapHikariDataSource();
+        if (hikari != null) {
             hikari.evictConnection(connection);
             return;
+        }
+        try {
+            connection.abort(Runnable::run);
+        } catch (SQLException | RuntimeException abortEx) {
+            rootCause.addSuppressed(abortEx);
         }
         try {
             connection.close();
         } catch (SQLException closeEx) {
             rootCause.addSuppressed(closeEx);
         }
+    }
+
+    private HikariDataSource unwrapHikariDataSource() {
+        if (dataSource instanceof HikariDataSource hikari) {
+            return hikari;
+        }
+        try {
+            if (dataSource != null && dataSource.isWrapperFor(HikariDataSource.class)) {
+                return dataSource.unwrap(HikariDataSource.class);
+            }
+        } catch (SQLException ignored) {
+            // Fall through to non-Hikari abort/close path
+        }
+        return null;
     }
 
     private static String validateSchemaIdentifier(String tenantIdentifier) {

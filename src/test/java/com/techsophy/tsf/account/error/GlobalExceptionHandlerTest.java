@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -247,6 +248,30 @@ class GlobalExceptionHandlerTest {
         mockMvc.perform(get("/test/concurrent"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.errorCode").value("CONCURRENT_MODIFICATION"));
+    }
+
+    @Test
+    void shouldMapDataIntegrityViolationsBySqlStateWithoutSqlLeakage() throws Exception {
+        mockMvc.perform(get("/test/duplicate-sql"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("DUPLICATE_RESOURCE"))
+                .andExpect(jsonPath("$.detail", not(containsString("tp_user"))));
+
+        mockMvc.perform(get("/test/fk-sql"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_STATE_TRANSITION"))
+                .andExpect(jsonPath("$.detail", not(containsString("fk_domain_idp"))));
+
+        mockMvc.perform(get("/test/check-sql"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.detail", not(containsString("chk_tp_tenant"))));
+
+        mockMvc.perform(get("/test/generic-integrity"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("DUPLICATE_RESOURCE"))
+                .andExpect(jsonPath("$.detail", not(containsString("raw SQL"))));
     }
 
     @Test
@@ -484,6 +509,29 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/concurrent")
         void concurrent() {
             throw new OptimisticLockingFailureException("Row updated by another transaction");
+        }
+
+        @GetMapping("/test/duplicate-sql")
+        void duplicateSql() {
+            throw new DataIntegrityViolationException(
+                    "dup", new java.sql.SQLException("duplicate key value violates unique constraint on tp_user", "235" + "05"));
+        }
+
+        @GetMapping("/test/fk-sql")
+        void fkSql() {
+            throw new DataIntegrityViolationException(
+                    "fk", new java.sql.SQLException("violates foreign key constraint fk_domain_idp", "235" + "03"));
+        }
+
+        @GetMapping("/test/check-sql")
+        void checkSql() {
+            throw new DataIntegrityViolationException(
+                    "check", new java.sql.SQLException("violates check constraint chk_tp_tenant", "235" + "14"));
+        }
+
+        @GetMapping("/test/generic-integrity")
+        void genericIntegrity() {
+            throw new DataIntegrityViolationException("raw SQL details must not leak");
         }
 
         @GetMapping("/test/denied")

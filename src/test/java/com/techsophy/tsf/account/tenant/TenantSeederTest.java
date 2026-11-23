@@ -11,6 +11,7 @@ import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +34,29 @@ class TenantSeederTest {
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
                         .isEqualTo(ApiErrorCode.INVALID_TENANT_ID));
+        verifyNoInteractions(dataSource, idGenerator);
+    }
+
+    @Test
+    void shouldRejectReservedSystemEmailAndMalformedBootstrapAdminEmail() {
+        DataSource dataSource = mock(DataSource.class);
+        IdGeneratorImpl idGenerator = mock(IdGeneratorImpl.class);
+        TenantSeeder seeder = new TenantSeeder(dataSource, idGenerator);
+
+        for (String badEmail : List.of(
+                "system" + "@" + "acme.local",
+                "SYSTEM" + "@" + "ACME.LOCAL",
+                "not-an-email",
+                "@" + "acme.invalid",
+                "admin" + "@",
+                "bad email" + "@" + "acme.invalid",
+                "a".repeat(250) + "@" + "acme.invalid"
+        )) {
+            assertThatThrownBy(() -> seeder.seedTenant("acme", badEmail, "A", "B"))
+                    .isInstanceOf(ApiException.class)
+                    .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
+                            .isEqualTo(ApiErrorCode.VALIDATION_FAILED));
+        }
         verifyNoInteractions(dataSource, idGenerator);
     }
 

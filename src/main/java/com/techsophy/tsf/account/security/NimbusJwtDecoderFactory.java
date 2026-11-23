@@ -1,6 +1,7 @@
 package com.techsophy.tsf.account.security;
 
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -10,25 +11,40 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Objects;
 
 /**
- * Default {@link JwtDecoderFactory} backed by {@link NimbusJwtDecoder#withIssuerLocation(String)}
- * enforcing bounded discovery/JWKS HTTP timeouts, issuer validation, timestamp/nbf checks,
- * and explicit audience validation.
+ * Default {@link JwtDecoderFactory} enforcing non-redirecting bounded HTTP timeouts,
+ * optional split-horizon internal JWKS retrieval with strict external {@code iss} validation,
+ * timestamp/nbf checks, and explicit audience validation.
  */
 @Component
 public class NimbusJwtDecoderFactory implements JwtDecoderFactory {
 
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration READ_TIMEOUT = Duration.ofSeconds(8);
+    private static final int MIN_TIMEOUT_MS = 100;
+    private static final String REALMS_SEGMENT = "/realms/";
+    private static final String JWKS_SUFFIX = "/protocol/openid-connect/certs";
 
+    private final AwgmentSecurityProperties properties;
     private final RestTemplate restTemplate;
 
     public NimbusJwtDecoderFactory() {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(CONNECT_TIMEOUT);
-        requestFactory.setReadTimeout(READ_TIMEOUT);
+        this(new AwgmentSecurityProperties());
+    }
+
+    @Autowired
+    public NimbusJwtDecoderFactory(AwgmentSecurityProperties properties) {
+        this.properties = Objects.requireNonNull(properties, "properties must not be null");
+        Duration connectTimeout = Duration.ofMillis(Math.max(properties.getOidcConnectTimeoutMs(), MIN_TIMEOUT_MS));
+        Duration readTimeout = Duration.ofMillis(Math.max(properties.getOidcReadTimeoutMs(), MIN_TIMEOUT_MS));
+        HttpClient httpClient = HttpClient.newBuilder()
+                .followRedirects(HttpClient.Redirect.NEVER)
+                .connectTimeout(connectTimeout)
+                .build();
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
+        requestFactory.setReadTimeout(readTimeout);
         this.restTemplate = new RestTemplate(requestFactory);
     }
 
@@ -40,14 +56,28 @@ public class NimbusJwtDecoderFactory implements JwtDecoderFactory {
         if (expectedAudience == null || expectedAudience.isBlank()) {
             throw new IllegalArgumentException("expectedAudience must not be blank");
         }
-        NimbusJwtDecoder decoder = NimbusJwtDecoder.withIssuerLocation(issuerUri)
-                .restOperations(restTemplate)
-                .build();
+
+        NimbusJwtDecoder decoder = buildDecoder(issuerUri);
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(issuerUri),
                 new JwtAudienceValidator(expectedAudience)
         );
         decoder.setJwtValidator(validator);
         return decoder;
+    }
+
+    private NimbusJwtDecoder buildDecoder(String issuerUri) {
+        String internalBase = properties.normalizedKeycloakInternalBaseUrl();
+        String externalRealmPrefix = properties.normalizedKeycloakBaseUrl() + REALMS_SEGMENT;
+        if (!internalBase.isEmpty() && issuerUri.startsWith(externalRealmPrefix)) {
+            String realm = issuerUri.substring(externalRealmPrefix.length());
+            String jwkSetUri = internalBase + REALMS_SEGMENT + realm + JWKS_SUFFIX;
+            return NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
+                    .restOperations(restTemplate)
+                    .build();
+        }
+        return NimbusJwtDecoder.withIssuerLocation(issuerUri)
+                .restOperations(restTemplate)
+                .build();
     }
 }

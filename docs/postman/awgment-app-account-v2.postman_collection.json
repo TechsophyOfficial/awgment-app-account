@@ -398,7 +398,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"content\": [\n    {\n      \"tenantId\": \"acme\",\n      \"schemaName\": \"tenant_acme\",\n      \"displayName\": \"Acme Corporation\",\n      \"status\": \"ACTIVE\",\n      \"version\": 1,\n      \"createdAt\": \"2026-11-23T05:00:00Z\",\n      \"updatedAt\": \"2026-11-23T05:00:01Z\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 20,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
+              "body": "{\n  \"content\": [\n    {\n      \"tenantId\": \"acme\",\n      \"schemaName\": \"tenant_acme\",\n      \"displayName\": \"Acme Corporation\",\n      \"status\": \"ACTIVE\",\n      \"keycloakContractVerified\": true,\n      \"version\": 1,\n      \"createdAt\": \"2026-11-23T05:00:00Z\",\n      \"updatedAt\": \"2026-11-23T05:00:01Z\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 20,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
             }
           ]
         },
@@ -450,7 +450,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"status\": \"SUSPENDED\",\n  \"version\": 2,\n  \"updatedAt\": \"2026-11-23T05:10:00Z\"\n}"
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"status\": \"SUSPENDED\",\n  \"keycloakContractVerified\": false,\n  \"version\": 2,\n  \"updatedAt\": \"2026-11-23T05:10:00Z\"\n}"
             },
             {
               "name": "409 Conflict - CONCURRENT_MODIFICATION",
@@ -514,7 +514,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 3,\n  \"updatedAt\": \"2026-11-23T05:15:00Z\"\n}"
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 3,\n  \"updatedAt\": \"2026-11-23T05:15:00Z\"\n}"
             }
           ]
         }
@@ -611,7 +611,7 @@
               "status": "Unauthorized",
               "code": 401,
               "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
-              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-token\",\n  \"title\": \"Authentication Required\",\n  \"status\": 401,\n  \"detail\": \"Valid bearer authentication is required to access this resource.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"INVALID_TOKEN\",\n  \"timestamp\": \"2026-11-23T05:16:00Z\"\n}"
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-token\",\n  \"title\": \"Authentication Required\",\n  \"status\": 401,\n  \"detail\": \"Authentication is required to access this resource.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"INVALID_TOKEN\",\n  \"timestamp\": \"2026-11-23T05:16:00Z\"\n}"
             }
           ]
         }

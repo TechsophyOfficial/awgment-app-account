@@ -25,6 +25,7 @@ import java.util.Set;
 @Component
 public class KeycloakRealmContractVerifier {
 
+    private static final String PLATFORM_ADMIN_ROLE = "awgment-platform-admin";
     private static final int MAX_ACCESS_TOKEN_LIFESPAN_SECONDS = 300;
     private static final Set<String> REQUIRED_ADMIN_LOCKED_ATTRIBUTES = Set.of(
             "awgment_status",
@@ -115,10 +116,25 @@ public class KeycloakRealmContractVerifier {
         if (snapshot.defaultLocale() == null || snapshot.defaultLocale().isBlank()) {
             violations.add("defaultLocale must not be blank");
         }
+        if (snapshot.defaultRoleName() != null
+                && snapshot.defaultRoleName().toLowerCase(Locale.ROOT).startsWith("awgment-")) {
+            violations.add("default role must not be Awgment role '" + snapshot.defaultRoleName() + "'");
+        }
         for (String role : snapshot.defaultRoleComposites()) {
             if (role != null && role.toLowerCase(Locale.ROOT).startsWith("awgment-")) {
                 violations.add("default role composites must not include Awgment role '" + role + "'");
             }
+        }
+        for (String role : snapshot.defaultGroupRoles()) {
+            if (role != null && role.toLowerCase(Locale.ROOT).startsWith("awgment-")) {
+                violations.add("default groups must not grant Awgment role '" + role + "'");
+            }
+        }
+        if (containsRoleIgnoreCase(snapshot.realmRoles(), PLATFORM_ADMIN_ROLE)) {
+            violations.add("tenant realm must not define realm role '" + PLATFORM_ADMIN_ROLE + "'");
+        }
+        if (containsRoleIgnoreCase(snapshot.trustedClientRoles(), PLATFORM_ADMIN_ROLE)) {
+            violations.add("tenant realm trusted client must not define role '" + PLATFORM_ADMIN_ROLE + "'");
         }
     }
 
@@ -205,6 +221,14 @@ public class KeycloakRealmContractVerifier {
                     violations.add("Interactive client '" + clientId
                             + "' must define oidc-usersessionmodel-note-mapper for 'idp_tenant_id'");
                 }
+                if (!hasUserAttributeMapper(client, "awgment_status")) {
+                    violations.add("Interactive client '" + clientId
+                            + "' must define oidc-usermodel-attribute-mapper for 'awgment_status'");
+                }
+                if (!hasUserAttributeMapper(client, "userId")) {
+                    violations.add("Interactive client '" + clientId
+                            + "' must define oidc-usermodel-attribute-mapper for 'userId'");
+                }
             } else if (client.serviceAccountsEnabled() && !"awgment-admin-sync".equals(clientId)) {
                 if (!hasAudienceMapper(client, expectedAudience)) {
                     violations.add("Service-account client '" + clientId
@@ -252,6 +276,33 @@ public class KeycloakRealmContractVerifier {
             if (noteKey.equals(cfg.get("user.session.note"))
                     && noteKey.equals(cfg.get("claim.name"))
                     && "true".equalsIgnoreCase(cfg.get("access.token.claim"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasUserAttributeMapper(ClientContract client, String attributeAndClaimName) {
+        for (ProtocolMapperContract pm : client.protocolMappers()) {
+            if (!"oidc-usermodel-attribute-mapper".equals(pm.protocolMapper())) {
+                continue;
+            }
+            Map<String, String> cfg = pm.config();
+            if (attributeAndClaimName.equals(cfg.get("user.attribute"))
+                    && attributeAndClaimName.equals(cfg.get("claim.name"))
+                    && "true".equalsIgnoreCase(cfg.get("access.token.claim"))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean containsRoleIgnoreCase(Set<String> roles, String targetRole) {
+        if (roles == null || roles.isEmpty()) {
+            return false;
+        }
+        for (String role : roles) {
+            if (targetRole.equalsIgnoreCase(role)) {
                 return true;
             }
         }

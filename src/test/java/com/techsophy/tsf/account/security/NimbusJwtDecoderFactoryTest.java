@@ -82,6 +82,11 @@ class NimbusJwtDecoderFactoryTest {
                 os.write(bytes);
             }
         });
+        oidcServer.createContext("/realms/redirect/protocol/openid-connect/certs", exchange -> {
+            exchange.getResponseHeaders().add("Location", issuerUri + "/protocol/openid-connect/certs");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
         oidcServer.start();
     }
 
@@ -136,6 +141,38 @@ class NimbusJwtDecoderFactoryTest {
         JwtEncoder otherEncoder = new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(otherKey)));
         String wrongKeyToken = mint(otherEncoder, otherKey.getKeyID(), issuerUri, List.of("awgment-account"), 300);
         assertThatThrownBy(() -> decoder.decode(wrongKeyToken))
+                .isInstanceOf(JwtException.class);
+    }
+
+    @Test
+    void shouldUseInternalJwksUriWithExternalIssuerValidationAndBlockRedirects() {
+        int port = oidcServer.getAddress().getPort();
+        AwgmentSecurityProperties splitProps = new AwgmentSecurityProperties();
+        splitProps.setKeycloakBaseUrl("https://auth.example.invalid");
+        splitProps.setKeycloakInternalBaseUrl("http://localhost:" + port);
+        splitProps.setOidcConnectTimeoutMs(2000);
+        splitProps.setOidcReadTimeoutMs(3000);
+
+        NimbusJwtDecoderFactory splitFactory = new NimbusJwtDecoderFactory(splitProps);
+        String externalIssuer = "https://auth.example.invalid/realms/acme";
+        JwtDecoder splitDecoder = splitFactory.create(externalIssuer, "awgment-account");
+
+        String validExternal = mint(encoder, rsaKey.getKeyID(), externalIssuer, List.of("awgment-account"), 300);
+        Jwt decoded = splitDecoder.decode(validExternal);
+        assertThat(decoded.getIssuer().toString()).isEqualTo(externalIssuer);
+
+        // Token claiming internal URL as issuer must be rejected when external issuer is configured
+        String wrongInternalIssuer = mint(
+                encoder, rsaKey.getKeyID(), "http://localhost:" + port + "/realms/acme",
+                List.of("awgment-account"), 300);
+        assertThatThrownBy(() -> splitDecoder.decode(wrongInternalIssuer))
+                .isInstanceOf(JwtValidationException.class);
+
+        // Non-redirecting HTTP client must NOT follow 302 JWKS redirects
+        String redirectExternalIssuer = "https://auth.example.invalid/realms/redirect";
+        JwtDecoder redirectDecoder = splitFactory.create(redirectExternalIssuer, "awgment-account");
+        String redirectToken = mint(encoder, rsaKey.getKeyID(), redirectExternalIssuer, List.of("awgment-account"), 300);
+        assertThatThrownBy(() -> redirectDecoder.decode(redirectToken))
                 .isInstanceOf(JwtException.class);
     }
 

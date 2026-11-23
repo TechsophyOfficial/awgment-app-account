@@ -78,6 +78,10 @@ class TenantIdValidatorTest {
                     ApiException apiEx = (ApiException) ex;
                     assertThat(apiEx.errorCode()).isEqualTo(ApiErrorCode.INVALID_TENANT_ID);
                     assertThat(apiEx.getMessage()).doesNotContain("\r").doesNotContain("\n");
+                    if (invalidId == null || invalidId.isBlank()) {
+                        assertThat(apiEx.getMessage()).doesNotContain("'/'");
+                        assertThat(apiEx.getMessage()).contains("must not be blank");
+                    }
                 });
 
         assertThatThrownBy(() -> TenantIdValidator.toSchemaName(invalidId))

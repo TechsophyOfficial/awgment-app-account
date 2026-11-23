@@ -208,6 +208,39 @@ class KeycloakRealmContractVerifierTest {
                 base.accessTokenLifespan(), Set.of("awgment-user"), base.identityProviders(),
                 base.authFlowExecutions(), base.userProfile(), base.clients()
         ))).isInstanceOf(ApiException.class).hasMessageContaining("awgment-");
+
+        // Tenant realm must NEVER define awgment-platform-admin (realm or trusted client) or awgment-* defaultRole/defaultGroup
+        assertThatThrownBy(() -> verifier.verify(new KeycloakRealmContractSnapshot(
+                base.realmName(), base.enabled(), base.verifyEmail(), base.registrationAllowed(),
+                base.duplicateEmailsAllowed(), base.internationalizationEnabled(), base.defaultLocale(),
+                base.accessTokenLifespan(), "default-roles-acme", base.defaultRoleComposites(),
+                Set.of(), Set.of("awgment-platform-admin"), Set.of(),
+                base.identityProviders(), base.authFlowExecutions(), base.userProfile(), base.clients()
+        ))).isInstanceOf(ApiException.class).hasMessageContaining("awgment-platform-admin");
+
+        assertThatThrownBy(() -> verifier.verify(new KeycloakRealmContractSnapshot(
+                base.realmName(), base.enabled(), base.verifyEmail(), base.registrationAllowed(),
+                base.duplicateEmailsAllowed(), base.internationalizationEnabled(), base.defaultLocale(),
+                base.accessTokenLifespan(), "default-roles-acme", base.defaultRoleComposites(),
+                Set.of(), Set.of(), Set.of("awgment-platform-admin"),
+                base.identityProviders(), base.authFlowExecutions(), base.userProfile(), base.clients()
+        ))).isInstanceOf(ApiException.class).hasMessageContaining("awgment-platform-admin");
+
+        assertThatThrownBy(() -> verifier.verify(new KeycloakRealmContractSnapshot(
+                base.realmName(), base.enabled(), base.verifyEmail(), base.registrationAllowed(),
+                base.duplicateEmailsAllowed(), base.internationalizationEnabled(), base.defaultLocale(),
+                base.accessTokenLifespan(), "awgment-user", Set.of(),
+                Set.of(), Set.of(), Set.of(),
+                base.identityProviders(), base.authFlowExecutions(), base.userProfile(), base.clients()
+        ))).isInstanceOf(ApiException.class).hasMessageContaining("awgment-user");
+
+        assertThatThrownBy(() -> verifier.verify(new KeycloakRealmContractSnapshot(
+                base.realmName(), base.enabled(), base.verifyEmail(), base.registrationAllowed(),
+                base.duplicateEmailsAllowed(), base.internationalizationEnabled(), base.defaultLocale(),
+                base.accessTokenLifespan(), "default-roles-acme", Set.of(),
+                Set.of("awgment-account-read"), Set.of(), Set.of(),
+                base.identityProviders(), base.authFlowExecutions(), base.userProfile(), base.clients()
+        ))).isInstanceOf(ApiException.class).hasMessageContaining("awgment-account-read");
     }
 
     @Test
@@ -338,6 +371,22 @@ class KeycloakRealmContractVerifierTest {
                 new ClientContract("awgment-web", true, false, true, true, false, noIdpTenantNote)
         )))).isInstanceOf(ApiException.class).hasMessageContaining("idp_tenant_id");
 
+        // Missing awgment_status attribute mapper
+        List<ProtocolMapperContract> noAwgmentStatus = webClient.protocolMappers().stream()
+                .filter(m -> !"awgment_status".equals(m.config().get("user.attribute")))
+                .toList();
+        assertThatThrownBy(() -> verifier.verify(withClients(base, List.of(
+                new ClientContract("awgment-web", true, false, true, true, false, noAwgmentStatus)
+        )))).isInstanceOf(ApiException.class).hasMessageContaining("awgment_status");
+
+        // Missing userId attribute mapper
+        List<ProtocolMapperContract> noUserId = webClient.protocolMappers().stream()
+                .filter(m -> !"userId".equals(m.config().get("user.attribute")))
+                .toList();
+        assertThatThrownBy(() -> verifier.verify(withClients(base, List.of(
+                new ClientContract("awgment-web", true, false, true, true, false, noUserId)
+        )))).isInstanceOf(ApiException.class).hasMessageContaining("userId");
+
         // No interactive login clients at all
         assertThatThrownBy(() -> verifier.verify(withClients(base, List.of(
                 new ClientContract("awgment-account", true, true, false, false, false, List.of())
@@ -364,7 +413,11 @@ class KeycloakRealmContractVerifierTest {
                         new ProtocolMapperContract("idp", "oidc-usersessionmodel-note-mapper",
                                 Map.of("user.session.note", "identity_provider", "claim.name", "identity_provider", "access.token.claim", "true")),
                         new ProtocolMapperContract("idp-tid", "oidc-usersessionmodel-note-mapper",
-                                Map.of("user.session.note", "idp_tenant_id", "claim.name", "idp_tenant_id", "access.token.claim", "true"))
+                                Map.of("user.session.note", "idp_tenant_id", "claim.name", "idp_tenant_id", "access.token.claim", "true")),
+                        new ProtocolMapperContract("awgment-status", "oidc-usermodel-attribute-mapper",
+                                Map.of("user.attribute", "awgment_status", "claim.name", "awgment_status", "access.token.claim", "true")),
+                        new ProtocolMapperContract("user-id", "oidc-usermodel-attribute-mapper",
+                                Map.of("user.attribute", "userId", "claim.name", "userId", "access.token.claim", "true"))
                 )
         );
         assertThatCode(() -> verifier.verify(withClients(base, List.of(customAudWeb)))).doesNotThrowAnyException();
@@ -490,6 +543,24 @@ class KeycloakRealmContractVerifierTest {
                                                 Map.of(
                                                         "user.session.note", "idp_tenant_id",
                                                         "claim.name", "idp_tenant_id",
+                                                        "access.token.claim", "true"
+                                                )
+                                        ),
+                                        new ProtocolMapperContract(
+                                                "awgment-status-attribute",
+                                                "oidc-usermodel-attribute-mapper",
+                                                Map.of(
+                                                        "user.attribute", "awgment_status",
+                                                        "claim.name", "awgment_status",
+                                                        "access.token.claim", "true"
+                                                )
+                                        ),
+                                        new ProtocolMapperContract(
+                                                "awgment-user-id-attribute",
+                                                "oidc-usermodel-attribute-mapper",
+                                                Map.of(
+                                                        "user.attribute", "userId",
+                                                        "claim.name", "userId",
                                                         "access.token.claim", "true"
                                                 )
                                         )

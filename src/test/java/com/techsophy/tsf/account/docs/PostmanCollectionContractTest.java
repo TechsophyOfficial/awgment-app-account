@@ -73,6 +73,24 @@ class PostmanCollectionContractTest {
                 "GET /accounts/v2/tenants",
                 "PATCH /accounts/v2/tenants/{{tenantId}}/status"
         );
+
+        // Verify saved example parity for 401 INVALID_TOKEN detail & 200 TenantResponse fields
+        JsonNode securityFolder = root.path("item").get(3);
+        String unauth401Body = securityFolder.path("item").get(1).path("response").get(0).path("body").asText();
+        JsonNode unauth401Json = objectMapper.readTree(unauth401Body);
+        assertThat(unauth401Json.path("detail").asText())
+                .isEqualTo("Authentication is required to access this resource.");
+
+        JsonNode tenantFolder = root.path("item").get(2);
+        String list200Body = tenantFolder.path("item").get(2).path("response").get(0).path("body").asText();
+        JsonNode list200Json = objectMapper.readTree(list200Body);
+        assertThat(list200Json.path("content").get(0).has("keycloakContractVerified")).isTrue();
+        assertThat(list200Json.path("content").get(0).has("displayName")).isTrue();
+
+        String suspend200Body = tenantFolder.path("item").get(3).path("response").get(0).path("body").asText();
+        JsonNode suspend200Json = objectMapper.readTree(suspend200Body);
+        assertThat(suspend200Json.has("displayName")).isTrue();
+        assertThat(suspend200Json.path("keycloakContractVerified").asBoolean()).isFalse();
     }
 
     @Test

@@ -194,6 +194,19 @@ class TenantLifecycleVaptTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("TENANT_NOT_ACTIVE"));
 
+        // Encoded path bypass attempt (%74enants) with tenant JWT MUST still be blocked by platform route guard
+        mockMvc.perform(get(java.net.URI.create("/accounts/v2/%74enants"))
+                        .header("Authorization", "Bearer " + acmeTenantToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("TENANT_NOT_ACTIVE"));
+
+        mockMvc.perform(patch(java.net.URI.create("/accounts/v2/%74enants/acme/status"))
+                        .header("Authorization", "Bearer " + acmeTenantToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"SUSPENDED\",\"version\":0}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("TENANT_NOT_ACTIVE"));
+
         // Platform realm JWT without awgment-platform-admin authority -> 403 ACCESS_DENIED
         mockMvc.perform(get("/accounts/v2/tenants")
                         .header("Authorization", "Bearer " + platformNonAdminToken))

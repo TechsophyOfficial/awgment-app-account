@@ -37,6 +37,9 @@ class SecurityAuditServiceTest {
         Map<String, Object> listItem = new LinkedHashMap<>();
         listItem.put("Authorization", "Bearer leaked");
         listItem.put("cookie", "JSESSIONID=123");
+        listItem.put("x_api_key", "key-val");
+        listItem.put("clientCredential", "cred-val");
+        listItem.put("bearerHeader", "Bearer abc");
         listItem.put("step", "ok");
 
         Map<String, Object> metadata = new LinkedHashMap<>();
@@ -94,7 +97,21 @@ class SecurityAuditServiceTest {
         Map<String, Object> sanitizedListItem = (Map<String, Object>) sanitizedItems.get(0);
         assertThat(sanitizedListItem)
                 .containsEntry("step", "ok")
-                .doesNotContainKeys("Authorization", "cookie");
+                .doesNotContainKeys("Authorization", "cookie", "x_api_key", "clientCredential", "bearerHeader");
+
+        SecurityAuditLogEntity isolatedSaved = service.recordIsolated(
+                "TENANT_SUSPEND",
+                "TENANT",
+                "acme",
+                AuditOutcome.FAILURE,
+                "platform-admin",
+                1001L,
+                Map.of("reason", "kc-timeout", "apiKey", "strip-me")
+        );
+        assertThat(isolatedSaved.getAction()).isEqualTo("TENANT_SUSPEND");
+        assertThat(isolatedSaved.getMetadata())
+                .containsEntry("reason", "kc-timeout")
+                .doesNotContainKey("apiKey");
     }
 
     @Test

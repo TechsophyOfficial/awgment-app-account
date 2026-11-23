@@ -15,6 +15,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationServiceException;
+import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -94,11 +96,18 @@ public class BootstrapSecurityConfig {
                         .requestMatchers(HttpMethod.HEAD, "/actuator/health/liveness", "/actuator/health/readiness").permitAll()
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .authenticationManagerResolver(tenantAuthenticationManagerResolver)
-                        .authenticationEntryPoint(entryPoint)
-                        .accessDeniedHandler(deniedHandler)
-                )
+                .oauth2ResourceServer(oauth2 -> {
+                    oauth2.authenticationManagerResolver(tenantAuthenticationManagerResolver)
+                            .authenticationEntryPoint(entryPoint)
+                            .accessDeniedHandler(deniedHandler);
+                    oauth2.withObjectPostProcessor(new ObjectPostProcessor<BearerTokenAuthenticationFilter>() {
+                        @Override
+                        public <O extends BearerTokenAuthenticationFilter> O postProcess(O filter) {
+                            filter.setAuthenticationFailureHandler(entryPoint::commence);
+                            return filter;
+                        }
+                    });
+                })
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(deniedHandler)
@@ -144,6 +153,17 @@ public class BootstrapSecurityConfig {
                         response,
                         tenantEx.errorCode(),
                         tenantEx.getMessage(),
+                        Map.of()
+                );
+                return;
+            }
+            if (authException instanceof AuthenticationServiceException) {
+                ProblemDetailFactory.writeServletProblem(
+                        objectMapper,
+                        request,
+                        response,
+                        ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR,
+                        "Identity provider is temporarily unavailable.",
                         Map.of()
                 );
                 return;

@@ -7,6 +7,7 @@ import com.techsophy.tsf.account.tenant.TenantIdValidator;
 import com.techsophy.tsf.account.tenant.TenantLookupService;
 import com.techsophy.tsf.account.tenant.TenantStatus;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationManagerResolver;
@@ -17,21 +18,29 @@ import org.springframework.security.oauth2.server.resource.InvalidBearerTokenExc
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationProvider;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.UrlPathHelper;
 
 import java.io.IOException;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Enumeration;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Multi-tenant {@link AuthenticationManagerResolver} enforcing:
  * <ol>
  *   <li>Strict unverified JWT structure &amp; {@code iss} prefix validation (SSRF prevention before any network call).</li>
- *   <li>Platform Control Realm isolation for {@code /accounts/v2/tenants/**} routes.</li>
+ *   <li>Normalized path-traversal/encoding-safe Platform Control Realm isolation for {@code /accounts/v2/tenants/**}.</li>
  *   <li>Active-tenant readiness gating via {@link TenantLookupService} before creating/resolving JWKS decoders.</li>
- *   <li>Per-issuer cached {@link JwtAuthenticationProvider} wired with {@link JwtRoleConverter}.</li>
+ *   <li>Bounded LRU + TTL per-issuer {@link JwtAuthenticationProvider} cache with lock-free single-flight builds.</li>
  * </ol>
  */
 @Component
@@ -41,6 +50,7 @@ public class TenantAuthenticationManagerResolver implements AuthenticationManage
     private static final String PLATFORM_TENANTS_PATH = "/accounts/v2/tenants";
     private static final String PLATFORM_TENANTS_SUBPATH_PREFIX = "/accounts/v2/tenants/";
     private static final int MAX_JWT_LENGTH = 16 * 1024;
+    private static final UrlPathHelper URL_PATH_HELPER = createUrlPathHelper();
 
     private final AwgmentSecurityProperties properties;
     private final TenantLookupService tenantLookupService;
@@ -48,20 +58,55 @@ public class TenantAuthenticationManagerResolver implements AuthenticationManage
     private final JwtRoleConverter jwtRoleConverter;
     private final ObjectMapper objectMapper;
     private final KeycloakIssuerParser issuerParser;
-    private final ConcurrentMap<String, AuthenticationManager> authenticationManagers = new ConcurrentHashMap<>();
+    private final Clock clock;
+    private final Duration cacheTtl;
+    private final Object cacheLock = new Object();
+    private final Map<String, CachedManager> authenticationManagers;
+    private final ConcurrentHashMap<String, CompletableFuture<AuthenticationManager>> inFlightBuilds =
+            new ConcurrentHashMap<>();
+    private final AtomicLong globalEvictEpoch = new AtomicLong();
+    private final ConcurrentHashMap<String, AtomicLong> issuerEvictEpochs = new ConcurrentHashMap<>();
 
+    @Autowired
     public TenantAuthenticationManagerResolver(
             AwgmentSecurityProperties properties,
             TenantLookupService tenantLookupService,
             JwtDecoderFactory jwtDecoderFactory,
             JwtRoleConverter jwtRoleConverter,
             ObjectMapper objectMapper) {
+        this(properties, tenantLookupService, jwtDecoderFactory, jwtRoleConverter, objectMapper, Clock.systemUTC());
+    }
+
+    TenantAuthenticationManagerResolver(
+            AwgmentSecurityProperties properties,
+            TenantLookupService tenantLookupService,
+            JwtDecoderFactory jwtDecoderFactory,
+            JwtRoleConverter jwtRoleConverter,
+            ObjectMapper objectMapper,
+            Clock clock) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.tenantLookupService = Objects.requireNonNull(tenantLookupService, "tenantLookupService must not be null");
         this.jwtDecoderFactory = Objects.requireNonNull(jwtDecoderFactory, "jwtDecoderFactory must not be null");
         this.jwtRoleConverter = Objects.requireNonNull(jwtRoleConverter, "jwtRoleConverter must not be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
         this.issuerParser = new KeycloakIssuerParser(this.properties);
+
+        int maxCacheSize = Math.max(1, this.properties.getDecoderCacheMaxSize());
+        this.cacheTtl = Duration.ofSeconds(Math.max(0L, this.properties.getDecoderCacheTtlSeconds()));
+        this.authenticationManagers = new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<String, CachedManager> eldest) {
+                return size() > maxCacheSize;
+            }
+        };
+    }
+
+    private static UrlPathHelper createUrlPathHelper() {
+        UrlPathHelper helper = new UrlPathHelper();
+        helper.setUrlDecode(true);
+        helper.setRemoveSemicolonContent(true);
+        return helper;
     }
 
     @Override
@@ -73,23 +118,98 @@ public class TenantAuthenticationManagerResolver implements AuthenticationManage
 
         validateRouteAndTenantStatus(request, realm);
         String canonicalIssuerUri = issuerParser.issuerUriForRealm(realm);
-        return authenticationManagers.computeIfAbsent(canonicalIssuerUri, this::createAuthenticationManager);
+        return resolveOrBuildManager(canonicalIssuerUri);
     }
 
     public void evictIssuerCache(String issuerUri) {
         if (issuerUri != null && !issuerUri.isBlank()) {
-            authenticationManagers.remove(issuerUri.trim());
+            String normalized = issuerUri.trim();
+            synchronized (cacheLock) {
+                issuerEvictEpochs.computeIfAbsent(normalized, k -> new AtomicLong()).incrementAndGet();
+                authenticationManagers.remove(normalized);
+            }
         }
     }
 
     public void evictTenant(String tenantId) {
         if (tenantId != null && !tenantId.isBlank()) {
-            authenticationManagers.remove(properties.normalizedKeycloakBaseUrl() + "/realms/" + tenantId.trim());
+            evictIssuerCache(properties.normalizedKeycloakBaseUrl() + "/realms/" + tenantId.trim());
         }
     }
 
     public void evictAll() {
-        authenticationManagers.clear();
+        synchronized (cacheLock) {
+            globalEvictEpoch.incrementAndGet();
+            authenticationManagers.clear();
+        }
+    }
+
+    private AuthenticationManager resolveOrBuildManager(String canonicalIssuerUri) {
+        Instant now = clock.instant();
+        if (!cacheTtl.isZero()) {
+            synchronized (cacheLock) {
+                CachedManager cached = authenticationManagers.get(canonicalIssuerUri);
+                if (cached != null) {
+                    if (now.isBefore(cached.expiresAt())) {
+                        return cached.manager();
+                    }
+                    authenticationManagers.remove(canonicalIssuerUri);
+                }
+            }
+        }
+
+        CompletableFuture<AuthenticationManager> newFlight = new CompletableFuture<>();
+        CompletableFuture<AuthenticationManager> existingFlight = inFlightBuilds.putIfAbsent(canonicalIssuerUri, newFlight);
+        if (existingFlight != null) {
+            return awaitFlight(existingFlight);
+        }
+
+        long capturedGlobalEpoch = globalEvictEpoch.get();
+        long capturedIssuerEpoch = issuerEvictEpochs
+                .computeIfAbsent(canonicalIssuerUri, k -> new AtomicLong())
+                .get();
+        try {
+            AuthenticationManager built = createAuthenticationManager(canonicalIssuerUri);
+            Instant builtAt = clock.instant();
+            if (!cacheTtl.isZero()) {
+                synchronized (cacheLock) {
+                    boolean evictedInFlight = globalEvictEpoch.get() != capturedGlobalEpoch
+                            || issuerEvictEpochs.get(canonicalIssuerUri).get() != capturedIssuerEpoch;
+                    if (!evictedInFlight) {
+                        authenticationManagers.put(
+                                canonicalIssuerUri, new CachedManager(built, builtAt.plus(cacheTtl)));
+                    }
+                }
+            }
+            newFlight.complete(built);
+            return built;
+        } catch (Throwable ex) {
+            newFlight.completeExceptionally(ex);
+            if (ex instanceof RuntimeException runtimeEx) {
+                throw runtimeEx;
+            }
+            throw new AuthenticationServiceException("Unable to initialize JWT decoder for issuer.", ex);
+        } finally {
+            inFlightBuilds.remove(canonicalIssuerUri, newFlight);
+        }
+    }
+
+    private static AuthenticationManager awaitFlight(CompletableFuture<AuthenticationManager> flight) {
+        try {
+            return flight.get();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AuthenticationServiceException("Interrupted while waiting for JWT decoder initialization.", ex);
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof AuthenticationException authEx) {
+                throw authEx;
+            }
+            if (cause instanceof RuntimeException runtimeEx) {
+                throw runtimeEx;
+            }
+            throw new AuthenticationServiceException("Unable to initialize JWT decoder for issuer.", cause);
+        }
     }
 
     private String extractBearerToken(HttpServletRequest request) {
@@ -204,18 +324,18 @@ public class TenantAuthenticationManagerResolver implements AuthenticationManage
 
     private static String resolveApplicationPath(HttpServletRequest request) {
         String servletPath = request.getServletPath();
-        if (servletPath != null && !servletPath.isEmpty()) {
-            String pathInfo = request.getPathInfo();
-            return pathInfo != null ? servletPath + pathInfo : servletPath;
-        }
         String requestUri = request.getRequestURI();
-        if (requestUri == null) {
+        if ((servletPath == null || servletPath.isEmpty())
+                && (requestUri == null || requestUri.isEmpty())) {
             return "";
         }
-        String contextPath = request.getContextPath();
-        if (contextPath != null && !contextPath.isEmpty() && requestUri.startsWith(contextPath)) {
-            return requestUri.substring(contextPath.length());
+        String resolved = URL_PATH_HELPER.getPathWithinApplication(request);
+        if (resolved == null || resolved.isEmpty()) {
+            return "";
         }
-        return requestUri;
+        return resolved.replaceAll("/+", "/");
+    }
+
+    private record CachedManager(AuthenticationManager manager, Instant expiresAt) {
     }
 }

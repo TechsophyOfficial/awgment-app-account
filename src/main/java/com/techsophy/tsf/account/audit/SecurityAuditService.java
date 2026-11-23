@@ -4,6 +4,7 @@ import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.error.ProblemDetailFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -37,7 +38,10 @@ public class SecurityAuditService {
             "authorization",
             "cookie",
             "jwk",
-            "privatekey"
+            "privatekey",
+            "credential",
+            "apikey",
+            "bearer"
     );
 
     private final SecurityAuditLogRepository auditLogRepository;
@@ -45,6 +49,29 @@ public class SecurityAuditService {
 
     @Transactional
     public SecurityAuditLogEntity record(
+            String action,
+            String targetType,
+            String targetId,
+            AuditOutcome outcome,
+            String actorSub,
+            Long actorId,
+            Map<String, Object> metadata) {
+        return persistAuditEntry(action, targetType, targetId, outcome, actorSub, actorId, metadata);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public SecurityAuditLogEntity recordIsolated(
+            String action,
+            String targetType,
+            String targetId,
+            AuditOutcome outcome,
+            String actorSub,
+            Long actorId,
+            Map<String, Object> metadata) {
+        return persistAuditEntry(action, targetType, targetId, outcome, actorSub, actorId, metadata);
+    }
+
+    private SecurityAuditLogEntity persistAuditEntry(
             String action,
             String targetType,
             String targetId,

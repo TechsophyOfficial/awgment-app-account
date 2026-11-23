@@ -14,6 +14,7 @@ import com.techsophy.tsf.account.tenant.dto.CreateTenantRequest;
 import com.techsophy.tsf.account.tenant.dto.PageResponse;
 import com.techsophy.tsf.account.tenant.dto.TenantResponse;
 import com.techsophy.tsf.account.tenant.dto.UpdateTenantStatusRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ import java.util.Set;
  * Orchestrates tenant provisioning, retry recovery, listing, suspension, and reactivation
  * across PostgreSQL schemas and Keycloak 26 realms (UC-TENANT-01..04).
  */
+@Slf4j
 @Service
 public class TenantService {
 
@@ -76,11 +78,13 @@ public class TenantService {
     public TenantResponse createTenant(CreateTenantRequest request, String actorSub) {
         String tenantId = request.tenantId();
         TenantIdValidator.validate(tenantId);
+        TenantSeeder.normalizeAndValidateBootstrapAdminEmail(tenantId, request.bootstrapAdminEmail());
         TenantContext.clear();
 
-        tenantStateManager.beginProvisioning(request, actorSub);
+        TenantEntity provisioning = tenantStateManager.beginProvisioning(request, actorSub);
         return executeProvisioningPipeline(
                 tenantId,
+                provisioning.getOptLockVersion(),
                 request.bootstrapAdminEmail(),
                 request.bootstrapAdminFirstName(),
                 request.bootstrapAdminLastName(),
@@ -92,8 +96,15 @@ public class TenantService {
         TenantIdValidator.validate(tenantId);
         TenantContext.clear();
 
-        tenantStateManager.beginRetryProvisioning(tenantId, actorSub);
-        return executeProvisioningPipeline(tenantId, null, null, null, actorSub);
+        TenantEntity provisioning = tenantStateManager.beginRetryProvisioning(tenantId, actorSub);
+        return executeProvisioningPipeline(
+                tenantId,
+                provisioning.getOptLockVersion(),
+                provisioning.getPendingAdminEmail(),
+                provisioning.getPendingAdminFirstName(),
+                provisioning.getPendingAdminLastName(),
+                actorSub
+        );
     }
 
     public PageResponse<TenantResponse> listTenants(TenantStatus status, int page, int size, String sort) {
@@ -142,8 +153,10 @@ public class TenantService {
         }
 
         TenantStatus currentStatus = existing.getStatus();
-        if (currentStatus == targetStatus
-                || (currentStatus != TenantStatus.ACTIVE && currentStatus != TenantStatus.SUSPENDED)) {
+        boolean validTransition = (targetStatus == TenantStatus.SUSPENDED
+                && (currentStatus == TenantStatus.ACTIVE || currentStatus == TenantStatus.SUSPENDED))
+                || (targetStatus == TenantStatus.ACTIVE && currentStatus == TenantStatus.SUSPENDED);
+        if (!validTransition) {
             throw new ApiException(
                     ApiErrorCode.INVALID_STATE_TRANSITION,
                     "Cannot transition tenant '" + ProblemDetailFactory.sanitizeForLog(tenantId)
@@ -152,38 +165,30 @@ public class TenantService {
         }
 
         if (targetStatus == TenantStatus.SUSPENDED) {
-            return suspendTenant(tenantId, request.version(), actorSub);
+            return suspendTenant(tenantId, request.version(), request.reason(), actorSub);
         }
-        return reactivateTenant(tenantId, request.version(), actorSub);
+        return reactivateTenant(tenantId, request.version(), request.reason(), actorSub);
     }
 
     private TenantResponse executeProvisioningPipeline(
             String tenantId,
+            Long expectedVersion,
             String bootstrapAdminEmail,
             String bootstrapAdminFirstName,
             String bootstrapAdminLastName,
             String actorSub) {
+        TenantEntity activated;
         try {
             tenantFlywayMigrator.provisionAndMigrateTenantSchema(tenantId);
             tenantSeeder.seedTenant(tenantId, bootstrapAdminEmail, bootstrapAdminFirstName, bootstrapAdminLastName);
             KeycloakRealmContractSnapshot snapshot = keycloakRealmClient.fetchRealmContract(tenantId);
             contractVerifier.verify(snapshot);
 
-            TenantEntity activated = tenantStateManager.markActive(tenantId, actorSub);
+            activated = tenantStateManager.markActive(tenantId, expectedVersion, actorSub);
             tenantLookupService.evict(tenantId);
-            securityAuditService.record(
-                    "TENANT_PROVISION",
-                    "TENANT",
-                    tenantId,
-                    AuditOutcome.SUCCESS,
-                    actorSub,
-                    null,
-                    Map.of("schemaName", activated.getSchemaName())
-            );
-            return toResponse(activated, true);
         } catch (RuntimeException ex) {
             String safeError = truncateError(ex.getMessage());
-            tenantStateManager.markProvisioningFailed(tenantId, safeError, actorSub);
+            tenantStateManager.markProvisioningFailed(tenantId, expectedVersion, safeError, actorSub);
             tenantLookupService.evict(tenantId);
             Map<String, Object> metadata = new LinkedHashMap<>();
             if (ex instanceof ApiException apiEx) {
@@ -191,35 +196,30 @@ public class TenantService {
             } else {
                 metadata.put("error", ex.getClass().getSimpleName());
             }
-            securityAuditService.record(
-                    "TENANT_PROVISION",
-                    "TENANT",
-                    tenantId,
-                    AuditOutcome.FAILURE,
-                    actorSub,
-                    null,
-                    metadata
-            );
+            recordFailureAuditSafely("TENANT_PROVISION", tenantId, actorSub, metadata, ex);
             throw ex;
         }
+
+        recordSuccessAuditSafely(
+                "TENANT_PROVISION",
+                tenantId,
+                actorSub,
+                Map.of("schemaName", activated.getSchemaName())
+        );
+        return toResponse(activated, true);
     }
 
-    private TenantResponse suspendTenant(String tenantId, Long expectedVersion, String actorSub) {
+    private TenantResponse suspendTenant(
+            String tenantId, Long expectedVersion, String reason, String actorSub) {
         TenantEntity suspended = tenantStateManager.updateStatus(
                 tenantId, TenantStatus.SUSPENDED, expectedVersion, actorSub);
         evictTenantCaches(tenantId);
         try {
             keycloakRealmClient.setRealmEnabled(tenantId, false);
         } catch (RuntimeException ex) {
-            securityAuditService.record(
-                    "TENANT_SUSPEND",
-                    "TENANT",
-                    tenantId,
-                    AuditOutcome.FAILURE,
-                    actorSub,
-                    null,
-                    Map.of("realmDisabled", false)
-            );
+            Map<String, Object> metadata = buildStatusMetadata(null, reason, null);
+            metadata.put("realmDisabled", false);
+            recordFailureAuditSafely("TENANT_SUSPEND", tenantId, actorSub, metadata, ex);
             if (ex instanceof ApiException apiEx) {
                 throw apiEx;
             }
@@ -228,62 +228,116 @@ public class TenantService {
                     "Tenant marked SUSPENDED locally, but failed to disable Keycloak realm."
             );
         }
-        securityAuditService.record(
+        recordSuccessAuditSafely(
                 "TENANT_SUSPEND",
-                "TENANT",
                 tenantId,
-                AuditOutcome.SUCCESS,
                 actorSub,
-                null,
-                Map.of("schemaName", suspended.getSchemaName())
+                buildStatusMetadata(suspended.getSchemaName(), reason, null)
         );
         return toResponse(suspended, false);
     }
 
-    private TenantResponse reactivateTenant(String tenantId, Long expectedVersion, String actorSub) {
-        tenantFlywayMigrator.provisionAndMigrateTenantSchema(tenantId);
-        keycloakRealmClient.setRealmEnabled(tenantId, true);
+    private TenantResponse reactivateTenant(
+            String tenantId, Long expectedVersion, String reason, String actorSub) {
+        boolean keycloakTouched = false;
+        boolean keycloakVerified = false;
         try {
+            tenantFlywayMigrator.provisionAndMigrateTenantSchema(tenantId);
+            keycloakTouched = true;
+            keycloakRealmClient.setRealmEnabled(tenantId, true);
             KeycloakRealmContractSnapshot snapshot = keycloakRealmClient.fetchRealmContract(tenantId);
             contractVerifier.verify(snapshot);
+            keycloakVerified = true;
+
+            TenantEntity reactivated = tenantStateManager.updateStatus(
+                    tenantId, TenantStatus.ACTIVE, expectedVersion, actorSub);
+            evictTenantCaches(tenantId);
+            recordSuccessAuditSafely(
+                    "TENANT_REACTIVATE",
+                    tenantId,
+                    actorSub,
+                    buildStatusMetadata(reactivated.getSchemaName(), reason, null)
+            );
+            return toResponse(reactivated, true);
         } catch (RuntimeException ex) {
-            try {
-                keycloakRealmClient.setRealmEnabled(tenantId, false);
-            } catch (RuntimeException suppressed) {
-                ex.addSuppressed(suppressed);
+            if (keycloakTouched) {
+                compensateReactivateRealmIfStillSuspended(tenantId, ex);
             }
             evictTenantCaches(tenantId);
-            securityAuditService.record(
+            String failureCode = !keycloakTouched
+                    ? "SCHEMA_MIGRATION_FAILED"
+                    : (!keycloakVerified ? "KEYCLOAK_CONTRACT_OR_UPSTREAM_FAILED" : "STATUS_UPDATE_FAILED");
+            recordFailureAuditSafely(
                     "TENANT_REACTIVATE",
-                    "TENANT",
                     tenantId,
-                    AuditOutcome.FAILURE,
                     actorSub,
-                    null,
-                    Map.of("reason", "KEYCLOAK_CONTRACT_OR_UPSTREAM_FAILED")
+                    buildStatusMetadata(null, reason, failureCode),
+                    ex
             );
             if (ex instanceof ApiException apiEx) {
                 throw apiEx;
             }
-            throw new ApiException(
-                    ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR,
-                    "Tenant reactivation failed during Keycloak realm contract verification."
-            );
+            if (keycloakTouched && !keycloakVerified) {
+                throw new ApiException(
+                        ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR,
+                        "Tenant reactivation failed during Keycloak realm contract verification."
+                );
+            }
+            throw ex;
         }
+    }
 
-        TenantEntity reactivated = tenantStateManager.updateStatus(
-                tenantId, TenantStatus.ACTIVE, expectedVersion, actorSub);
-        evictTenantCaches(tenantId);
-        securityAuditService.record(
-                "TENANT_REACTIVATE",
-                "TENANT",
-                tenantId,
-                AuditOutcome.SUCCESS,
-                actorSub,
-                null,
-                Map.of("schemaName", reactivated.getSchemaName())
-        );
-        return toResponse(reactivated, true);
+    private void compensateReactivateRealmIfStillSuspended(String tenantId, RuntimeException primaryEx) {
+        try {
+            TenantStatus currentDbStatus = tenantRepository.findByTenantId(tenantId)
+                    .map(TenantEntity::getStatus)
+                    .orElse(null);
+            if (currentDbStatus == TenantStatus.SUSPENDED) {
+                keycloakRealmClient.setRealmEnabled(tenantId, false);
+            } else {
+                log.info("Skipping Keycloak disable compensation for tenant '{}' because DB status is {}",
+                        ProblemDetailFactory.sanitizeForLog(tenantId), currentDbStatus);
+            }
+        } catch (RuntimeException compensationEx) {
+            primaryEx.addSuppressed(compensationEx);
+        }
+    }
+
+    private void recordSuccessAuditSafely(
+            String action, String tenantId, String actorSub, Map<String, Object> metadata) {
+        try {
+            securityAuditService.record(action, "TENANT", tenantId, AuditOutcome.SUCCESS, actorSub, null, metadata);
+        } catch (RuntimeException auditEx) {
+            log.error("Failed to persist {} SUCCESS audit for tenant '{}'",
+                    action, ProblemDetailFactory.sanitizeForLog(tenantId), auditEx);
+        }
+    }
+
+    private void recordFailureAuditSafely(
+            String action, String tenantId, String actorSub, Map<String, Object> metadata, RuntimeException primaryEx) {
+        try {
+            securityAuditService.recordIsolated(
+                    action, "TENANT", tenantId, AuditOutcome.FAILURE, actorSub, null, metadata);
+        } catch (RuntimeException auditEx) {
+            log.error("Failed to persist {} FAILURE audit for tenant '{}'",
+                    action, ProblemDetailFactory.sanitizeForLog(tenantId), auditEx);
+            primaryEx.addSuppressed(auditEx);
+        }
+    }
+
+    private static Map<String, Object> buildStatusMetadata(
+            String schemaName, String reason, String failureReason) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        if (schemaName != null && !schemaName.isBlank()) {
+            metadata.put("schemaName", schemaName);
+        }
+        if (reason != null && !reason.isBlank()) {
+            metadata.put("reason", reason.trim());
+        }
+        if (failureReason != null && !failureReason.isBlank()) {
+            metadata.put("failureReason", failureReason);
+        }
+        return metadata;
     }
 
     private void evictTenantCaches(String tenantId) {

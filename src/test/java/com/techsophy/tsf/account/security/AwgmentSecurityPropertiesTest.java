@@ -20,6 +20,12 @@ class AwgmentSecurityPropertiesTest {
         assertThat(props.getTrustedClientId()).isEqualTo("awgment-account");
         assertThat(props.getKeycloakBaseUrl()).isEqualTo("http://localhost:8080");
         assertThat(props.normalizedKeycloakBaseUrl()).isEqualTo("http://localhost:8080");
+        assertThat(props.getKeycloakInternalBaseUrl()).isEmpty();
+        assertThat(props.normalizedKeycloakInternalBaseUrl()).isEmpty();
+        assertThat(props.getDecoderCacheMaxSize()).isEqualTo(500);
+        assertThat(props.getDecoderCacheTtlSeconds()).isEqualTo(300L);
+        assertThat(props.getOidcConnectTimeoutMs()).isEqualTo(5000);
+        assertThat(props.getOidcReadTimeoutMs()).isEqualTo(8000);
         assertThat(props.isDevDocsEnabled()).isFalse();
         assertThat(props.getServiceAccountClients()).containsExactly("awgment-service-client");
     }
@@ -32,6 +38,11 @@ class AwgmentSecurityPropertiesTest {
         props.setExpectedAudience("  custom-aud ");
         props.setTrustedClientId(" custom-client ");
         props.setKeycloakBaseUrl(" https://sso.example.invalid/// ");
+        props.setKeycloakInternalBaseUrl(" http://keycloak:8080/// ");
+        props.setDecoderCacheMaxSize(100);
+        props.setDecoderCacheTtlSeconds(120L);
+        props.setOidcConnectTimeoutMs(2000);
+        props.setOidcReadTimeoutMs(4000);
         props.setDevDocsEnabled(true);
         props.setServiceAccountClients(Arrays.asList(" svc-a ", null, "  ", "svc-a", "svc-b"));
 
@@ -40,6 +51,11 @@ class AwgmentSecurityPropertiesTest {
         assertThat(props.getTrustedClientId()).isEqualTo("custom-client");
         assertThat(props.getKeycloakBaseUrl()).isEqualTo("https://sso.example.invalid///");
         assertThat(props.normalizedKeycloakBaseUrl()).isEqualTo("https://sso.example.invalid");
+        assertThat(props.normalizedKeycloakInternalBaseUrl()).isEqualTo("http://keycloak:8080");
+        assertThat(props.getDecoderCacheMaxSize()).isEqualTo(100);
+        assertThat(props.getDecoderCacheTtlSeconds()).isEqualTo(120L);
+        assertThat(props.getOidcConnectTimeoutMs()).isEqualTo(2000);
+        assertThat(props.getOidcReadTimeoutMs()).isEqualTo(4000);
         assertThat(props.isDevDocsEnabled()).isTrue();
         assertThat(props.getServiceAccountClients()).containsExactly("svc-a", "svc-b");
 
@@ -47,24 +63,28 @@ class AwgmentSecurityPropertiesTest {
         props.setExpectedAudience(null);
         props.setTrustedClientId("");
         props.setKeycloakBaseUrl("   ");
+        props.setKeycloakInternalBaseUrl("   ");
         props.setServiceAccountClients(null);
 
         assertThat(props.getPlatformRealm()).isEqualTo("platform");
         assertThat(props.getExpectedAudience()).isEqualTo("awgment-account");
         assertThat(props.getTrustedClientId()).isEqualTo("awgment-account");
         assertThat(props.getKeycloakBaseUrl()).isEqualTo("http://localhost:8080");
+        assertThat(props.normalizedKeycloakInternalBaseUrl()).isEmpty();
         assertThat(props.getServiceAccountClients()).isEmpty();
 
         props.setPlatformRealm(null);
         props.setExpectedAudience("  ");
         props.setTrustedClientId(null);
         props.setKeycloakBaseUrl(null);
+        props.setKeycloakInternalBaseUrl(null);
         props.setServiceAccountClients(List.of());
 
         assertThat(props.getPlatformRealm()).isEqualTo("platform");
         assertThat(props.getExpectedAudience()).isEqualTo("awgment-account");
         assertThat(props.getTrustedClientId()).isEqualTo("awgment-account");
         assertThat(props.getKeycloakBaseUrl()).isEqualTo("http://localhost:8080");
+        assertThat(props.normalizedKeycloakInternalBaseUrl()).isEmpty();
         assertThat(props.getServiceAccountClients()).isEmpty();
     }
 

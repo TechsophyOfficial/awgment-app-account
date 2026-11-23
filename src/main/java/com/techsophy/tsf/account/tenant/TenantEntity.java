@@ -45,6 +45,15 @@ public class TenantEntity {
     @Column(name = "last_error", length = 2000)
     private String lastError;
 
+    @Column(name = "pending_admin_email", length = 255)
+    private String pendingAdminEmail;
+
+    @Column(name = "pending_admin_first_name", length = 100)
+    private String pendingAdminFirstName;
+
+    @Column(name = "pending_admin_last_name", length = 100)
+    private String pendingAdminLastName;
+
     @Version
     @Column(name = "opt_lock_version", nullable = false)
     private Long optLockVersion;

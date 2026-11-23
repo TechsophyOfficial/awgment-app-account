@@ -161,7 +161,7 @@ class SchemaMultiTenantConnectionProviderTest {
     }
 
     @Test
-    void shouldForciblyCloseNonHikariConnectionWhenResetSearchPathFailsOnRelease() throws Exception {
+    void shouldForciblyAbortAndCloseNonHikariConnectionWhenResetSearchPathFailsOnRelease() throws Exception {
         DataSource dataSource = mock(DataSource.class);
         Connection conn = mock(Connection.class);
         Statement stmt = mock(Statement.class);
@@ -174,11 +174,32 @@ class SchemaMultiTenantConnectionProviderTest {
                 .isInstanceOf(SQLException.class)
                 .hasMessageContaining("Reset failed");
 
+        verify(conn).abort(org.mockito.ArgumentMatchers.any());
         verify(conn).close();
     }
 
     @Test
-    void shouldSupportAnyConnectionReleaseResetUnwrapAndDisableAggressiveRelease() throws Exception {
+    void shouldUnwrapWrappedHikariDataSourceForConnectionEviction() throws Exception {
+        DataSource wrapper = mock(DataSource.class);
+        HikariDataSource underlyingHikari = mock(HikariDataSource.class);
+        Connection conn = mock(Connection.class);
+        Statement stmt = mock(Statement.class);
+        when(wrapper.isWrapperFor(HikariDataSource.class)).thenReturn(true);
+        when(wrapper.unwrap(HikariDataSource.class)).thenReturn(underlyingHikari);
+        when(conn.createStatement()).thenReturn(stmt);
+        when(stmt.execute("RESET search_path")).thenThrow(new SQLException("Broken wrapped conn"));
+
+        SchemaMultiTenantConnectionProvider provider = new SchemaMultiTenantConnectionProvider(wrapper);
+
+        assertThatThrownBy(() -> provider.releaseConnection("tenant_acme", conn))
+                .isInstanceOf(SQLException.class);
+
+        verify(underlyingHikari).evictConnection(conn);
+        verify(conn, never()).close();
+    }
+
+    @Test
+    void shouldSupportAnyConnectionResetReleaseUnwrapAndDisableAggressiveRelease() throws Exception {
         DataSource dataSource = mock(DataSource.class);
         Connection conn = mock(Connection.class);
         Statement stmt = mock(Statement.class);
@@ -191,8 +212,19 @@ class SchemaMultiTenantConnectionProviderTest {
         assertThat(provider.getAnyConnection()).isSameAs(conn);
 
         provider.releaseAnyConnection(conn);
-        verify(stmt).execute("RESET search_path");
+        verify(stmt, org.mockito.Mockito.times(2)).execute("RESET search_path");
         verify(conn).close();
+
+        // getAnyConnection failure on RESET search_path must evict/close connection
+        HikariDataSource hikari = mock(HikariDataSource.class);
+        Connection dirtyConn = mock(Connection.class);
+        Statement failingStmt = mock(Statement.class);
+        when(hikari.getConnection()).thenReturn(dirtyConn);
+        when(dirtyConn.createStatement()).thenReturn(failingStmt);
+        when(failingStmt.execute("RESET search_path")).thenThrow(new SQLException("dirty"));
+        SchemaMultiTenantConnectionProvider hikariProvider = new SchemaMultiTenantConnectionProvider(hikari);
+        assertThatThrownBy(hikariProvider::getAnyConnection).isInstanceOf(SQLException.class);
+        verify(hikari).evictConnection(dirtyConn);
 
         assertThat(provider.isUnwrappableAs(MultiTenantConnectionProvider.class)).isTrue();
         assertThat(provider.isUnwrappableAs(SchemaMultiTenantConnectionProvider.class)).isTrue();

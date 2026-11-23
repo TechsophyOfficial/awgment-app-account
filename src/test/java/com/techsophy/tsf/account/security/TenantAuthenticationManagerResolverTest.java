@@ -21,12 +21,21 @@ import org.springframework.security.oauth2.server.resource.authentication.Bearer
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -173,11 +182,16 @@ class TenantAuthenticationManagerResolverTest {
         when(jwtDecoderFactory.create(platformIss, "awgment-account")).thenReturn(platformDecoder);
         when(platformDecoder.decode(anyString())).thenReturn(decoded);
 
-        // Exact /accounts/v2/tenants, trailing /, and sub-paths /accounts/v2/tenants/acme/status
+        // Exact /accounts/v2/tenants, trailing /, sub-paths, URL-encoded %74, matrix params, and //
         for (String path : new String[]{
                 "/accounts/v2/tenants",
                 "/accounts/v2/tenants/",
-                "/accounts/v2/tenants/acme/status"
+                "/accounts/v2/tenants/acme/status",
+                "/accounts/v2/%74enants",
+                "/accounts/v2/%74enants/acme/status",
+                "/accounts/v2/tenants;v=1",
+                "/accounts/v2/tenants;v=1/acme",
+                "/accounts/v2//tenants/acme"
         }) {
             MockHttpServletRequest req = bearerRequest(path, fakeJwt(platformIss));
             AuthenticationManager manager = resolver.resolve(req);
@@ -186,6 +200,14 @@ class TenantAuthenticationManagerResolverTest {
             assertThat(auth.getAuthorities())
                     .extracting("authority")
                     .containsExactly("awgment-platform-admin");
+
+            // Tenant realm token attempting ANY normalized platform path MUST fail 403 TENANT_NOT_ACTIVE
+            MockHttpServletRequest tenantBypassAttempt = bearerRequest(
+                    path, fakeJwt("http://localhost:8080/realms/acme"));
+            assertThatThrownBy(() -> resolver.resolve(tenantBypassAttempt))
+                    .isInstanceOf(TenantAccessAuthenticationException.class)
+                    .satisfies(ex -> assertThat(((TenantAccessAuthenticationException) ex).errorCode())
+                            .isEqualTo(ApiErrorCode.TENANT_NOT_ACTIVE));
         }
 
         // Also cover contextPath + servletPath + pathInfo resolution
@@ -362,6 +384,123 @@ class TenantAuthenticationManagerResolverTest {
         doReturn(recovered).when(jwtDecoderFactory).create(acmeIss, "awgment-account");
         assertThat(resolver.resolve(bearerRequest("/accounts/v2/users/me", token))).isNotNull();
         verify(jwtDecoderFactory, times(4)).create(acmeIss, "awgment-account");
+    }
+
+    @Test
+    void shouldEnforceBoundedLruEvictionTtlExpiryAndNonBlockingPerIssuerBuild() throws Exception {
+        AwgmentSecurityProperties cacheProps = new AwgmentSecurityProperties();
+        cacheProps.setDecoderCacheMaxSize(2);
+        cacheProps.setDecoderCacheTtlSeconds(60);
+        MutableClock clock = new MutableClock(Instant.parse("2026-11-23T12:00:00Z"));
+        TenantAuthenticationManagerResolver boundedResolver = new TenantAuthenticationManagerResolver(
+                cacheProps,
+                tenantLookupService,
+                jwtDecoderFactory,
+                new JwtRoleConverter(cacheProps),
+                objectMapper,
+                clock
+        );
+
+        when(tenantLookupService.findStatus(anyString())).thenReturn(Optional.of(TenantStatus.ACTIVE));
+        when(jwtDecoderFactory.create(anyString(), anyString())).thenAnswer(inv -> mock(JwtDecoder.class));
+
+        String issA = "http://localhost:8080/realms/alpha";
+        String issB = "http://localhost:8080/realms/beta";
+        String issC = "http://localhost:8080/realms/gamma";
+
+        // Populate A, B, touch A (making B least-recently-used), then add C -> B is evicted, A stays
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issA)));
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issB)));
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issA)));
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issC)));
+
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issA))); // cache hit
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issB))); // cache miss (was evicted)
+
+        verify(jwtDecoderFactory, times(1)).create(issA, "awgment-account");
+        verify(jwtDecoderFactory, times(2)).create(issB, "awgment-account");
+        verify(jwtDecoderFactory, times(1)).create(issC, "awgment-account");
+
+        // Advance past TTL -> A expires and rebuilds
+        clock.advanceSeconds(60);
+        boundedResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(issA)));
+        verify(jwtDecoderFactory, times(2)).create(issA, "awgment-account");
+
+        // Slow build on 'slow_t' must NOT block 'fast_t'; concurrent builds on same issuer coalesce; eviction mid-flight prevents stale cache write
+        String slowIss = "http://localhost:8080/realms/slow_t";
+        String fastIss = "http://localhost:8080/realms/fast_t";
+        CountDownLatch slowEntered = new CountDownLatch(1);
+        CountDownLatch slowRelease = new CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicInteger slowFactoryCalls = new java.util.concurrent.atomic.AtomicInteger();
+        JwtDecoderFactory asyncFactory = (iss, aud) -> {
+            if (slowIss.equals(iss)) {
+                slowFactoryCalls.incrementAndGet();
+                slowEntered.countDown();
+                try {
+                    slowRelease.await(5, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return mock(JwtDecoder.class);
+        };
+        TenantAuthenticationManagerResolver concurrentResolver = new TenantAuthenticationManagerResolver(
+                cacheProps, tenantLookupService, asyncFactory, new JwtRoleConverter(cacheProps), objectMapper, clock);
+
+        try (ExecutorService pool = Executors.newFixedThreadPool(3)) {
+            Future<AuthenticationManager> slowFuture1 = pool.submit(() ->
+                    concurrentResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(slowIss))));
+            assertThat(slowEntered.await(3, TimeUnit.SECONDS)).isTrue();
+
+            // Fast tenant completes immediately while slow tenant is mid-discovery
+            AuthenticationManager fastMgr = pool.submit(() ->
+                    concurrentResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(fastIss))))
+                    .get(2, TimeUnit.SECONDS);
+            assertThat(fastMgr).isNotNull();
+
+            // Wait until second slow caller reaches inFlightBuilds before releasing latch, or verify coalescing via single factory call + mid-flight eviction
+            Future<AuthenticationManager> slowFuture2 = pool.submit(() ->
+                    concurrentResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(slowIss))));
+            Thread.sleep(50);
+            concurrentResolver.evictTenant("slow_t");
+            slowRelease.countDown();
+
+            AuthenticationManager m1 = slowFuture1.get(3, TimeUnit.SECONDS);
+            AuthenticationManager m2 = slowFuture2.get(3, TimeUnit.SECONDS);
+            assertThat(m1).isSameAs(m2);
+            assertThat(slowFactoryCalls.get()).isEqualTo(1);
+            // Because evictTenant ran mid-flight, stale m1 was NOT persisted in cache
+            AuthenticationManager m3 = concurrentResolver.resolve(bearerRequest("/accounts/v2/users/me", fakeJwt(slowIss)));
+            assertThat(m3).isNotSameAs(m1);
+            assertThat(slowFactoryCalls.get()).isEqualTo(2);
+        }
+    }
+
+    private static final class MutableClock extends Clock {
+        private final AtomicReference<Instant> current;
+
+        private MutableClock(Instant initial) {
+            this.current = new AtomicReference<>(initial);
+        }
+
+        void advanceSeconds(long seconds) {
+            current.updateAndGet(now -> now.plusSeconds(seconds));
+        }
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return current.get();
+        }
     }
 
     private static MockHttpServletRequest bearerRequest(String path, String token) {

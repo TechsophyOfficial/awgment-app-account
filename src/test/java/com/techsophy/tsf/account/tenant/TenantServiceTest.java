@@ -92,7 +92,7 @@ class TenantServiceTest {
 
         when(tenantStateManager.beginProvisioning(request, "platform-admin-sub")).thenReturn(provisioning);
         when(keycloakRealmClient.fetchRealmContract(tenantId50)).thenReturn(snapshot);
-        when(tenantStateManager.markActive(tenantId50, "platform-admin-sub")).thenReturn(active);
+        when(tenantStateManager.markActive(tenantId50, 0L, "platform-admin-sub")).thenReturn(active);
 
         TenantResponse response = tenantService.createTenant(request, "platform-admin-sub");
 
@@ -110,6 +110,17 @@ class TenantServiceTest {
                 eq("TENANT_PROVISION"), eq("TENANT"), eq(tenantId50),
                 eq(AuditOutcome.SUCCESS), eq("platform-admin-sub"), isNull(), anyMap()
         );
+    }
+
+    @Test
+    void createTenantShouldRejectReservedSystemBootstrapAdminEmailBeforeAnySideEffect() {
+        CreateTenantRequest request = new CreateTenantRequest(
+                "acme", "Acme Corp", "SYSTEM" + "@" + "acme.local", "Sys", "Admin");
+        assertThatThrownBy(() -> tenantService.createTenant(request, "actor"))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
+                        .isEqualTo(ApiErrorCode.VALIDATION_FAILED));
+        verifyNoInteractions(tenantStateManager, tenantFlywayMigrator, tenantSeeder, keycloakRealmClient);
     }
 
     @Test
@@ -141,23 +152,28 @@ class TenantServiceTest {
 
         verify(tenantStateManager).markProvisioningFailed(
                 eq("acme"),
+                eq(0L),
                 argThat(msg -> msg.length() == 2000),
                 eq("actor")
         );
         verify(tenantLookupService).evict("acme");
-        verify(securityAuditService).record(
+        verify(securityAuditService).recordIsolated(
                 eq("TENANT_PROVISION"), eq("TENANT"), eq("acme"),
                 eq(AuditOutcome.FAILURE), eq("actor"), isNull(), anyMap()
         );
     }
 
     @Test
-    void retryProvisioningShouldRecoverFailedTenantAndRecordFailureOnRepeatedError() {
-        when(tenantStateManager.beginRetryProvisioning("acme", "actor"))
-                .thenReturn(entity("acme", TenantStatus.PROVISIONING, 1L));
+    void retryProvisioningShouldForwardPersistedPendingAdminRecoverFailedTenantAndRecordFailure() {
+        TenantEntity retryEntity = entity("acme", TenantStatus.PROVISIONING, 1L);
+        String adminEmail = "approver" + "@" + "acme.invalid";
+        retryEntity.setPendingAdminEmail(adminEmail);
+        retryEntity.setPendingAdminFirstName("Acme");
+        retryEntity.setPendingAdminLastName("Approver");
+        when(tenantStateManager.beginRetryProvisioning("acme", "actor")).thenReturn(retryEntity);
         KeycloakRealmContractSnapshot snapshot = minimalSnapshot("acme");
         when(keycloakRealmClient.fetchRealmContract("acme")).thenReturn(snapshot);
-        when(tenantStateManager.markActive("acme", "actor"))
+        when(tenantStateManager.markActive("acme", 1L, "actor"))
                 .thenReturn(entity("acme", TenantStatus.ACTIVE, 2L));
 
         TenantResponse recovered = tenantService.retryProvisioning("acme", "actor");
@@ -165,15 +181,46 @@ class TenantServiceTest {
         assertThat(recovered.status()).isEqualTo(TenantStatus.ACTIVE);
         assertThat(recovered.keycloakContractVerified()).isTrue();
         verify(tenantFlywayMigrator).provisionAndMigrateTenantSchema("acme");
-        verify(tenantSeeder).seedTenant("acme", null, null, null);
+        verify(tenantSeeder).seedTenant("acme", adminEmail, "Acme", "Approver");
         verify(contractVerifier).verify(snapshot);
 
-        // Failure path on retry marks PROVISIONING_FAILED again
+        // Failure path on retry marks PROVISIONING_FAILED with version fence
         doThrow(new IllegalStateException("flyway deadlock"))
                 .when(tenantFlywayMigrator).provisionAndMigrateTenantSchema("acme");
         assertThatThrownBy(() -> tenantService.retryProvisioning("acme", "actor"))
                 .isInstanceOf(IllegalStateException.class);
-        verify(tenantStateManager).markProvisioningFailed("acme", "flyway deadlock", "actor");
+        verify(tenantStateManager).markProvisioningFailed("acme", 1L, "flyway deadlock", "actor");
+    }
+
+    @Test
+    void successAuditFailureMustNotRevertActiveTenantOrFailProvisioningSuspendOrReactivate() {
+        CreateTenantRequest request = new CreateTenantRequest("acme", "Acme Corp", null, null, null);
+        when(tenantStateManager.beginProvisioning(request, "actor"))
+                .thenReturn(entity("acme", TenantStatus.PROVISIONING, 0L));
+        when(keycloakRealmClient.fetchRealmContract("acme")).thenReturn(minimalSnapshot("acme"));
+        when(tenantStateManager.markActive("acme", 0L, "actor"))
+                .thenReturn(entity("acme", TenantStatus.ACTIVE, 1L));
+        doThrow(new RuntimeException("audit table down"))
+                .when(securityAuditService).record(any(), any(), any(), any(), any(), any(), anyMap());
+
+        TenantResponse created = tenantService.createTenant(request, "actor");
+        assertThat(created.status()).isEqualTo(TenantStatus.ACTIVE);
+        verify(tenantStateManager, never()).markProvisioningFailed(any(), any(), any(), any());
+
+        // Suspend & reactivate post-commit audit failure also must not fail the response
+        TenantEntity active = entity("acme", TenantStatus.ACTIVE, 1L);
+        TenantEntity suspended = entity("acme", TenantStatus.SUSPENDED, 2L);
+        when(tenantRepository.findByTenantId("acme")).thenReturn(Optional.of(active));
+        when(tenantStateManager.updateStatus("acme", TenantStatus.SUSPENDED, 1L, "actor")).thenReturn(suspended);
+        TenantResponse suspendRes = tenantService.updateTenantStatus(
+                "acme", new UpdateTenantStatusRequest(TenantStatus.SUSPENDED, "Maint", 1L), "actor");
+        assertThat(suspendRes.status()).isEqualTo(TenantStatus.SUSPENDED);
+
+        when(tenantRepository.findByTenantId("acme")).thenReturn(Optional.of(suspended));
+        when(tenantStateManager.updateStatus("acme", TenantStatus.ACTIVE, 2L, "actor")).thenReturn(active);
+        TenantResponse reactivateRes = tenantService.updateTenantStatus(
+                "acme", new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Done", 2L), "actor");
+        assertThat(reactivateRes.status()).isEqualTo(TenantStatus.ACTIVE);
     }
 
     @Test
@@ -213,7 +260,7 @@ class TenantServiceTest {
     }
 
     @Test
-    void updateTenantStatusShouldSuspendAndEvictCachesAndDisableKeycloakRealm() {
+    void updateTenantStatusShouldSuspendIdempotentlyEvictCachesAuditReasonAndDisableKeycloakRealm() {
         TenantEntity active = entity("acme", TenantStatus.ACTIVE, 1L);
         TenantEntity suspended = entity("acme", TenantStatus.SUSPENDED, 2L);
         when(tenantRepository.findByTenantId("acme")).thenReturn(Optional.of(active));
@@ -233,12 +280,29 @@ class TenantServiceTest {
         verify(keycloakRealmClient).setRealmEnabled("acme", false);
         verify(securityAuditService).record(
                 eq("TENANT_SUSPEND"), eq("TENANT"), eq("acme"),
-                eq(AuditOutcome.SUCCESS), eq("actor"), isNull(), anyMap()
+                eq(AuditOutcome.SUCCESS), eq("actor"), isNull(),
+                argThat(meta -> "Security maintenance".equals(meta.get("reason"))
+                        && "tenant_acme".equals(meta.get("schemaName")))
         );
+
+        // Idempotent SUSPENDED -> SUSPENDED recovers PG=SUSPENDED / Keycloak=enabled split-brain
+        TenantEntity suspendedRetryResult = entity("acme", TenantStatus.SUSPENDED, 3L);
+        when(tenantRepository.findByTenantId("acme")).thenReturn(Optional.of(suspended));
+        when(tenantStateManager.updateStatus("acme", TenantStatus.SUSPENDED, 2L, "actor"))
+                .thenReturn(suspendedRetryResult);
+
+        TenantResponse idempotentResp = tenantService.updateTenantStatus(
+                "acme",
+                new UpdateTenantStatusRequest(TenantStatus.SUSPENDED, "Recover split brain", 2L),
+                "actor"
+        );
+        assertThat(idempotentResp.status()).isEqualTo(TenantStatus.SUSPENDED);
+        assertThat(idempotentResp.version()).isEqualTo(3L);
+        verify(keycloakRealmClient, org.mockito.Mockito.times(2)).setRealmEnabled("acme", false);
     }
 
     @Test
-    void updateTenantStatusShouldMigrateEnableVerifyOnReactivateAndRollbackRealmOnContractFailure() {
+    void updateTenantStatusShouldMigrateEnableVerifyOnReactivateAndRollbackConditionally() {
         TenantEntity suspended = entity("acme", TenantStatus.SUSPENDED, 2L);
         TenantEntity reactivated = entity("acme", TenantStatus.ACTIVE, 3L);
         KeycloakRealmContractSnapshot snapshot = minimalSnapshot("acme");
@@ -250,7 +314,7 @@ class TenantServiceTest {
 
         TenantResponse response = tenantService.updateTenantStatus(
                 "acme",
-                new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Done", 2L),
+                new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Maintenance done", 2L),
                 "actor"
         );
 
@@ -260,8 +324,14 @@ class TenantServiceTest {
         verify(keycloakRealmClient).setRealmEnabled("acme", true);
         verify(contractVerifier).verify(snapshot);
         verify(tenantStateManager).updateStatus("acme", TenantStatus.ACTIVE, 2L, "actor");
+        verify(securityAuditService).record(
+                eq("TENANT_REACTIVATE"), eq("TENANT"), eq("acme"),
+                eq(AuditOutcome.SUCCESS), eq("actor"), isNull(),
+                argThat(meta -> "Maintenance done".equals(meta.get("reason"))
+                        && "tenant_acme".equals(meta.get("schemaName")))
+        );
 
-        // Failure on verifier must re-disable realm best-effort and keep tenant SUSPENDED
+        // Failure on verifier must re-disable realm when DB is still SUSPENDED and audit via recordIsolated
         org.mockito.Mockito.clearInvocations(tenantStateManager, keycloakRealmClient, securityAuditService);
         doThrow(new ApiException(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR, "policy violated"))
                 .when(contractVerifier).verify(snapshot);
@@ -275,14 +345,16 @@ class TenantServiceTest {
 
         verify(keycloakRealmClient).setRealmEnabled("acme", false);
         verify(tenantStateManager, never()).updateStatus("acme", TenantStatus.ACTIVE, 2L, "actor");
-        verify(securityAuditService).record(
+        verify(securityAuditService).recordIsolated(
                 eq("TENANT_REACTIVATE"), eq("TENANT"), eq("acme"),
                 eq(AuditOutcome.FAILURE), eq("actor"), isNull(), anyMap()
         );
 
-        // Even if rollback setRealmEnabled(false) and verifier throw non-ApiException, surface UPSTREAM_IDENTITY_PROVIDER_ERROR
+        // Even if rollback setRealmEnabled(false), verifier, and failure audit throw, surface primary UPSTREAM_IDENTITY_PROVIDER_ERROR
         doThrow(new IllegalStateException("kc timeout")).when(contractVerifier).verify(snapshot);
         doThrow(new IllegalStateException("kc disable failed")).when(keycloakRealmClient).setRealmEnabled("acme", false);
+        doThrow(new RuntimeException("audit DB error")).when(securityAuditService)
+                .recordIsolated(any(), any(), any(), any(), any(), any(), anyMap());
         assertThatThrownBy(() -> tenantService.updateTenantStatus(
                 "acme",
                 new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Retry2", 2L),
@@ -290,16 +362,72 @@ class TenantServiceTest {
         )).isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
                         .isEqualTo(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR));
+
+        // Concurrent reactivation race: updateStatus throws CONCURRENT_MODIFICATION and peer replica ALREADY set DB=ACTIVE -> MUST NOT disable realm!
+        org.mockito.Mockito.clearInvocations(keycloakRealmClient, securityAuditService);
+        org.mockito.Mockito.reset(contractVerifier, keycloakRealmClient, securityAuditService);
+        when(keycloakRealmClient.fetchRealmContract("acme")).thenReturn(snapshot);
+        when(tenantRepository.findByTenantId("acme"))
+                .thenReturn(Optional.of(suspended)) // initial read
+                .thenReturn(Optional.of(reactivated)); // re-read after CONCURRENT_MODIFICATION sees ACTIVE!
+        when(tenantStateManager.updateStatus("acme", TenantStatus.ACTIVE, 2L, "actor"))
+                .thenThrow(new ApiException(ApiErrorCode.CONCURRENT_MODIFICATION, "stale"));
+
+        assertThatThrownBy(() -> tenantService.updateTenantStatus(
+                "acme",
+                new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Peer race", 2L),
+                "actor"
+        )).isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
+                        .isEqualTo(ApiErrorCode.CONCURRENT_MODIFICATION));
+
+        verify(keycloakRealmClient, never()).setRealmEnabled("acme", false);
+        verify(securityAuditService).recordIsolated(
+                eq("TENANT_REACTIVATE"), eq("TENANT"), eq("acme"),
+                eq(AuditOutcome.FAILURE), eq("actor"), isNull(), anyMap()
+        );
+
+        // UpdateStatus fails while DB is still SUSPENDED (e.g. concurrent suspend bumped version, or DB error) -> MUST compensate setRealmEnabled(false)!
+        org.mockito.Mockito.clearInvocations(keycloakRealmClient, securityAuditService);
+        TenantEntity suspendedNewerVersion = entity("acme", TenantStatus.SUSPENDED, 5L);
+        when(tenantRepository.findByTenantId("acme"))
+                .thenReturn(Optional.of(suspended))
+                .thenReturn(Optional.of(suspendedNewerVersion));
+        assertThatThrownBy(() -> tenantService.updateTenantStatus(
+                "acme",
+                new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Concurrent suspend", 2L),
+                "actor"
+        )).isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
+                        .isEqualTo(ApiErrorCode.CONCURRENT_MODIFICATION));
+        verify(keycloakRealmClient).setRealmEnabled("acme", false);
+
+        // Flyway failure during reactivate occurs before setRealmEnabled(true) -> audits FAILURE without disabling realm
+        org.mockito.Mockito.clearInvocations(keycloakRealmClient, securityAuditService);
+        when(tenantRepository.findByTenantId("acme")).thenReturn(Optional.of(suspended));
+        doThrow(new IllegalStateException("flyway broken")).when(tenantFlywayMigrator).provisionAndMigrateTenantSchema("acme");
+        assertThatThrownBy(() -> tenantService.updateTenantStatus(
+                "acme",
+                new UpdateTenantStatusRequest(TenantStatus.ACTIVE, "Flyway fail", 2L),
+                "actor"
+        )).isInstanceOf(IllegalStateException.class);
+        verify(keycloakRealmClient, never()).setRealmEnabled(any(), org.mockito.ArgumentMatchers.anyBoolean());
+        verify(securityAuditService).recordIsolated(
+                eq("TENANT_REACTIVATE"), eq("TENANT"), eq("acme"),
+                eq(AuditOutcome.FAILURE), eq("actor"), isNull(), anyMap()
+        );
     }
 
     @Test
-    void updateTenantStatusSuspendFailureShouldAuditFailureAndWrapNonApiException() {
+    void updateTenantStatusSuspendFailureShouldAuditFailureIsolatedAndNotMaskApiException() {
         TenantEntity active = entity("acme", TenantStatus.ACTIVE, 1L);
         TenantEntity suspended = entity("acme", TenantStatus.SUSPENDED, 2L);
         when(tenantRepository.findByTenantId("acme")).thenReturn(Optional.of(active));
         when(tenantStateManager.updateStatus("acme", TenantStatus.SUSPENDED, 1L, "actor"))
                 .thenReturn(suspended);
         doThrow(new IllegalStateException("kc down")).when(keycloakRealmClient).setRealmEnabled("acme", false);
+        doThrow(new RuntimeException("audit DB error")).when(securityAuditService)
+                .recordIsolated(any(), any(), any(), any(), any(), any(), anyMap());
 
         assertThatThrownBy(() -> tenantService.updateTenantStatus(
                 "acme",
@@ -309,7 +437,7 @@ class TenantServiceTest {
                 .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
                         .isEqualTo(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR));
 
-        verify(securityAuditService).record(
+        verify(securityAuditService).recordIsolated(
                 eq("TENANT_SUSPEND"), eq("TENANT"), eq("acme"),
                 eq(AuditOutcome.FAILURE), eq("actor"), isNull(), anyMap()
         );
@@ -372,7 +500,7 @@ class TenantServiceTest {
         doThrow(new RuntimeException((String) null)).when(tenantFlywayMigrator).provisionAndMigrateTenantSchema("fail_null");
         assertThatThrownBy(() -> tenantService.createTenant(failReq, "actor"))
                 .isInstanceOf(RuntimeException.class);
-        verify(tenantStateManager).markProvisioningFailed("fail_null", "Provisioning failed", "actor");
+        verify(tenantStateManager).markProvisioningFailed("fail_null", 0L, "Provisioning failed", "actor");
 
         TenantEntity activeForSuspend = entity("suspend_api_err", TenantStatus.ACTIVE, 1L);
         when(tenantRepository.findByTenantId("suspend_api_err")).thenReturn(Optional.of(activeForSuspend));

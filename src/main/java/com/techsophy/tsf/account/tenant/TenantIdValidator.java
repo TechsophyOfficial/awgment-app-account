@@ -34,6 +34,12 @@ public class TenantIdValidator {
     }
 
     public static void validate(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new ApiException(
+                    ApiErrorCode.INVALID_TENANT_ID,
+                    "Tenant identifier must not be blank and must match ^[a-z][a-z0-9_]{1,49}$."
+            );
+        }
         if (!isValid(tenantId)) {
             String safeId = ProblemDetailFactory.sanitizeForLog(tenantId);
             throw new ApiException(

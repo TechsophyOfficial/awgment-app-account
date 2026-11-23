@@ -47,31 +47,39 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 
 | Variable | Default | Required in Prod | Description |
 | :--- | :--- | :---: | :--- |
+| `SPRING_PROFILES_ACTIVE` | *(none)* | No | Set `local` in local development to activate [application-local.yml](./src/main/resources/application-local.yml) dev password defaults. Outside `local`/`test`, `StartupSecurityValidator` fails fast on blank or dev-default secrets. |
 | `SERVER_PORT` | `8081` | No | HTTP listen port for the service. |
-| `AWGMENT_NODE_ID` | `-1` | No | Optional deterministic Snowflake node ID (`0..1023`) for multi-replica K8s pods; `-1` auto-derives from NIC MAC. |
+| `AWGMENT_NODE_ID` | `-1` | Recommended | Deterministic Snowflake node ID (`0..1023`) for multi-replica pods (e.g., StatefulSet ordinal); `-1` auto-derives from NIC MAC (risks collision on identical container virtual NICs). |
 | `AWGMENT_DB_URL` | `jdbc:postgresql://localhost:5432/awgment_account` | **Yes** | PostgreSQL 16 JDBC URL (use `?sslmode=require` in production). |
 | `AWGMENT_DB_USERNAME` | `awgment` | **Yes** | PostgreSQL username (needs `CREATE` schema privilege on `awgment_account` for tenant provisioning). |
-| `AWGMENT_DB_PASSWORD` | `awgment_local_dev_password` | **Yes** | PostgreSQL password (inject via secret manager / protected env file). |
+| `AWGMENT_DB_PASSWORD` | *(none; `local` profile only)* | **Yes** | PostgreSQL password (inject via secret manager / Kubernetes Secret; dev default exists only in `local` profile). |
 | `AWGMENT_DB_POOL_MAX` | `20` | No | HikariCP maximum pool size. |
 | `AWGMENT_DB_POOL_MIN_IDLE` | `5` | No | HikariCP minimum idle connections. |
 | `AWGMENT_DB_CONN_TIMEOUT_MS` | `9500` | No | HikariCP connection acquisition timeout (ms). |
 | `AWGMENT_DB_LEAK_THRESHOLD_MS` | `0` | No | HikariCP leak detection threshold (ms; `0` disabled by default to avoid false alarms during migrations/bulk imports). |
 | `AWGMENT_FLYWAY_ENABLED` | `true` | No | Enables Spring Boot Flyway migrations on `public` schema at startup. |
-| `AWGMENT_FLYWAY_MIGRATE_ON_STARTUP` | `true` | No | Enables `TenantFlywayMigrator` startup migration of `public` and all `ACTIVE` tenant schemas (`SUSPENDED` and `PROVISIONING_FAILED` tenants are skipped). |
+| `AWGMENT_FLYWAY_MIGRATE_ON_STARTUP` | `true` | No | Enables `TenantFlywayMigrator` startup migration of all `ACTIVE` tenant schemas (`SUSPENDED` and `PROVISIONING_FAILED` tenants are skipped; per-tenant startup failures quarantine only the broken tenant). |
 | `AWGMENT_MULTITENANCY_ENABLED` | `true` | No | Enables Hibernate 6 schema-per-tenant connection routing (`SET search_path TO tenant_<id>`). |
-| `AWGMENT_TENANT_STATUS_CACHE_TTL_SECONDS` | `60` | No | Bounded TTL (seconds, capped at `60`) for `TenantLookupService` status cache. |
-| `AWGMENT_KEYCLOAK_URL` | `http://localhost:8080` | **Yes** | Base URL of the Keycloak 26 server (no trailing slash). |
+| `AWGMENT_TENANT_STATUS_CACHE_TTL_SECONDS` | `60` | No | Bounded TTL (seconds, capped at `60`) for `TenantLookupService` local status cache. |
+| `AWGMENT_MULTITENANCY_PROVISIONING_STALE_TTL_SECONDS` | `300` | No | Age (seconds, min `30`) after which a crashed `PROVISIONING` row can be reclaimed by `POST /retry-provisioning`. |
+| `AWGMENT_KEYCLOAK_URL` | `http://localhost:8080` | **Yes** | External public base URL of Keycloak 26 used for strict JWT `iss` validation (no trailing slash). |
+| `AWGMENT_KEYCLOAK_INTERNAL_URL` | *(blank)* | Recommended | Optional internal ClusterIP/Docker base URL for split-horizon JWKS fetches (validates JWT `iss` against `AWGMENT_KEYCLOAK_URL` while fetching JWKS internally). |
 | `AWGMENT_PLATFORM_REALM` | `platform` | **Yes** | Dedicated Platform Control Realm authorized for `/accounts/v2/tenants/**`. |
 | `AWGMENT_EXPECTED_AUDIENCE` | `awgment-account` | **Yes** | Mandatory JWT `aud` claim verified on every bearer token. |
 | `AWGMENT_TRUSTED_CLIENT_ID` | `awgment-account` | **Yes** | Single trusted Keycloak client from which Awgment RBAC roles are extracted. |
 | `AWGMENT_SERVICE_ACCOUNT_CLIENTS` | `awgment-service-client` | No | Comma-separated allowlist of confidential client IDs accepted by `ServiceAccountPrincipalDetector`. |
+| `AWGMENT_SECURITY_DECODER_CACHE_MAX_SIZE` | `500` | No | Bounded LRU capacity for cached per-issuer `JwtDecoder` managers. |
+| `AWGMENT_SECURITY_DECODER_CACHE_TTL_SECONDS` | `300` | No | TTL (seconds) before cached per-issuer `JwtDecoder` managers refresh JWKS metadata. |
+| `AWGMENT_SECURITY_OIDC_CONNECT_TIMEOUT_MS` | `5000` | No | Bounded non-redirecting HTTP connect timeout (ms, min `100`) for OIDC discovery/JWKS calls. |
+| `AWGMENT_SECURITY_OIDC_READ_TIMEOUT_MS` | `8000` | No | Bounded non-redirecting HTTP read timeout (ms, min `100`) for OIDC discovery/JWKS calls. |
+| `AWGMENT_KEYCLOAK_ADMIN_URL` | `AWGMENT_KEYCLOAK_INTERNAL_URL` or `AWGMENT_KEYCLOAK_URL` | **Yes** | Internal or external Keycloak Admin REST base URL used by `KeycloakAdminRealmClient`. |
 | `AWGMENT_KEYCLOAK_ADMIN_REALM` | `master` | **Yes** | Realm used by `KeycloakAdminRealmClient` when inspecting/updating tenant realms. |
 | `AWGMENT_KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | **Yes** | Client ID for Keycloak Admin REST access. |
 | `AWGMENT_KEYCLOAK_ADMIN_CLIENT_SECRET` | *(blank)* | Conditional | Confidential client secret; when non-blank uses `client_credentials` grant, otherwise uses `password` grant. |
 | `AWGMENT_KEYCLOAK_ADMIN_USERNAME` | `admin` | Conditional | Admin username when using `password` grant (`AWGMENT_KEYCLOAK_ADMIN_CLIENT_SECRET` blank). |
-| `AWGMENT_KEYCLOAK_ADMIN_PASSWORD` | `admin_local_dev_password` | Conditional | Admin password when using `password` grant (override via secret manager in production). |
-| `AWGMENT_KEYCLOAK_CONNECT_TIMEOUT_MS` | `5000` | No | Bounded HTTP connect timeout (ms) for Keycloak Admin REST calls. |
-| `AWGMENT_KEYCLOAK_READ_TIMEOUT_MS` | `8000` | No | Bounded HTTP read timeout (ms) for Keycloak Admin REST calls. |
+| `AWGMENT_KEYCLOAK_ADMIN_PASSWORD` | *(none; `local` profile only)* | Conditional | Admin password when using `password` grant (dev default exists only in `local` profile; inject via secret manager in production). |
+| `AWGMENT_KEYCLOAK_CONNECT_TIMEOUT_MS` | `5000` | No | Bounded HTTP connect timeout (ms, min `100`) for Keycloak Admin REST calls. |
+| `AWGMENT_KEYCLOAK_READ_TIMEOUT_MS` | `8000` | No | Bounded HTTP read timeout (ms, min `100`) for Keycloak Admin REST calls. |
 | `AWGMENT_OPENAPI_ENABLED` | `false` | No | Exposes `/v3/api-docs` & `/swagger-ui.html`. **Must remain `false` in production.** |
 
 ### Implemented Phase 1 Endpoints (`/accounts/v2/tenants/**`)
@@ -131,7 +139,7 @@ export TOKEN=$(./docker/scripts/get-token.sh operator)
      * **Module:** `awgment-app-account.main`
      * **Environment variables:**
        ```text
-       SERVER_PORT=8081;AWGMENT_DB_URL=jdbc:postgresql://localhost:5432/awgment_account;AWGMENT_DB_USERNAME=awgment;AWGMENT_DB_PASSWORD=awgment_local_dev_password;AWGMENT_KEYCLOAK_URL=http://localhost:8080;AWGMENT_OPENAPI_ENABLED=true
+       SPRING_PROFILES_ACTIVE=local;SERVER_PORT=8081;AWGMENT_DB_URL=jdbc:postgresql://localhost:5432/awgment_account;AWGMENT_DB_USERNAME=awgment;AWGMENT_DB_PASSWORD=awgment_local_dev_password;AWGMENT_KEYCLOAK_URL=http://localhost:8080;AWGMENT_OPENAPI_ENABLED=true
        ```
 5. **Run / Debug:**
    * Click **Run** or **Debug** on `AwgmentAccountLocal`.
@@ -158,6 +166,7 @@ export TOKEN=$(./docker/scripts/get-token.sh operator)
          "mainClass": "com.techsophy.tsf.account.TechsophyPlatformAccountApplication",
          "projectName": "awgment-app-account",
          "env": {
+           "SPRING_PROFILES_ACTIVE": "local",
            "SERVER_PORT": "8081",
            "AWGMENT_DB_URL": "jdbc:postgresql://localhost:5432/awgment_account",
            "AWGMENT_DB_USERNAME": "awgment",
@@ -177,7 +186,7 @@ export TOKEN=$(./docker/scripts/get-token.sh operator)
 
 ```bash
 cd awgment-app-account
-AWGMENT_OPENAPI_ENABLED=true ./gradlew bootRun
+SPRING_PROFILES_ACTIVE=local AWGMENT_OPENAPI_ENABLED=true ./gradlew bootRun
 ```
 
 Verify the service is responding:
@@ -271,6 +280,7 @@ On the standalone server:
 sudo mkdir -p /etc/awgment
 sudo tee /etc/awgment/account.env > /dev/null <<'EOF'
 SERVER_PORT=8081
+AWGMENT_NODE_ID=0
 AWGMENT_DB_URL=jdbc:postgresql://db.internal.example.com:5432/awgment_account?sslmode=require
 AWGMENT_DB_USERNAME=awgment_app
 AWGMENT_DB_PASSWORD=<STRONG_DB_PASSWORD>
@@ -279,10 +289,19 @@ AWGMENT_DB_POOL_MIN_IDLE=5
 AWGMENT_DB_CONN_TIMEOUT_MS=9500
 AWGMENT_DB_LEAK_THRESHOLD_MS=0
 AWGMENT_FLYWAY_ENABLED=true
+AWGMENT_FLYWAY_MIGRATE_ON_STARTUP=true
+AWGMENT_MULTITENANCY_ENABLED=true
+AWGMENT_TENANT_STATUS_CACHE_TTL_SECONDS=60
 AWGMENT_KEYCLOAK_URL=https://auth.example.com
+AWGMENT_KEYCLOAK_INTERNAL_URL=https://auth.internal.example.com
 AWGMENT_PLATFORM_REALM=platform
 AWGMENT_EXPECTED_AUDIENCE=awgment-account
 AWGMENT_TRUSTED_CLIENT_ID=awgment-account
+AWGMENT_SERVICE_ACCOUNT_CLIENTS=awgment-service-client
+AWGMENT_KEYCLOAK_ADMIN_URL=https://auth.internal.example.com
+AWGMENT_KEYCLOAK_ADMIN_REALM=master
+AWGMENT_KEYCLOAK_ADMIN_CLIENT_ID=awgment-admin-sync
+AWGMENT_KEYCLOAK_ADMIN_CLIENT_SECRET=<STRONG_KEYCLOAK_ADMIN_CLIENT_SECRET>
 AWGMENT_OPENAPI_ENABLED=false
 EOF
 sudo chmod 600 /etc/awgment/account.env

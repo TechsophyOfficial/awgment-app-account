@@ -1,6 +1,8 @@
 package com.techsophy.tsf.account.tenant;
 
 import com.techsophy.idgenerator.IdGeneratorImpl;
+import com.techsophy.tsf.account.error.ApiErrorCode;
+import com.techsophy.tsf.account.error.ApiException;
 import com.techsophy.tsf.account.error.ProblemDetailFactory;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +21,7 @@ public class TenantSeeder {
 
     private static final long SYSTEM_USER_ID = 1L;
     private static final int MAX_USERNAME_LENGTH = 100;
+    private static final int MAX_EMAIL_LENGTH = 255;
     private static final String BOOTSTRAP_ADMIN_DESIRED_ROLES_JSON = "[\"awgment-account-admin\"]";
 
     private final DataSource dataSource;
@@ -29,12 +32,35 @@ public class TenantSeeder {
         this.idGenerator = idGenerator;
     }
 
+    public static String normalizeAndValidateBootstrapAdminEmail(String tenantId, String bootstrapAdminEmail) {
+        TenantIdValidator.validate(tenantId);
+        if (bootstrapAdminEmail == null || bootstrapAdminEmail.isBlank()) {
+            return null;
+        }
+        String normalized = bootstrapAdminEmail.trim().toLowerCase(Locale.ROOT);
+        if (normalized.length() > MAX_EMAIL_LENGTH || !isSyntacticallyValidEmail(normalized)) {
+            throw new ApiException(
+                    ApiErrorCode.VALIDATION_FAILED,
+                    "bootstrapAdminEmail must be a valid email address not exceeding 255 characters."
+            );
+        }
+        String systemEmail = "system" + "@" + tenantId + ".local";
+        if (normalized.equals(systemEmail)) {
+            throw new ApiException(
+                    ApiErrorCode.VALIDATION_FAILED,
+                    "bootstrapAdminEmail must not match the reserved tenant system email."
+            );
+        }
+        return normalized;
+    }
+
     public void seedTenant(
             String tenantId,
             String bootstrapAdminEmail,
             String bootstrapAdminFirstName,
             String bootstrapAdminLastName) {
         String schemaName = TenantIdValidator.toSchemaName(tenantId);
+        String normalizedEmail = normalizeAndValidateBootstrapAdminEmail(tenantId, bootstrapAdminEmail);
         String systemSql = "INSERT INTO \"" + schemaName + "\".tp_user "
                 + "(id, user_name, email_id, first_name, last_name, identity_source, provisioning_mode, "
                 + "status, sync_status, created_by, updated_by) "
@@ -49,8 +75,7 @@ public class TenantSeeder {
                 systemPs.executeUpdate();
             }
 
-            if (bootstrapAdminEmail != null && !bootstrapAdminEmail.isBlank()) {
-                String normalizedEmail = bootstrapAdminEmail.trim().toLowerCase(Locale.ROOT);
+            if (normalizedEmail != null) {
                 String userName = normalizedEmail.length() > MAX_USERNAME_LENGTH
                         ? normalizedEmail.substring(0, MAX_USERNAME_LENGTH)
                         : normalizedEmail;
@@ -73,6 +98,20 @@ public class TenantSeeder {
             throw new IllegalStateException(
                     "Failed to seed tenant '" + ProblemDetailFactory.sanitizeForLog(tenantId) + "'", ex);
         }
+    }
+
+    private static boolean isSyntacticallyValidEmail(String email) {
+        int atIdx = email.indexOf('@');
+        if (atIdx <= 0 || atIdx != email.lastIndexOf('@') || atIdx == email.length() - 1) {
+            return false;
+        }
+        for (int i = 0; i < email.length(); i++) {
+            char ch = email.charAt(i);
+            if (Character.isWhitespace(ch) || Character.isISOControl(ch)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static String trimToNull(String value) {

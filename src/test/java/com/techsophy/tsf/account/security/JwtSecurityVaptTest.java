@@ -204,17 +204,23 @@ class JwtSecurityVaptTest {
 
     @Test
     void api5_shouldEnforceCrossRealmBflaAndTenantStatusGatesWithoutDecoderLookup() throws Exception {
-        // 1. Tenant token calling /accounts/v2/tenants/** -> 403 TENANT_NOT_ACTIVE, no WWW-Authenticate, no decoder
+        // 1. Tenant token calling /accounts/v2/tenants/** (including URL-encoded %74 bypass) -> 403 TENANT_NOT_ACTIVE
         String acmeAdminToken = mintRs256(primaryEncoder, primaryKey.getKeyID(), ACME_ISS,
                 List.of("awgment-account"), 300, null, Map.of(
                         "resource_access", Map.of("awgment-account", Map.of("roles", List.of("awgment-platform-admin")))
                 ));
-        mockMvc.perform(get("/accounts/v2/tenants/vapt-probe")
-                        .header("Authorization", "Bearer " + acmeAdminToken))
-                .andExpect(status().isForbidden())
-                .andExpect(header().doesNotExist("WWW-Authenticate"))
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
-                .andExpect(jsonPath("$.errorCode").value("TENANT_NOT_ACTIVE"));
+        for (String tenantMgmtPath : new String[]{
+                "/accounts/v2/tenants/vapt-probe",
+                "/accounts/v2/%74enants/vapt-probe",
+                "/accounts/v2/%74enants"
+        }) {
+            mockMvc.perform(get(java.net.URI.create(tenantMgmtPath))
+                            .header("Authorization", "Bearer " + acmeAdminToken))
+                    .andExpect(status().isForbidden())
+                    .andExpect(header().doesNotExist("WWW-Authenticate"))
+                    .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                    .andExpect(jsonPath("$.errorCode").value("TENANT_NOT_ACTIVE"));
+        }
 
         // 2. Platform token calling tenant route -> 403 TENANT_NOT_ACTIVE, no WWW-Authenticate, no decoder
         String platformToken = mintRs256(primaryEncoder, primaryKey.getKeyID(), PLATFORM_ISS,
@@ -309,6 +315,23 @@ class JwtSecurityVaptTest {
                 .andExpect(jsonPath("$.tenantContext").value("acme"))
                 .andExpect(jsonPath("$.serviceAccount").value(true));
         assertThat(TenantContext.getTenantId()).isEqualTo(TenantContext.DEFAULT_TENANT);
+    }
+
+    @Test
+    void upstreamJwksOrOidcDiscoveryFailureMustReturn502WithoutWwwAuthenticateOrLeakage() throws Exception {
+        when(tenantLookupService.findStatus("acme")).thenReturn(Optional.of(TenantStatus.ACTIVE));
+        when(jwtDecoderFactory.create(ACME_ISS, "awgment-account"))
+                .thenThrow(new IllegalStateException("Connection refused to http://keycloak:8080"));
+
+        String acmeToken = mintRs256(primaryEncoder, primaryKey.getKeyID(), ACME_ISS,
+                List.of("awgment-account"), 300, null, Map.of());
+        mockMvc.perform(get("/accounts/v2/vapt/tenant-probe")
+                        .header("Authorization", "Bearer " + acmeToken))
+                .andExpect(status().isBadGateway())
+                .andExpect(header().doesNotExist("WWW-Authenticate"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("UPSTREAM_IDENTITY_PROVIDER_ERROR"))
+                .andExpect(jsonPath("$.detail", org.hamcrest.Matchers.not(containsString("keycloak:8080"))));
     }
 
     private void assertUnauthorized(String token) throws Exception {

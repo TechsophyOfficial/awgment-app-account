@@ -1,11 +1,14 @@
 package com.techsophy.tsf.account.keycloak;
 
+import jakarta.validation.constraints.Min;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Configuration properties for connecting to Keycloak 26 Admin REST API ({@code awgment.keycloak.admin.*}).
  */
+@Validated
 @Component
 @ConfigurationProperties(prefix = "awgment.keycloak.admin")
 public class KeycloakAdminProperties {
@@ -16,7 +19,11 @@ public class KeycloakAdminProperties {
     private String clientSecret = "";
     private String username = "";
     private String password = "";
+
+    @Min(100)
     private int connectTimeoutMs = 5000;
+
+    @Min(100)
     private int readTimeoutMs = 8000;
 
     public String getServerUrl() {
