@@ -27,6 +27,7 @@ class PostgresKeycloakContainersIT {
 
     @Container
     static final KeycloakContainer KEYCLOAK = new KeycloakContainer("quay.io/keycloak/keycloak:26.0.5")
+            .withFeaturesDisabled("organization")
             .withRealmImportFiles(
                     "keycloak/platform-realm.json",
                     "keycloak/tenant-acme-realm.json",

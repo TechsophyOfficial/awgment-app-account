@@ -58,7 +58,8 @@ class KeycloakRealmBlueprintsTest {
                 .path("org.keycloak.userprofile.UserProfileProvider")
                 .get(0).path("config").path("kc.user.profile.config").get(0).asText();
         JsonNode userProfile = mapper.readTree(profileConfigJson);
-        assertThat(userProfile.path("unmanagedAttributePolicy").asText()).isEqualTo("DISABLED");
+        // In Keycloak 26 UPConfig.UnmanagedAttributePolicy, null/absent disables unmanaged attributes
+        assertThat(userProfile.hasNonNull("unmanagedAttributePolicy")).isFalse();
 
         Set<String> adminOnlyLocked = new HashSet<>();
         for (JsonNode attr : userProfile.path("attributes")) {

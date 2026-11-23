@@ -32,7 +32,7 @@ ext {
     springDocVersion = '2.6.0'
     keycloakVersion = '26.0.5'
     postgresqlVersion = '42.7.4'
-    testcontainersVersion = '1.20.4'
+    set('testcontainers.version', '1.21.4')
     testcontainersKeycloakVersion = '3.5.1'
     stringTemplateVersion = '4.3.4'
     idGeneratorVersion = '2.0.0'
@@ -65,8 +65,8 @@ dependencies {
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
-    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
-    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
     testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

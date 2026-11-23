@@ -9,6 +9,13 @@
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 3600,
   "roles": {
+    "realm": [
+      {
+        "name": "default-roles-platform",
+        "description": "Default realm role with zero Awgment functional authorities",
+        "composite": false
+      }
+    ],
     "client": {
       "awgment-account": [
         {
@@ -17,6 +24,9 @@
         }
       ]
     }
+  },
+  "defaultRole": {
+    "name": "default-roles-platform"
   },
   "clients": [
     {
@@ -35,7 +45,7 @@
       "publicClient": false,
       "secret": "platform-cli-dev-secret",
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true,
+      "serviceAccountsEnabled": false,
       "standardFlowEnabled": true,
       "fullScopeAllowed": true,
       "protocolMappers": [
