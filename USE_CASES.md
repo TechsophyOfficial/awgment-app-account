@@ -57,7 +57,7 @@ Verified automatically by `KeycloakRealmContractVerifier` during `UC-TENANT-01`,
 2. **Single-Tenant Enterprise IdPs:** Brokered Enterprise IdPs MUST use single-tenant issuers (specific Entra ID `tid`, never `/common` or `/organizations`; Google Workspace restricted by `hd`) and map `tid`/`hd` into unforgeable session-note claim `idp_tenant_id`.
 3. **Disable Automatic Email Account Linking:** `First Broker Login` MUST disable email-based auto-linking.
 4. **Local Email Verification:** If local self-registration is enabled, require `Verify Email` before issuing usable tokens.
-5. **Admin-Only Declarative User Profile Attributes:** Register `awgment_status`, `userId`, and `awgment_sync_version` in Keycloak 26 Declarative User Profile with **`permissions.edit = ["admin"]`** and **`unmanagedAttributesPolicy = DISABLED`** (or `ADMIN_EDIT`).
+5. **Admin-Only Declarative User Profile Attributes:** Register `awgment_status`, `userId`, `awgment_sync_version`, and `locale` in Keycloak 26 Declarative User Profile with **`permissions.edit = ["admin"]`** and unmanaged attributes disabled (omit `unmanagedAttributePolicy` / set `null` in Keycloak 26 `UPConfig`; or use `ADMIN_EDIT`). Enable realm internationalization (`internationalizationEnabled = true`, `supportedLocales`, `defaultLocale`) so Keycloak renders login pages and `execute-actions-email` notifications in the user's synced `locale`.
 6. **Fail-Closed Gateway & Sibling Services (With Explicit Onboarding Exception):**
    * API Gateway & all sibling microservices MUST reject any human JWT where `awgment_status` is **absent/null OR `!= "ACTIVE"`** (`403 ACCESS_PENDING_APPROVAL`).
    * **Sole Gateway Exception:** Route `POST /accounts/v2/onboarding/session` to `awgment-app-account` after validating JWT signature, `exp`, `iss`, and `aud`, even when `awgment_status` is absent or non-`ACTIVE`.
@@ -113,6 +113,7 @@ Verified automatically by `KeycloakRealmContractVerifier` during `UC-TENANT-01`,
 | `tp_user.keycloak_sub`, `tp_group.group_id` | **Keycloak 26** | Captured once on create/bind/sync and stored immutably in PostgreSQL. |
 | `EXTERNAL_IDP` profile (`first_name`, `last_name`, `email_id`, `department`) | **External IdP (via verified Keycloak JWT)** | Refreshed on login (`UC-AUTH-02`) only when `isVerifiedTrustedIdp(jwt) == true`. |
 | `KEYCLOAK_LOCAL` profile (`first_name`, `last_name`) | **PostgreSQL (`awgment-app-account`)** | Pushed to Keycloak via `RECONCILE_USER`. |
+| `tp_user.locale` (BCP-47 language tag, e.g., `en`, `fr`, `ja`) | **PostgreSQL (`awgment-app-account`)** | User-editable via `PUT /users/me` or admin update; synced to Keycloak's `locale` user attribute via `RECONCILE_USER` so Keycloak login & `execute-actions-email` messages render in the user's preferred language. |
 | `tp_group` (`origin = AWGMENT_MANAGED` vs `KEYCLOAK_IMPORTED`) | **PostgreSQL** for `AWGMENT_MANAGED`; **Keycloak** for `KEYCLOAK_IMPORTED` | `UC-GRP-06` (`POST /groups/sync`) **skips** any `tp_group` with `sync_status != 'SYNCED'` (reported as `skippedPendingSync`) so pending local renames/deletes are never clobbered. |
 | Deleted group references in `tp_user.desired_groups` | **PostgreSQL** | `UC-GRP-04` atomically removes deleted group IDs from all `tp_user.desired_groups` JSONB arrays inside the tombstone transaction. |
 
@@ -410,6 +411,9 @@ flowchart LR
 ## 7. Standardized API, Error Code Catalog & Operational Security
 
 * **Status Codes:** `201 Created` (creates), `202 Accepted` (async/email/degraded-sync), `200 OK`, `204 No Content` (empty body on deletes/completed sync disable), RFC 7807 `ProblemDetail` (`application/problem+json` with `errorCode`, `timestamp`).
+* **Internationalization (i18n) Architecture (Option 1 — Locale-Neutral API + Keycloak Email/Login Locale):**
+  * All REST endpoints return **locale-neutral machine-readable `errorCode`s** (and field keys in `fieldErrors`) with English diagnostic `title`/`detail` fallbacks. Server-side `Accept-Language` `MessageSource` translation bundles are intentionally excluded; client applications localize user-facing copy by keying off `errorCode`.
+  * End-user authentication screens and transactional emails (`execute-actions-email` invites and password resets) are localized natively by **Keycloak 26** using the user's `locale` attribute synced from `tp_user.locale` (editable via `PUT /accounts/v2/users/me` or admin profile updates).
 * **Standard Error Codes:**
   * `400`: `INVALID_TENANT_ID`, `PASSWORD_MANAGED_BY_EXTERNAL_IDP`, `IMMUTABLE_FIELD_MODIFICATION`, `UNTRUSTED_ACL_CONTEXT`, `INVALID_CSV_UPLOAD`, `UNVERIFIED_IDENTITY_ATTESTATION_REQUIRED`
   * `401`: `INVALID_TOKEN`
@@ -423,7 +427,7 @@ flowchart LR
 
 ## 8. Decommissioned Legacy Capabilities
 
-Menus (`Menu*`), Themes & Preferences (`Themes*`, `UserPreferences*`), Custom OTP (`Otp*`), separate FormIO collection (`tp_formdata_user`), Camunda bulk trigger (`WORKFLOW_START_URL`), RSA-4096 push callback (`/internal/v1/users/create`), raw Keycloak group API (`/accounts/v1/keycloak/groups`), Spring Cloud Config (`bootstrap.yml`), per-request `/userinfo` lookups, and plaintext password generation/logging.
+Menus (`Menu*`), Themes & Preferences (`Themes*`, `UserPreferences*`), Custom OTP (`Otp*`), separate FormIO collection (`tp_formdata_user`), Camunda bulk trigger (`WORKFLOW_START_URL`), RSA-4096 push callback (`/internal/v1/users/create`), raw Keycloak group API (`/accounts/v1/keycloak/groups`), Spring Cloud Config (`bootstrap.yml`), server-side `Accept-Language` message bundles (`LocaleConfig`, `GlobalMessageSource`, `messages_*.properties` — replaced by locale-neutral `errorCode` + Keycloak `locale`), per-request `/userinfo` lookups, and plaintext password generation/logging.
 
 ---
 

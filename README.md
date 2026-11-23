@@ -25,6 +25,7 @@ Headless, multi-tenant Identity & Access Management (IAM) backend API (`/account
 * **No Workflow Engine** (no Camunda, Flowable, Zeebe, or Temporal)
 * **No FormIO / UI Modules** (strictly headless JSON API)
 * **No Spring Cloud Config** (100% standalone `application.yml` + environment variables)
+* **No Server-Side `Accept-Language` Translation Bundles:** REST endpoints return locale-neutral machine-readable RFC 7807 `errorCode`s with English diagnostic fallbacks so client applications localize UI copy directly; end-user login & `execute-actions-email` i18n is delegated to Keycloak 26 via the synced `locale` user attribute (`tp_user.locale`).
 
 ---
 

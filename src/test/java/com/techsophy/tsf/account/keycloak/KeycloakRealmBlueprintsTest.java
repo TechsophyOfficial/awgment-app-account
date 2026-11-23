@@ -39,6 +39,8 @@ class KeycloakRealmBlueprintsTest {
         assertThat(realm.path("accessTokenLifespan").asInt()).isLessThanOrEqualTo(300);
         assertThat(realm.path("verifyEmail").asBoolean()).isTrue();
         assertThat(realm.path("duplicateEmailsAllowed").asBoolean()).isFalse();
+        assertThat(realm.path("internationalizationEnabled").asBoolean()).isTrue();
+        assertThat(realm.path("defaultLocale").asText()).isEqualTo("en");
 
         // Control 1: Zero default Awgment roles
         JsonNode defaultRealmRole = realm.path("roles").path("realm").get(0);
@@ -64,14 +66,15 @@ class KeycloakRealmBlueprintsTest {
         Set<String> adminOnlyLocked = new HashSet<>();
         for (JsonNode attr : userProfile.path("attributes")) {
             String name = attr.path("name").asText();
-            if (Set.of("awgment_status", "userId", "awgment_sync_version").contains(name)) {
+            if (Set.of("awgment_status", "userId", "awgment_sync_version", "locale").contains(name)) {
                 JsonNode editRoles = attr.path("permissions").path("edit");
                 assertThat(editRoles).hasSize(1);
                 assertThat(editRoles.get(0).asText()).isEqualTo("admin");
                 adminOnlyLocked.add(name);
             }
         }
-        assertThat(adminOnlyLocked).containsExactlyInAnyOrder("awgment_status", "userId", "awgment_sync_version");
+        assertThat(adminOnlyLocked)
+                .containsExactlyInAnyOrder("awgment_status", "userId", "awgment_sync_version", "locale");
 
         // Control 6, 7, 8: Required protocol mappers on login client
         JsonNode webClient = findClient(realm, "awgment-web");
