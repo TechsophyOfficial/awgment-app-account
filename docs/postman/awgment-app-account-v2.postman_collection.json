@@ -1,0 +1,621 @@
+{
+  "info": {
+    "_postman_id": "a7f3c8e1-2d4b-4b9a-9f11-8c3e1a000001",
+    "name": "Awgment Account API v2 (Phase 1)",
+    "description": "Postman Collection v2.1 for Awgment Headless Multi-Tenant IAM Service (/accounts/v2). Currently covers Phase 0 (Actuator Probes) and Phase 1 (UC-TENANT-01..04, UC-AUTH-01). Import companion environment docs/postman/awgment-local.postman_environment.json and populate local dev secrets before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8081" },
+    { "key": "keycloakUrl", "value": "http://localhost:8080" },
+    { "key": "platformRealm", "value": "platform" },
+    { "key": "tenantRealm", "value": "acme" },
+    { "key": "tenantId", "value": "acme" },
+    { "key": "tenantVersion", "value": "0" }
+  ],
+  "item": [
+    {
+      "name": "00 - Auth (Keycloak 26 Token Helpers)",
+      "description": "Local development helpers to obtain short-lived JWTs from Keycloak 26 realms. Populate secret variables in your Postman Environment (never commit secrets).",
+      "item": [
+        {
+          "name": "Get Platform Admin Token (platform realm)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Access token returned', function () {",
+                  "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('platformToken', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "{{platformClientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{platformClientSecret}}", "type": "text" },
+                { "key": "username", "value": "{{platformAdminUsername}}", "type": "text" },
+                { "key": "password", "value": "{{platformAdminPassword}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{platformRealm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{platformRealm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Fetches a Tier 0 awgment-platform-admin JWT from the dedicated Platform Control Realm and stores it in {{platformToken}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tenant User Token (acme realm)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Access token returned', function () {",
+                  "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('accessToken', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "{{tenantClientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{tenantClientSecret}}", "type": "text" },
+                { "key": "username", "value": "{{tenantUsername}}", "type": "text" },
+                { "key": "password", "value": "{{tenantUserPassword}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{tenantRealm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{tenantRealm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Fetches a tenant-scoped JWT from {{tenantRealm}} and stores it in {{accessToken}}."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "01 - Actuator Health Probes",
+      "description": "Unauthenticated Kubernetes/load-balancer liveness and readiness probes.",
+      "item": [
+        {
+          "name": "Liveness Probe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Liveness returns 200 UP', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql('UP');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health/liveness",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health", "liveness"]
+            },
+            "description": "Public liveness probe (details hidden)."
+          },
+          "response": [
+            {
+              "name": "200 OK - UP",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/actuator/health/liveness" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"UP\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Readiness Probe",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Readiness returns 200 UP', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql('UP');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/actuator/health/readiness",
+              "host": ["{{baseUrl}}"],
+              "path": ["actuator", "health", "readiness"]
+            },
+            "description": "Public readiness probe (details hidden)."
+          },
+          "response": [
+            {
+              "name": "200 OK - UP",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/actuator/health/readiness" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"UP\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Tenants (UC-TENANT-01..04)",
+      "description": "Platform Control Realm endpoints (/accounts/v2/tenants/**). Strictly require a JWT issued by awgment.security.platform-realm holding awgment-platform-admin.",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{platformToken}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "UC-TENANT-01 - Provision New Tenant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tenant provisioned with 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Tenant is ACTIVE with tenant_ schema prefix', function () {",
+                  "    pm.expect(body.status).to.eql('ACTIVE');",
+                  "    pm.expect(body.schemaName).to.eql('tenant_' + body.tenantId);",
+                  "});",
+                  "if (body.tenantId) { pm.environment.set('tenantId', body.tenantId); }",
+                  "if (body.version !== undefined) { pm.environment.set('tenantVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\",\n  \"displayName\": \"Acme Corporation\",\n  \"keycloakRealm\": \"{{tenantRealm}}\",\n  \"bootstrapAdminEmail\": \"{{bootstrapAdminEmail}}\",\n  \"bootstrapAdminFirstName\": \"Acme\",\n  \"bootstrapAdminLastName\": \"Approver\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants"]
+            },
+            "description": "UC-TENANT-01: Validates tenantId (^[a-z][a-z0-9_]{1,49}$ + denylist), creates PostgreSQL schema tenant_<tenantId>, executes Flyway migrations, seeds SYSTEM + optional bootstrap approver, verifies Keycloak 26 Section 3 realm contract, and activates the tenant."
+          },
+          "response": [
+            {
+              "name": "201 Created - Tenant Active",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"keycloakRealm\": \"acme\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 1,\n  \"createdAt\": \"2026-11-23T05:00:00Z\",\n  \"updatedAt\": \"2026-11-23T05:00:01Z\"\n}"
+            },
+            {
+              "name": "400 Bad Request - INVALID_TENANT_ID",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-tenant-id\",\n  \"title\": \"Invalid Tenant Identifier\",\n  \"status\": 400,\n  \"detail\": \"Tenant identifier 'public' is reserved or violates ^[a-z][a-z0-9_]{1,49}$.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"INVALID_TENANT_ID\",\n  \"timestamp\": \"2026-11-23T05:00:00Z\"\n}"
+            },
+            {
+              "name": "409 Conflict - DUPLICATE_RESOURCE",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/duplicate-resource\",\n  \"title\": \"Duplicate Resource\",\n  \"status\": 409,\n  \"detail\": \"Tenant 'acme' already exists.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"DUPLICATE_RESOURCE\",\n  \"timestamp\": \"2026-11-23T05:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-TENANT-02 - Retry Failed Tenant Provisioning",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Retry provisioning succeeded with 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Tenant transitioned to ACTIVE', function () {",
+                  "    pm.expect(body.status).to.eql('ACTIVE');",
+                  "});",
+                  "if (body.version !== undefined) { pm.environment.set('tenantVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/retry-provisioning",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants", "{{tenantId}}", "retry-provisioning"]
+            },
+            "description": "UC-TENANT-02: Resumes a tenant in PROVISIONING_FAILED state by idempotently re-running schema creation, Flyway migrations, default seeding, and KeycloakRealmContractVerifier."
+          },
+          "response": [
+            {
+              "name": "200 OK - Recovered & Active",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/retry-provisioning" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"displayName\": \"Acme Corporation\",\n  \"keycloakRealm\": \"acme\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 2,\n  \"updatedAt\": \"2026-11-23T05:05:00Z\"\n}"
+            },
+            {
+              "name": "409 Conflict - INVALID_STATE_TRANSITION",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/retry-provisioning" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-state-transition\",\n  \"title\": \"Invalid State Transition\",\n  \"status\": 409,\n  \"detail\": \"Tenant 'acme' is in status ACTIVE; retry-provisioning requires PROVISIONING_FAILED.\",\n  \"instance\": \"/accounts/v2/tenants/acme/retry-provisioning\",\n  \"errorCode\": \"INVALID_STATE_TRANSITION\",\n  \"timestamp\": \"2026-11-23T05:05:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-TENANT-03 - List Registered Tenants",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List tenants returns 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Response is paginated', function () {",
+                  "    pm.expect(body.content).to.be.an('array');",
+                  "    pm.expect(body.totalElements).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants?page=0&size=20&sort=createdAt,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "ACTIVE",
+                  "description": "Optional status filter: PROVISIONING | PROVISIONING_FAILED | ACTIVE | SUSPENDED",
+                  "disabled": true
+                },
+                { "key": "page", "value": "0", "description": "Zero-based page index" },
+                { "key": "size", "value": "20", "description": "Page size (max 100)" },
+                { "key": "sort", "value": "createdAt,desc", "description": "Sort field and direction" }
+              ]
+            },
+            "description": "UC-TENANT-03: Lists registered tenants from public.tp_tenant with pagination and optional status filter."
+          },
+          "response": [
+            {
+              "name": "200 OK - Paginated Tenants",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants?page=0&size=20&sort=createdAt,desc" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"content\": [\n    {\n      \"tenantId\": \"acme\",\n      \"schemaName\": \"tenant_acme\",\n      \"displayName\": \"Acme Corporation\",\n      \"keycloakRealm\": \"acme\",\n      \"status\": \"ACTIVE\",\n      \"version\": 1,\n      \"createdAt\": \"2026-11-23T05:00:00Z\",\n      \"updatedAt\": \"2026-11-23T05:00:01Z\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 20,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-TENANT-04a - Suspend Tenant (ACTIVE -> SUSPENDED)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tenant suspended with 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Status is SUSPENDED', function () {",
+                  "    pm.expect(body.status).to.eql('SUSPENDED');",
+                  "});",
+                  "if (body.version !== undefined) { pm.environment.set('tenantVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUSPENDED\",\n  \"reason\": \"Scheduled security maintenance\",\n  \"version\": {{tenantVersion}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants", "{{tenantId}}", "status"]
+            },
+            "description": "UC-TENANT-04 (Suspend): Marks tenant SUSPENDED with optimistic locking (@Version), evicts caches, halts tenant worker ticks, and disables the tenant's Keycloak 26 realm platform-wide."
+          },
+          "response": [
+            {
+              "name": "200 OK - Tenant Suspended",
+              "originalRequest": {
+                "method": "PATCH",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/status" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"status\": \"SUSPENDED\",\n  \"version\": 2,\n  \"updatedAt\": \"2026-11-23T05:10:00Z\"\n}"
+            },
+            {
+              "name": "409 Conflict - CONCURRENT_MODIFICATION",
+              "originalRequest": {
+                "method": "PATCH",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/status" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/concurrent-modification\",\n  \"title\": \"Concurrent Modification\",\n  \"status\": 409,\n  \"detail\": \"Resource was modified concurrently. Please reload and retry.\",\n  \"instance\": \"/accounts/v2/tenants/acme/status\",\n  \"errorCode\": \"CONCURRENT_MODIFICATION\",\n  \"timestamp\": \"2026-11-23T05:10:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-TENANT-04b - Reactivate Tenant (SUSPENDED -> ACTIVE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tenant reactivated with 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Status is ACTIVE and contract verified', function () {",
+                  "    pm.expect(body.status).to.eql('ACTIVE');",
+                  "    pm.expect(body.keycloakContractVerified).to.eql(true);",
+                  "});",
+                  "if (body.version !== undefined) { pm.environment.set('tenantVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ACTIVE\",\n  \"reason\": \"Maintenance window completed\",\n  \"version\": {{tenantVersion}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants", "{{tenantId}}", "status"]
+            },
+            "description": "UC-TENANT-04 (Reactivate): Runs pending Flyway migrations on tenant_<tenantId>, re-enables Keycloak realm, runs KeycloakRealmContractVerifier (fails closed with 502 if non-compliant), and marks tenant ACTIVE."
+          },
+          "response": [
+            {
+              "name": "200 OK - Tenant Reactivated",
+              "originalRequest": {
+                "method": "PATCH",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants/{{tenantId}}/status" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"tenantId\": \"acme\",\n  \"schemaName\": \"tenant_acme\",\n  \"status\": \"ACTIVE\",\n  \"keycloakContractVerified\": true,\n  \"version\": 3,\n  \"updatedAt\": \"2026-11-23T05:15:00Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Security & Realm Isolation Negative Tests (UC-AUTH-01)",
+      "description": "Automated negative security verification for Phase 1 Platform Realm isolation and fail-closed bearer authentication.",
+      "item": [
+        {
+          "name": "UC-AUTH-01 - Reject Tenant Token on Platform Route (403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tenant realm token rejected with 403 TENANT_NOT_ACTIVE', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "    pm.expect(pm.response.json().errorCode).to.eql('TENANT_NOT_ACTIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{accessToken}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/problem+json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants"]
+            },
+            "description": "Verifies that a token issued by a tenant realm ({{tenantRealm}}) cannot invoke /accounts/v2/tenants/**."
+          },
+          "response": [
+            {
+              "name": "403 Forbidden - TENANT_NOT_ACTIVE",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants" }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/tenant-not-active\",\n  \"title\": \"Tenant Not Active\",\n  \"status\": 403,\n  \"detail\": \"Tenant management routes require a token from the Platform Control Realm.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"TENANT_NOT_ACTIVE\",\n  \"timestamp\": \"2026-11-23T05:16:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-AUTH-01 - Reject Missing Bearer Token (401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Unauthenticated request rejected with 401 INVALID_TOKEN', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().errorCode).to.eql('INVALID_TOKEN');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/problem+json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/tenants",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "tenants"]
+            },
+            "description": "Verifies unauthenticated calls to /accounts/v2/** return RFC 7807 401 INVALID_TOKEN."
+          },
+          "response": [
+            {
+              "name": "401 Unauthorized - INVALID_TOKEN",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/tenants" }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-token\",\n  \"title\": \"Authentication Required\",\n  \"status\": 401,\n  \"detail\": \"Valid bearer authentication is required to access this resource.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"INVALID_TOKEN\",\n  \"timestamp\": \"2026-11-23T05:16:00Z\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

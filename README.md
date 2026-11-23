@@ -186,6 +186,14 @@ HTML reports are generated at:
 * Integration tests: `build/reports/tests/integrationTest/index.html`
 * JaCoCo coverage: `build/reports/jacoco/test/html/index.html`
 
+### Postman Collection (v2.1)
+
+Import both files into Postman (or run via Newman):
+* **Collection:** [docs/postman/awgment-app-account-v2.postman_collection.json](./docs/postman/awgment-app-account-v2.postman_collection.json)
+* **Local Environment:** [docs/postman/awgment-local.postman_environment.json](./docs/postman/awgment-local.postman_environment.json)
+
+Fill in the local dev secret fields in your Postman environment (left blank in git), run **00 - Auth → Get Platform Admin Token**, and execute the domain folders in sequence. Every request includes `pm.test(...)` assertions and RFC 7807 response examples, verified automatically by `PostmanCollectionContractTest`.
+
 ---
 
 ## 6. Standalone Server Deployment Guide
