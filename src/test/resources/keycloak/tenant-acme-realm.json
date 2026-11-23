@@ -1,0 +1,368 @@
+{
+  "realm": "acme",
+  "displayName": "Acme Corp Tenant Realm",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "verifyEmail": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 3600,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply-awgment-local",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "config": {
+          "kc.user.profile.config": [
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":100}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":100}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]}},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":100}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]}},{\"name\":\"awgment_status\",\"displayName\":\"Awgment Status\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"userId\",\"displayName\":\"Awgment User ID\",\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"awgment_sync_version\",\"displayName\":\"Awgment Sync Version\",\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}}],\"unmanagedAttributePolicy\":\"DISABLED\"}"
+          ]
+        }
+      }
+    ]
+  },
+  "authenticationFlows": [
+    {
+      "alias": "first-broker-login-no-email-link",
+      "description": "Section 3: First Broker Login with automatic email account linking disabled",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "idp-create-user-if-unique",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false,
+          "authenticatorFlow": false
+        }
+      ]
+    }
+  ],
+  "identityProviders": [
+    {
+      "alias": "entra-acme",
+      "displayName": "Acme Corporate SSO (Mock Entra ID)",
+      "providerId": "oidc",
+      "enabled": true,
+      "trustEmail": true,
+      "storeToken": false,
+      "firstBrokerLoginFlowAlias": "first-broker-login-no-email-link",
+      "config": {
+        "issuer": "http://keycloak:8080/realms/mock-entra",
+        "authorizationUrl": "http://localhost:8080/realms/mock-entra/protocol/openid-connect/auth",
+        "tokenUrl": "http://keycloak:8080/realms/mock-entra/protocol/openid-connect/token",
+        "userInfoUrl": "http://keycloak:8080/realms/mock-entra/protocol/openid-connect/userinfo",
+        "jwksUrl": "http://keycloak:8080/realms/mock-entra/protocol/openid-connect/certs",
+        "clientId": "awgment-acme-broker",
+        "clientSecret": "entra-broker-dev-secret",
+        "defaultScope": "openid profile email",
+        "syncMode": "FORCE",
+        "validateSignature": "true",
+        "useJwksUrl": "true"
+      }
+    }
+  ],
+  "identityProviderMappers": [
+    {
+      "name": "map-entra-tid-to-session-note",
+      "identityProviderAlias": "entra-acme",
+      "identityProviderMapper": "oidc-user-session-note-idp-mapper",
+      "config": {
+        "syncMode": "FORCE",
+        "claim": "tid",
+        "session.note": "idp_tenant_id"
+      }
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "default-roles-acme",
+        "description": "Default realm role with zero Awgment functional authorities",
+        "composite": false
+      }
+    ],
+    "client": {
+      "awgment-account": [
+        { "name": "awgment-account-admin", "description": "Tier 1: Tenant approver admin" },
+        { "name": "awgment-account-all", "description": "Tier 2: Tenant IAM full operator" },
+        { "name": "awgment-account-create-or-update", "description": "Tier 2: Tenant IAM write operator" },
+        { "name": "awgment-account-read", "description": "Tier 2: Tenant IAM reader" },
+        { "name": "awgment-account-delete", "description": "Tier 2: Tenant IAM delete operator" },
+        { "name": "awgment-acl-create-or-update", "description": "Tier 2: ACL policy writer" },
+        { "name": "awgment-acl-read", "description": "Tier 2: ACL policy reader" },
+        { "name": "awgment-acl-evaluate-context", "description": "Tier 2: Service trusted to pass direct ACL context" },
+        { "name": "awgment-acl-evaluate-delegated", "description": "Tier 2: Service trusted to evaluate ACL for subject" },
+        { "name": "awgment-system-service", "description": "Tier 2: Privileged system service class for Rules.SYSTEM" },
+        { "name": "awgment-user", "description": "Tier 3: Base application user role" }
+      ],
+      "awgment-app-client": [
+        { "name": "editor", "description": "Tier 3: Standard application editor role" },
+        { "name": "viewer", "description": "Tier 3: Standard application viewer role" }
+      ]
+    }
+  },
+  "defaultRole": {
+    "name": "default-roles-acme"
+  },
+  "clients": [
+    {
+      "clientId": "awgment-account",
+      "name": "Awgment Account Resource Server",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "publicClient": false
+    },
+    {
+      "clientId": "awgment-app-client",
+      "name": "Allowlisted Tenant Application Client",
+      "enabled": true,
+      "bearerOnly": true,
+      "protocol": "openid-connect",
+      "publicClient": false
+    },
+    {
+      "clientId": "awgment-web",
+      "name": "Awgment Test Login Client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "awgment-web-dev-secret",
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "fullScopeAllowed": true,
+      "redirectUris": ["http://localhost:*/*"],
+      "protocolMappers": [
+        {
+          "name": "awgment-account-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "awgment-account",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "identity-provider-session-note",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "config": {
+            "user.session.note": "identity_provider",
+            "claim.name": "identity_provider",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "idp-tenant-id-session-note",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usersessionmodel-note-mapper",
+          "config": {
+            "user.session.note": "idp_tenant_id",
+            "claim.name": "idp_tenant_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "awgment-status-attribute",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "awgment_status",
+            "claim.name": "awgment_status",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "awgment-user-id-attribute",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "userId",
+            "claim.name": "userId",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "groups-membership",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "full.path": "true",
+            "claim.name": "groups",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "awgment-service-client",
+      "name": "Awgment Backend Service Account",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "awgment-service-dev-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "awgment-account-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "awgment-account",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "service-account-token-kind",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "config": {
+            "claim.name": "token_kind",
+            "claim.value": "service_account",
+            "jsonType.label": "String",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "awgment-admin-sync",
+      "name": "Awgment Account Keycloak Admin Client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "awgment-admin-sync-dev-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": true
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-awgment-service-client",
+      "enabled": true,
+      "serviceAccountClientId": "awgment-service-client",
+      "clientRoles": {
+        "awgment-account": [
+          "awgment-system-service",
+          "awgment-acl-evaluate-context",
+          "awgment-acl-evaluate-delegated",
+          "awgment-account-read"
+        ]
+      }
+    },
+    {
+      "username": "service-account-awgment-admin-sync",
+      "enabled": true,
+      "serviceAccountClientId": "awgment-admin-sync",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "query-groups",
+          "manage-realm",
+          "view-realm",
+          "view-clients",
+          "manage-clients",
+          "view-identity-providers"
+        ]
+      }
+    },
+    {
+      "username": "acme-approver",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Approver",
+      "attributes": {
+        "awgment_status": ["ACTIVE"],
+        "awgment_sync_version": ["1"]
+      },
+      "credentials": [
+        { "type": "password", "value": "ApproverDev!", "temporary": false }
+      ],
+      "clientRoles": {
+        "awgment-account": ["awgment-account-admin"]
+      }
+    },
+    {
+      "username": "acme-operator",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Operator",
+      "attributes": {
+        "awgment_status": ["ACTIVE"],
+        "awgment_sync_version": ["1"]
+      },
+      "credentials": [
+        { "type": "password", "value": "OperatorDev!", "temporary": false }
+      ],
+      "clientRoles": {
+        "awgment-account": ["awgment-account-all"]
+      }
+    },
+    {
+      "username": "acme-acl-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "AclAdmin",
+      "attributes": {
+        "awgment_status": ["ACTIVE"],
+        "awgment_sync_version": ["1"]
+      },
+      "credentials": [
+        { "type": "password", "value": "AclAdminDev!", "temporary": false }
+      ],
+      "clientRoles": {
+        "awgment-account": ["awgment-acl-create-or-update", "awgment-acl-read"]
+      }
+    },
+    {
+      "username": "acme-user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Acme",
+      "lastName": "Member",
+      "attributes": {
+        "awgment_status": ["ACTIVE"],
+        "awgment_sync_version": ["1"]
+      },
+      "credentials": [
+        { "type": "password", "value": "MemberDev!", "temporary": false }
+      ],
+      "clientRoles": {
+        "awgment-account": ["awgment-user"],
+        "awgment-app-client": ["viewer"]
+      }
+    }
+  ]
+}

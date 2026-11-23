@@ -1,0 +1,63 @@
+{
+  "realm": "mock-entra",
+  "displayName": "Mock Enterprise Entra ID Simulator",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "awgment-acme-broker",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "entra-broker-dev-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:8080/realms/acme/broker/entra-acme/endpoint*"],
+      "protocolMappers": [
+        {
+          "name": "mock-entra-tid-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "entra_tid",
+            "claim.name": "tid",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "corp-employee",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Corp",
+      "lastName": "Employee",
+      "attributes": {
+        "entra_tid": ["acme-entra-tenant-uuid"]
+      },
+      "credentials": [
+        { "type": "password", "value": "CorpUserDev!", "temporary": false }
+      ]
+    },
+    {
+      "username": "external-org-user",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Other",
+      "lastName": "TenantUser",
+      "attributes": {
+        "entra_tid": ["untrusted-other-tenant-uuid"]
+      },
+      "credentials": [
+        { "type": "password", "value": "OtherOrgDev!", "temporary": false }
+      ]
+    }
+  ]
+}

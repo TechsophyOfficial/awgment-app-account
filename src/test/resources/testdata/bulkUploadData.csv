@@ -1,7 +1,0 @@
-userName,firstName,lastName,mobileNumber,emailId,department,groups,roles,id
-mohan,mohan,mohan,1234569878,mohanakhil.d@techsophy.com,Development,"WorkingGroup1002,WorkingGroup101","DEVELOPER101,TESTER101",200
-Akhil,Akhil,Akhil,(123) 456-9878,5zjtfjjfza@happy-new-year.top,Testing,"WorkingGroup1002,WorkingGroup101","DEVELOPER101,TESTER101",200
-bhavya,bhavya,bhavya,(123) 456-9878,bhavya.a@techsophy.com,Development,"WorkingGroup1002,WorkingGroup101","DEVELOPER101,TESTER101",200
-Ruthvik,Ruthvik,Ruthvik,(123) 456-9878,ruthvick.r@techsophy.com,Development,WorkingGroup1002,DEVELOPER101,200
-NANDINI,NANDINI,NANDINI,(123) 456-9878,nandini.k@techsophy.com,Development,"WorkingGroup1002,WorkingGroup101","DEVELOPER101,TESTER101",200
-HASEENA,HASEENA,HASEENA,(123) 456-9878,haseena.s@techsophy.com,Development,WorkingGroup101,TESTER101,200
