@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    password: ${AWGMENT_DB_PASSWORD:awgment_local_dev_password}
+
+awgment:
+  keycloak:
+    admin:
+      password: ${AWGMENT_KEYCLOAK_ADMIN_PASSWORD:admin_local_dev_password}

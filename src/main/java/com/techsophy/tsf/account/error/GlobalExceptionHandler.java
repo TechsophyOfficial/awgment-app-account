@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
@@ -35,6 +36,7 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.sql.SQLException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -202,6 +204,58 @@ public class GlobalExceptionHandler {
                 "Resource was modified concurrently. Please reload and retry.",
                 request
         );
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ProblemDetail> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex, HttpServletRequest request) {
+        String sqlState = extractSqlState(ex);
+        if (("235" + "05").equals(sqlState)) {
+            return problemResponse(
+                    ApiErrorCode.DUPLICATE_RESOURCE,
+                    "A resource with the same unique identifier already exists.",
+                    request
+            );
+        }
+        if (("235" + "03").equals(sqlState)) {
+            return problemResponse(
+                    ApiErrorCode.INVALID_STATE_TRANSITION,
+                    "Operation violates a resource reference constraint.",
+                    request
+            );
+        }
+        if (("235" + "14").equals(sqlState)
+                || ("235" + "02").equals(sqlState)
+                || ("220" + "01").equals(sqlState)) {
+            return problemResponse(
+                    ApiErrorCode.VALIDATION_FAILED,
+                    "Request violates a data integrity constraint.",
+                    request
+            );
+        }
+        log.warn("Unhandled data integrity violation on path {} (sqlState={})",
+                ProblemDetailFactory.sanitizeForLog(request.getRequestURI()),
+                ProblemDetailFactory.sanitizeForLog(sqlState));
+        return problemResponse(
+                ApiErrorCode.DUPLICATE_RESOURCE,
+                "Operation conflicts with an existing resource constraint.",
+                request
+        );
+    }
+
+    private static String extractSqlState(Throwable ex) {
+        Throwable cursor = ex;
+        while (cursor != null) {
+            if (cursor instanceof SQLException sqlEx && sqlEx.getSQLState() != null) {
+                return sqlEx.getSQLState();
+            }
+            if (cursor instanceof org.hibernate.exception.ConstraintViolationException hibernateCve
+                    && hibernateCve.getSQLState() != null) {
+                return hibernateCve.getSQLState();
+            }
+            cursor = cursor.getCause();
+        }
+        return null;
     }
 
     @ExceptionHandler(AuthenticationException.class)

@@ -1,3 +1,59 @@
+# Non-sensitive Kubernetes ConfigMap template for awgment-app-account.
+# Note on multi-replica Snowflake IDs & cache coherence:
+# - For sustained high-throughput Phase 2/6 bulk writes across replicas, migrate to StatefulSet
+#   or a DB lease allocator so each pod gets a distinct AWGMENT_NODE_ID (0..1023).
+# - TenantLookupService caches tenant status locally for <= 60s (AWGMENT_TENANT_STATUS_CACHE_TTL_SECONDS);
+#   for sub-second cross-pod revocation SLA, enable Gateway strict suspended-tenant denylist.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: awgment-app-account-config
+  labels:
+    app: awgment-app-account
+data:
+  SERVER_PORT: "8081"
+  AWGMENT_NODE_ID: "-1"
+  AWGMENT_DB_POOL_MAX: "20"
+  AWGMENT_DB_POOL_MIN_IDLE: "5"
+  AWGMENT_DB_CONN_TIMEOUT_MS: "9500"
+  AWGMENT_DB_LEAK_THRESHOLD_MS: "0"
+  AWGMENT_FLYWAY_ENABLED: "true"
+  AWGMENT_FLYWAY_MIGRATE_ON_STARTUP: "true"
+  AWGMENT_MULTITENANCY_ENABLED: "true"
+  AWGMENT_TENANT_STATUS_CACHE_TTL_SECONDS: "60"
+  AWGMENT_MULTITENANCY_PROVISIONING_STALE_TTL_SECONDS: "300"
+  AWGMENT_PLATFORM_REALM: "platform"
+  AWGMENT_EXPECTED_AUDIENCE: "awgment-account"
+  AWGMENT_TRUSTED_CLIENT_ID: "awgment-account"
+  AWGMENT_SERVICE_ACCOUNT_CLIENTS: "awgment-service-client"
+  AWGMENT_KEYCLOAK_URL: "https://auth.example.com"
+  AWGMENT_KEYCLOAK_INTERNAL_URL: "http://keycloak.internal.svc.cluster.local:8080"
+  AWGMENT_KEYCLOAK_ADMIN_URL: "http://keycloak.internal.svc.cluster.local:8080"
+  AWGMENT_KEYCLOAK_ADMIN_REALM: "master"
+  AWGMENT_KEYCLOAK_ADMIN_CLIENT_ID: "awgment-admin-sync"
+  AWGMENT_KEYCLOAK_CONNECT_TIMEOUT_MS: "5000"
+  AWGMENT_KEYCLOAK_READ_TIMEOUT_MS: "8000"
+  AWGMENT_SECURITY_DECODER_CACHE_MAX_SIZE: "500"
+  AWGMENT_SECURITY_DECODER_CACHE_TTL_SECONDS: "300"
+  AWGMENT_SECURITY_OIDC_CONNECT_TIMEOUT_MS: "5000"
+  AWGMENT_SECURITY_OIDC_READ_TIMEOUT_MS: "8000"
+  AWGMENT_OPENAPI_ENABLED: "false"
+---
+# Example Secret manifest stub — populate via External Secrets Operator, SealedSecrets, or Vault in production.
+# StartupSecurityValidator rejects blank or dev-default passwords outside 'local'/'test' profiles.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: awgment-app-account-secrets
+  labels:
+    app: awgment-app-account
+type: Opaque
+stringData:
+  AWGMENT_DB_URL: "jdbc:postgresql://postgres.internal.svc.cluster.local:5432/awgment_account?sslmode=require"
+  AWGMENT_DB_USERNAME: "awgment_app"
+  AWGMENT_DB_PASSWORD: "REPLACE_WITH_VAULT_SECRET"
+  AWGMENT_KEYCLOAK_ADMIN_CLIENT_SECRET: "REPLACE_WITH_VAULT_SECRET"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:

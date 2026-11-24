@@ -12,9 +12,25 @@ spring:
     enabled: false
 
 awgment:
+  multitenancy:
+    enabled: false
+    status-cache-ttl-seconds: 60
+  flyway:
+    migrate-on-startup: false
   security:
     platform-realm: platform
     expected-audience: awgment-account
     trusted-client-id: awgment-account
     keycloak-base-url: http://localhost:8080
     dev-docs-enabled: false
+    service-account-clients: awgment-service-client
+  keycloak:
+    admin:
+      server-url: http://localhost:8080
+      realm: master
+      client-id: admin-cli
+      client-secret: ""
+      username: admin
+      password: admin_test_password
+      connect-timeout-ms: 5000
+      read-timeout-ms: 8000
