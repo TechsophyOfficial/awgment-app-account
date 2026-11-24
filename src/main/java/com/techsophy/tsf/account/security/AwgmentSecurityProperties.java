@@ -1,7 +1,9 @@
 package com.techsophy.tsf.account.security;
 
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.util.unit.DataSize;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -33,6 +35,9 @@ public class AwgmentSecurityProperties {
 
     @Min(100)
     private int oidcReadTimeoutMs = 8000;
+
+    @NotNull
+    private DataSize maxJsonBodySize = DataSize.ofKilobytes(256);
 
     public String getPlatformRealm() {
         return platformRealm;
@@ -158,5 +163,18 @@ public class AwgmentSecurityProperties {
                 .filter(client -> !client.isBlank())
                 .distinct()
                 .toList();
+    }
+
+    public DataSize getMaxJsonBodySize() {
+        return maxJsonBodySize;
+    }
+
+    public void setMaxJsonBodySize(DataSize maxJsonBodySize) {
+        this.maxJsonBodySize = maxJsonBodySize != null ? maxJsonBodySize : DataSize.ofKilobytes(256);
+    }
+
+    public long effectiveMaxJsonBodyBytes() {
+        DataSize size = this.maxJsonBodySize != null ? this.maxJsonBodySize : DataSize.ofKilobytes(256);
+        return Math.max(1024L, size.toBytes());
     }
 }

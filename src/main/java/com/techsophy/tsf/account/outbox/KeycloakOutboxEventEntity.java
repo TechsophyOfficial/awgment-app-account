@@ -52,6 +52,12 @@ public class KeycloakOutboxEventEntity {
     @Column(name = "verification_required_at")
     private Instant verificationRequiredAt;
 
+    @Column(name = "reclaimed_verification_pending", nullable = false)
+    private boolean reclaimedVerificationPending = false;
+
+    @Column(name = "pending_since")
+    private Instant pendingSince;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload")
     private Map<String, Object> payload;

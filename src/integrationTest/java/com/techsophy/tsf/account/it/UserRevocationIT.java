@@ -19,8 +19,14 @@ import com.techsophy.tsf.account.user.UserStatus;
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.keycloak.admin.client.CreatedResponseUtil;
 import org.keycloak.representations.idm.CredentialRepresentation;
+import org.keycloak.representations.idm.GroupRepresentation;
+import org.keycloak.representations.idm.RoleRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,9 +43,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,6 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class UserRevocationIT {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -122,6 +136,7 @@ class UserRevocationIT {
     }
 
     @Test
+    @Order(1)
     void shouldExecuteFullUserLifecycleLocaleSyncSyncFirstRevocationDegraded202AndOutboxRetry()
             throws Exception {
         String platformToken = fetchToken("platform", Map.of(
@@ -377,6 +392,184 @@ class UserRevocationIT {
         UserRepresentation kcBob = kcAdmin.realm("acme").users().get(bobAfterRetry.getKeycloakSub()).toRepresentation();
         assertThat(kcBob.isEnabled()).isFalse();
         assertThat(kcBob.getAttributes().get("awgment_status")).containsExactly("DISABLED");
+    }
+
+    @Test
+    @Order(2)
+    void shouldHandleConcurrentSameEmailRaceDeleteVsReactivateRaceAndGroupInheritedTier1Protection()
+            throws Exception {
+        String operatorToken = fetchToken("acme", Map.of(
+                "grant_type", "password",
+                "client_id", "awgment-web",
+                "client_secret", "awgment-web-dev-secret",
+                "username", "acme-operator",
+                "password", "OperatorDev!"
+        ));
+        String approverToken = fetchToken("acme", Map.of(
+                "grant_type", "password",
+                "client_id", "awgment-web",
+                "client_secret", "awgment-web-dev-secret",
+                "username", "acme-approver",
+                "password", "ApproverDev!"
+        ));
+
+        // 1. Concurrent same-email POST /accounts/v2/users -> one 201, one 409 EMAIL_ALREADY_CLAIMED
+        String sharedEmail = "race.dup" + "@" + "acme.invalid";
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch ready = new CountDownLatch(2);
+            CountDownLatch go = new CountDownLatch(1);
+            List<Callable<HttpResponse<String>>> createTasks = List.of(
+                    () -> {
+                        ready.countDown();
+                        go.await(5, TimeUnit.SECONDS);
+                        return sendApi("POST", "/accounts/v2/users", operatorToken,
+                                "{\"userName\":\"race.email.one\",\"emailId\":\"" + sharedEmail
+                                        + "\",\"roles\":[\"awgment-user\"]}");
+                    },
+                    () -> {
+                        ready.countDown();
+                        go.await(5, TimeUnit.SECONDS);
+                        return sendApi("POST", "/accounts/v2/users", operatorToken,
+                                "{\"userName\":\"race.email.two\",\"emailId\":\"" + sharedEmail
+                                        + "\",\"roles\":[\"awgment-user\"]}");
+                    }
+            );
+            List<Future<HttpResponse<String>>> createFutures = new ArrayList<>();
+            for (Callable<HttpResponse<String>> task : createTasks) {
+                createFutures.add(pool.submit(task));
+            }
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            go.countDown();
+            HttpResponse<String> r1 = createFutures.get(0).get(10, TimeUnit.SECONDS);
+            HttpResponse<String> r2 = createFutures.get(1).get(10, TimeUnit.SECONDS);
+            List<Integer> codes = List.of(r1.statusCode(), r2.statusCode());
+            assertThat(codes).containsExactlyInAnyOrder(201, 409);
+            HttpResponse<String> conflictResp = r1.statusCode() == 409 ? r1 : r2;
+            assertThat(OBJECT_MAPPER.readTree(conflictResp.body()).path("errorCode").asText())
+                    .isEqualTo("EMAIL_ALREADY_CLAIMED");
+
+            // 2. Concurrent DELETE vs POST /reactivate race -> zero PG vs KC split-brain
+            HttpResponse<String> createdForRace = sendApi("POST", "/accounts/v2/users", operatorToken,
+                    "{\"userName\":\"race.toggle\",\"emailId\":\"" + ("race.toggle" + "@" + "acme.invalid")
+                            + "\",\"roles\":[\"awgment-user\"]}");
+            assertThat(createdForRace.statusCode()).isEqualTo(201);
+            long raceUserId = OBJECT_MAPPER.readTree(createdForRace.body()).path("id").asLong();
+            outboxService.dispatchPendingBatch("acme", 5);
+            assertThat(sendApi("DELETE", "/accounts/v2/users/" + raceUserId, operatorToken, null).statusCode())
+                    .isEqualTo(204);
+
+            CountDownLatch raceReady = new CountDownLatch(2);
+            CountDownLatch raceGo = new CountDownLatch(1);
+            Future<HttpResponse<String>> delFut = pool.submit(() -> {
+                raceReady.countDown();
+                raceGo.await(5, TimeUnit.SECONDS);
+                return sendApi("DELETE", "/accounts/v2/users/" + raceUserId, operatorToken, null);
+            });
+            Future<HttpResponse<String>> reactFut = pool.submit(() -> {
+                raceReady.countDown();
+                raceGo.await(5, TimeUnit.SECONDS);
+                return sendApi("POST", "/accounts/v2/users/" + raceUserId + "/reactivate", approverToken, null);
+            });
+            assertThat(raceReady.await(5, TimeUnit.SECONDS)).isTrue();
+            raceGo.countDown();
+            HttpResponse<String> delRes = delFut.get(15, TimeUnit.SECONDS);
+            HttpResponse<String> reactRes = reactFut.get(15, TimeUnit.SECONDS);
+            assertThat(delRes.statusCode()).isIn(202, 204, 409);
+            assertThat(reactRes.statusCode()).isIn(200, 409);
+
+            outboxService.dispatchPendingBatch("acme", 10);
+            UserEntity pgConverged = loadUserInTenant("acme", raceUserId);
+            assertThat(pgConverged.getSyncStatus()).isEqualTo(SyncStatus.SYNCED);
+            var kcAdmin = KEYCLOAK.getKeycloakAdminClient();
+            UserRepresentation kcConverged = kcAdmin.realm("acme").users()
+                    .get(pgConverged.getKeycloakSub()).toRepresentation();
+            assertThat(kcConverged.isEnabled()).isEqualTo(pgConverged.getStatus() == UserStatus.ACTIVE);
+            assertThat(kcConverged.getAttributes().get("awgment_status"))
+                    .containsExactly(pgConverged.getStatus().name());
+        } finally {
+            pool.shutdownNow();
+        }
+
+        // 3. Group-inherited Tier 1 role + cross-client composite role in live Keycloak 26 blocks Tier 2 operator
+        HttpResponse<String> createGuarded = sendApi("POST", "/accounts/v2/users", operatorToken,
+                "{\"userName\":\"group.guarded\",\"emailId\":\"" + ("group.guarded" + "@" + "acme.invalid")
+                        + "\",\"roles\":[\"awgment-user\"]}");
+        assertThat(createGuarded.statusCode()).isEqualTo(201);
+        long guardedId = OBJECT_MAPPER.readTree(createGuarded.body()).path("id").asLong();
+        outboxService.dispatchPendingBatch("acme", 5);
+        UserEntity guardedPg = loadUserInTenant("acme", guardedId);
+
+        var kcAdmin = KEYCLOAK.getKeycloakAdminClient();
+        var acmeRealm = kcAdmin.realm("acme");
+        String awgmentClientUuid = acmeRealm.clients().findByClientId("awgment-account").getFirst().getId();
+        String appClientUuid = acmeRealm.clients().findByClientId("awgment-app-client").getFirst().getId();
+        RoleRepresentation tier1AdminRole = acmeRealm.clients().get(awgmentClientUuid)
+                .roles().get("awgment-account-admin").toRepresentation();
+
+        RoleRepresentation appBridgeComposite = new RoleRepresentation("app-tier1-bridge", "Composite bridge", true);
+        acmeRealm.clients().get(appClientUuid).roles().create(appBridgeComposite);
+        RoleRepresentation createdBridge = acmeRealm.clients().get(appClientUuid)
+                .roles().get("app-tier1-bridge").toRepresentation();
+        acmeRealm.clients().get(appClientUuid).roles().get("app-tier1-bridge")
+                .addComposites(List.of(tier1AdminRole));
+
+        GroupRepresentation tier1Group = new GroupRepresentation();
+        tier1Group.setName("tier1-security-group");
+        String groupId = CreatedResponseUtil.getCreatedId(acmeRealm.groups().add(tier1Group));
+        acmeRealm.groups().group(groupId).roles().clientLevel(appClientUuid).add(List.of(createdBridge));
+        acmeRealm.users().get(guardedPg.getKeycloakSub()).joinGroup(groupId);
+
+        HttpResponse<String> operatorPutBlocked = sendApi("PUT", "/accounts/v2/users/" + guardedId, operatorToken,
+                "{\"firstName\":\"Blocked\",\"version\":" + guardedPg.getOptLockVersion() + "}");
+        assertThat(operatorPutBlocked.statusCode()).isEqualTo(403);
+        assertThat(OBJECT_MAPPER.readTree(operatorPutBlocked.body()).path("errorCode").asText())
+                .isEqualTo("ROLE_ESCALATION_FORBIDDEN");
+
+        HttpResponse<String> operatorDelBlocked = sendApi(
+                "DELETE", "/accounts/v2/users/" + guardedId, operatorToken, null);
+        assertThat(operatorDelBlocked.statusCode()).isEqualTo(403);
+        assertThat(OBJECT_MAPPER.readTree(operatorDelBlocked.body()).path("errorCode").asText())
+                .isEqualTo("ROLE_ESCALATION_FORBIDDEN");
+
+        // Separation of duties: approverToken lacks create-or-update authority -> 403 ACCESS_DENIED on PUT
+        HttpResponse<String> approverPutBlocked = sendApi("PUT", "/accounts/v2/users/" + guardedId, approverToken,
+                "{\"firstName\":\"DeniedBySoD\",\"version\":" + guardedPg.getOptLockVersion() + "}");
+        assertThat(approverPutBlocked.statusCode()).isEqualTo(403);
+        assertThat(OBJECT_MAPPER.readTree(approverPutBlocked.body()).path("errorCode").asText())
+                .isEqualTo("ACCESS_DENIED");
+
+        // Tier 1 + Operator dual-role caller passes RoleGovernancePolicy on group-inherited Tier 1 target
+        UserRepresentation tier1OpRep = new UserRepresentation();
+        tier1OpRep.setUsername("tier1.op");
+        tier1OpRep.setEmail("tier1.op" + "@" + "acme.invalid");
+        tier1OpRep.setFirstName("TierOne");
+        tier1OpRep.setLastName("Operator");
+        tier1OpRep.setEnabled(true);
+        tier1OpRep.setEmailVerified(true);
+        String tier1OpSub = CreatedResponseUtil.getCreatedId(acmeRealm.users().create(tier1OpRep));
+        setKeycloakTestPassword(kcAdmin, "acme", tier1OpSub, "TierOneOpDev1!");
+        RoleRepresentation createOrUpdateRole = acmeRealm.clients().get(awgmentClientUuid)
+                .roles().get("awgment-account-create-or-update").toRepresentation();
+        RoleRepresentation deleteRole = acmeRealm.clients().get(awgmentClientUuid)
+                .roles().get("awgment-account-delete").toRepresentation();
+        acmeRealm.users().get(tier1OpSub).roles().clientLevel(awgmentClientUuid)
+                .add(List.of(tier1AdminRole, createOrUpdateRole, deleteRole));
+
+        String tier1OpToken = fetchToken("acme", Map.of(
+                "grant_type", "password",
+                "client_id", "awgment-web",
+                "client_secret", "awgment-web-dev-secret",
+                "username", "tier1.op",
+                "password", "TierOneOpDev1!"
+        ));
+        HttpResponse<String> tier1PutOk = sendApi("PUT", "/accounts/v2/users/" + guardedId, tier1OpToken,
+                "{\"firstName\":\"Allowed\",\"version\":" + guardedPg.getOptLockVersion() + "}");
+        assertThat(tier1PutOk.statusCode()).isEqualTo(200);
+        assertThat(sendApi("DELETE", "/accounts/v2/users/" + guardedId, tier1OpToken, null).statusCode())
+                .isEqualTo(204);
+        assertThat(sendApi("POST", "/accounts/v2/users/" + guardedId + "/reactivate", approverToken, null)
+                .statusCode()).isEqualTo(200);
     }
 
     private UserEntity loadUserInTenant(String tenantId, long userId) {

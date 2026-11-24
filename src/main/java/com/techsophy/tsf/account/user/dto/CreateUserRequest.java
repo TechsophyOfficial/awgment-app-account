@@ -42,7 +42,9 @@ public record CreateUserRequest(
         IdentitySource identitySource,
         @Size(max = 100, message = "idpAlias must not exceed 100 characters")
         String idpAlias,
+        @Size(max = 100, message = "roles must not exceed 100 items")
         List<String> roles,
+        @Size(max = 100, message = "groups must not exceed 100 items")
         List<String> groups
 ) {
 

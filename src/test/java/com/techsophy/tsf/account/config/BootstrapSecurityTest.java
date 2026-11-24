@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -28,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@AutoConfigureObservability
 @ActiveProfiles("test")
 class BootstrapSecurityTest {
 
@@ -69,8 +71,14 @@ class BootstrapSecurityTest {
     }
 
     @Test
-    void shouldBlockRootActuatorHealthAndSensitiveEndpointsUnauthenticated() throws Exception {
-        for (String path : new String[]{"/actuator/health", "/actuator/env", "/actuator/beans", "/actuator/configprops"}) {
+    void shouldBlockRootActuatorHealthPrometheusAndSensitiveEndpointsUnauthenticated() throws Exception {
+        for (String path : new String[]{
+                "/actuator/health",
+                "/actuator/prometheus",
+                "/actuator/env",
+                "/actuator/beans",
+                "/actuator/configprops"
+        }) {
             mockMvc.perform(get(path))
                     .andExpect(status().isUnauthorized())
                     .andExpect(header().string("WWW-Authenticate", containsString("Bearer")))
@@ -84,7 +92,11 @@ class BootstrapSecurityTest {
 
     @Test
     @WithMockUser(roles = "ADMIN")
-    void shouldReturn404ForDisabledSensitiveActuatorEndpointsEvenWhenAuthenticated() throws Exception {
+    void shouldExposePrometheusWhenAuthenticatedAndKeepSensitiveActuatorEndpointsDisabled() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("jvm_")));
+
         for (String path : new String[]{"/actuator/env", "/actuator/beans", "/actuator/configprops"}) {
             mockMvc.perform(get(path))
                     .andExpect(status().isNotFound())

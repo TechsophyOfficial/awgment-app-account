@@ -5,6 +5,7 @@ import com.techsophy.tsf.account.keycloak.ReconcileResult;
 import com.techsophy.tsf.account.keycloak.UserReconcilePayload;
 import com.techsophy.tsf.account.multitenancy.TenantContext;
 import com.techsophy.tsf.account.tenant.TenantEntity;
+import com.techsophy.tsf.account.tenant.TenantLookupService;
 import com.techsophy.tsf.account.tenant.TenantRepository;
 import com.techsophy.tsf.account.tenant.TenantStatus;
 import com.techsophy.tsf.account.user.IdentitySource;
@@ -24,6 +25,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -73,7 +78,8 @@ class CoalescedOutboxWorkerTest {
                 userRepository,
                 keycloakUserSyncClient,
                 tenantRepository,
-                outboxProperties
+                outboxProperties,
+                (Executor) Runnable::run
         );
         outboxService = new OutboxService(outboxStore, worker, outboxProperties, Runnable::run);
     }
@@ -165,6 +171,27 @@ class CoalescedOutboxWorkerTest {
                 11L, lease1, 502L, OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "Keycloak 504 timeout");
         verify(outboxStore).markRetryOrFailedWithCas(
                 eq(12L), eq(lease2), eq(999L), eq(OutboxAggregateType.USER), eq(OutboxJobType.RECONCILE_USER), anyString());
+    }
+
+    @Test
+    void processReconcileUserWhenFencedShouldRetryOrFailInsteadOfMarkingCompleted() {
+        UUID lease = UUID.randomUUID();
+        KeycloakOutboxEventEntity fencedJob = reconcileEvent(19L, 509L, lease);
+        when(outboxStore.claimNextJobs(20, Duration.ofSeconds(60), "worker-unit"))
+                .thenReturn(List.of(new ClaimedOutboxJob(fencedJob, false)))
+                .thenReturn(List.of());
+        when(userRepository.findById(509L)).thenReturn(Optional.of(activeLocalUser(509L, 1L, "kc-509")));
+        when(keycloakUserSyncClient.reconcileUser(eq("acme"), any(UserReconcilePayload.class)))
+                .thenReturn(new ReconcileResult("kc-509", true));
+
+        int processed = worker.processTenantQueue("acme", 20);
+        assertThat(processed).isEqualTo(1);
+
+        verify(outboxStore, never()).completeReconcileWithCas(
+                anyLong(), any(), anyLong(), any(), anyLong(), any(), anyBoolean(), anyBoolean());
+        verify(outboxStore).markRetryOrFailedWithCas(
+                eq(19L), eq(lease), eq(509L), eq(OutboxAggregateType.USER),
+                eq(OutboxJobType.RECONCILE_USER), anyString());
     }
 
     @Test
@@ -353,6 +380,111 @@ class CoalescedOutboxWorkerTest {
         }
         verify(outboxStore).claimNextJobs(20, Duration.ofSeconds(60), "worker-unit");
         assertThat(TenantContext.getTenantId()).isEqualTo(TenantContext.DEFAULT_TENANT);
+    }
+
+    @Test
+    void parallelPollLifecycleSuspendedTenantCheckAndLeaseDelegationShouldWorkCleanly() throws Exception {
+        CoalescedOutboxWorker parallelWorker = new CoalescedOutboxWorker(
+                outboxStore,
+                userRepository,
+                keycloakUserSyncClient,
+                tenantRepository,
+                outboxProperties
+        );
+        assertThat(parallelWorker.isRunning()).isTrue();
+        assertThat(parallelWorker.getPhase()).isEqualTo(Integer.MAX_VALUE - 100);
+
+        CountDownLatch slowEntered = new CountDownLatch(1);
+        CountDownLatch releaseSlow = new CountDownLatch(1);
+        CountDownLatch fastRan = new CountDownLatch(1);
+        AtomicInteger slowRuns = new AtomicInteger(0);
+        when(tenantRepository.findByStatusOrderByTenantIdAsc(TenantStatus.ACTIVE))
+                .thenReturn(List.of(tenant("slow_t"), tenant("fast_t")));
+        when(outboxStore.claimNextJobs(anyInt(), any(Duration.class), anyString())).thenAnswer(inv -> {
+            if ("slow_t".equals(TenantContext.getTenantId())) {
+                slowRuns.incrementAndGet();
+                slowEntered.countDown();
+                releaseSlow.await(5, TimeUnit.SECONDS);
+                return List.of();
+            }
+            fastRan.countDown();
+            return List.of();
+        });
+
+        Thread pollThread = new Thread(parallelWorker::pollAllActiveTenants);
+        pollThread.start();
+        assertThat(slowEntered.await(5, TimeUnit.SECONDS)).isTrue();
+        // Fast tenant completes immediately on sibling pool thread while slow_t blocks!
+        assertThat(fastRan.await(5, TimeUnit.SECONDS)).isTrue();
+        // Second poll while slow_t is still in flight skips duplicate slow_t
+        parallelWorker.pollAllActiveTenants();
+        releaseSlow.countDown();
+        pollThread.join(5000);
+        assertThat(slowRuns.get()).isEqualTo(1);
+
+        // Lifecycle stop & start
+        parallelWorker.stop();
+        assertThat(parallelWorker.isRunning()).isFalse();
+        parallelWorker.pollAllActiveTenants();
+        parallelWorker.start();
+        assertThat(parallelWorker.isRunning()).isTrue();
+
+        // OutboxService tenant status guard + lease delegation
+        org.mockito.Mockito.clearInvocations(outboxStore);
+        TenantLookupService tenantLookup = mock(TenantLookupService.class);
+        when(tenantLookup.findStatus("suspended_t")).thenReturn(Optional.of(TenantStatus.SUSPENDED));
+        when(tenantLookup.findStatus("acme")).thenReturn(Optional.of(TenantStatus.ACTIVE));
+        OutboxService guardedService = new OutboxService(
+                outboxStore, worker, outboxProperties, tenantLookup, Runnable::run);
+
+        guardedService.dispatchPendingBatch("suspended_t", 1);
+        verify(outboxStore, never()).claimNextJobs(anyInt(), any(Duration.class), anyString());
+
+        UUID lease = UUID.randomUUID();
+        guardedService.claimUserReconcileLease(901L);
+        verify(outboxStore).claimSpecificUserReconcileJob(901L, Duration.ofSeconds(60), "worker-unit");
+
+        guardedService.completeUserRevocationSync(81L, lease, 901L, 3L, "kc-901", true);
+        verify(outboxStore).completeReconcileWithCas(
+                81L, lease, 901L, OutboxAggregateType.USER, 3L, "kc-901", true, false);
+
+        guardedService.deferUserRevocationSync(81L, lease, 901L, "timeout", true);
+        verify(outboxStore).markRetryOrFailedWithCas(
+                81L, lease, 901L, OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "timeout", true);
+
+        guardedService.releaseUserReconcileToPending(81L, lease);
+        verify(outboxStore).releaseReconcileToPendingWithCas(81L, lease);
+
+        // afterCommit dedup (queued executor coalesces duplicate tenant dispatch) and rejected executor cleanup
+        org.mockito.Mockito.clearInvocations(outboxStore);
+        when(outboxStore.claimNextJobs(anyInt(), any(Duration.class), anyString())).thenReturn(List.of());
+        List<Runnable> queuedRunnables = new java.util.ArrayList<>();
+        OutboxService queuedService = new OutboxService(
+                outboxStore, worker, outboxProperties, tenantLookup, queuedRunnables::add);
+        TransactionSynchronizationManager.initSynchronization();
+        TransactionSynchronizationManager.setActualTransactionActive(true);
+        queuedService.dispatchPendingBatch("acme", 1);
+        queuedService.dispatchPendingBatch("acme", 1);
+        for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+            sync.afterCommit();
+        }
+        assertThat(queuedRunnables).hasSize(1);
+        queuedRunnables.forEach(Runnable::run);
+        verify(outboxStore, times(1)).claimNextJobs(20, Duration.ofSeconds(60), "worker-unit");
+        TransactionSynchronizationManager.clearSynchronization();
+
+        OutboxService rejectingService = new OutboxService(
+                outboxStore, worker, outboxProperties, tenantLookup,
+                cmd -> {
+                    throw new java.util.concurrent.RejectedExecutionException("pool saturated");
+                });
+        TransactionSynchronizationManager.initSynchronization();
+        rejectingService.dispatchPendingBatch("acme", 1);
+        for (TransactionSynchronization sync : TransactionSynchronizationManager.getSynchronizations()) {
+            sync.afterCommit();
+        }
+        TransactionSynchronizationManager.clearSynchronization();
+        TransactionSynchronizationManager.setActualTransactionActive(false);
     }
 
     private static TenantEntity tenant(String tenantId) {

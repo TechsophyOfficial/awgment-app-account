@@ -116,6 +116,13 @@ class PostmanCollectionContractTest {
         String outbox200Body = outboxFolder.path("item").get(0).path("response").get(0).path("body").asText();
         JsonNode outbox200Json = objectMapper.readTree(outbox200Body);
         assertThat(outbox200Json.path("content").get(0).path("jobType").asText()).isEqualTo("RECONCILE_USER");
+
+        JsonNode syncRetryItem = outboxFolder.path("item").get(1);
+        JsonNode retry200Json = objectMapper.readTree(syncRetryItem.path("response").get(0).path("body").asText());
+        assertThat(retry200Json.path("status").asText()).isEqualTo("COMPLETED");
+        JsonNode retry409Json = objectMapper.readTree(syncRetryItem.path("response").get(1).path("body").asText());
+        assertThat(retry409Json.path("detail").asText())
+                .isEqualTo("Outbox action-email event '3001' has ambiguous delivery state; trigger explicit resend-invite instead.");
     }
 
     @Test

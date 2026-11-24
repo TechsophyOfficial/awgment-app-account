@@ -19,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -30,6 +31,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +49,7 @@ import java.util.Set;
 /**
  * Tenant-scoped REST API for user profile lifecycle and self-service management (UC-USER-01..07).
  */
+@Validated
 @RestController
 @RequestMapping(path = "/accounts/v2/users", produces = MediaType.APPLICATION_JSON_VALUE)
 @Tag(name = "Users", description = "Tenant user profile lifecycle and /me self-service APIs (UC-USER-01..07)")
@@ -176,16 +179,16 @@ public class UserController {
                             schema = @Schema(implementation = ProblemDetail.class)))
     })
     public ResponseEntity<PageResponse<UserResponse>> searchUsers(
-            @RequestParam(required = false) String q,
+            @RequestParam(required = false) @Size(max = 255) String q,
             @RequestParam(required = false) UserStatus status,
             @RequestParam(required = false) IdentitySource identitySource,
-            @RequestParam(required = false) String idpAlias,
-            @RequestParam(required = false) String department,
-            @RequestParam(required = false) String loginId,
+            @RequestParam(required = false) @Size(max = 255) String idpAlias,
+            @RequestParam(required = false) @Size(max = 255) String department,
+            @RequestParam(required = false) @Size(max = 255) String loginId,
             @RequestParam(defaultValue = "false") boolean onlyMandatoryFields,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
-            @RequestParam(defaultValue = "createdAt,desc") String sort,
+            @RequestParam(defaultValue = "createdAt,desc") @Size(max = 64) String sort,
             @AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(userService.searchUsers(
                 q,

@@ -1,6 +1,10 @@
 package com.techsophy.tsf.account.error;
 
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
+import com.techsophy.tsf.account.security.JsonPayloadTooLargeException;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PessimisticLockException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -8,8 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -38,6 +42,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -62,6 +67,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ProblemDetail> handleMessageNotReadable(
             HttpMessageNotReadableException ex, HttpServletRequest request) {
+        if (containsCause(ex, JsonPayloadTooLargeException.class)) {
+            return problemResponse(
+                    ApiErrorCode.PAYLOAD_TOO_LARGE,
+                    "Request JSON payload exceeds the maximum allowed size.",
+                    request
+            );
+        }
         if (ex.getMostSpecificCause() instanceof UnrecognizedPropertyException unrecognized) {
             String safeProp = ProblemDetailFactory.sanitizePropertyName(unrecognized.getPropertyName());
             return problemResponse(
@@ -196,9 +208,14 @@ public class GlobalExceptionHandler {
         return problemResponse(ApiErrorCode.PAYLOAD_TOO_LARGE, "Request payload exceeds the maximum allowed size.", request);
     }
 
-    @ExceptionHandler(OptimisticLockingFailureException.class)
-    public ResponseEntity<ProblemDetail> handleOptimisticLock(
-            OptimisticLockingFailureException ex, HttpServletRequest request) {
+    @ExceptionHandler({
+            ConcurrencyFailureException.class,
+            OptimisticLockException.class,
+            PessimisticLockException.class,
+            LockTimeoutException.class
+    })
+    public ResponseEntity<ProblemDetail> handleConcurrencyFailure(
+            Exception ex, HttpServletRequest request) {
         return problemResponse(
                 ApiErrorCode.CONCURRENT_MODIFICATION,
                 "Resource was modified concurrently. Please reload and retry.",
@@ -211,6 +228,15 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException ex, HttpServletRequest request) {
         String sqlState = extractSqlState(ex);
         if (("235" + "05").equals(sqlState)) {
+            String constraintName = extractConstraintName(ex);
+            if (constraintName != null
+                    && constraintName.toLowerCase(Locale.ROOT).contains("uq_tp_user_active_email")) {
+                return problemResponse(
+                        ApiErrorCode.EMAIL_ALREADY_CLAIMED,
+                        "An active or disabled user already claims this email address.",
+                        request
+                );
+            }
             return problemResponse(
                     ApiErrorCode.DUPLICATE_RESOURCE,
                     "A resource with the same unique identifier already exists.",
@@ -241,6 +267,37 @@ public class GlobalExceptionHandler {
                 "Operation conflicts with an existing resource constraint.",
                 request
         );
+    }
+
+    private static boolean containsCause(Throwable ex, Class<? extends Throwable> targetType) {
+        Throwable cursor = ex;
+        while (cursor != null) {
+            if (targetType.isInstance(cursor)) {
+                return true;
+            }
+            cursor = cursor.getCause();
+        }
+        return false;
+    }
+
+    private static String extractConstraintName(Throwable ex) {
+        Throwable cursor = ex;
+        while (cursor != null) {
+            if (cursor instanceof org.hibernate.exception.ConstraintViolationException hibernateCve
+                    && hibernateCve.getConstraintName() != null
+                    && !hibernateCve.getConstraintName().isBlank()) {
+                return hibernateCve.getConstraintName();
+            }
+            cursor = cursor.getCause();
+        }
+        cursor = ex;
+        while (cursor != null) {
+            if (cursor instanceof SQLException sqlEx && sqlEx.getMessage() != null) {
+                return sqlEx.getMessage();
+            }
+            cursor = cursor.getCause();
+        }
+        return null;
     }
 
     private static String extractSqlState(Throwable ex) {

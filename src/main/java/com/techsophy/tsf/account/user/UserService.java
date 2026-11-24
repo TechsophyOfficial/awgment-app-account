@@ -6,6 +6,10 @@ import com.techsophy.tsf.account.error.ProblemDetailFactory;
 import com.techsophy.tsf.account.governance.RoleCompositeExpander;
 import com.techsophy.tsf.account.governance.RoleGovernancePolicy;
 import com.techsophy.tsf.account.keycloak.KeycloakUserSyncClient;
+import com.techsophy.tsf.account.keycloak.RevocationAttemptOutcome;
+import com.techsophy.tsf.account.outbox.CasCompletionResult;
+import com.techsophy.tsf.account.outbox.ClaimedOutboxJob;
+import com.techsophy.tsf.account.outbox.KeycloakOutboxEventEntity;
 import com.techsophy.tsf.account.outbox.OutboxService;
 import com.techsophy.tsf.account.tenant.dto.PageResponse;
 import com.techsophy.tsf.account.user.dto.CreateUserRequest;
@@ -24,11 +28,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Orchestrates tenant user profile lifecycle operations (UC-USER-01..07),
- * keeping all Keycloak network I/O outside PostgreSQL transactions.
+ * keeping all Keycloak network I/O outside PostgreSQL transactions and serializing
+ * Phase B synchronous revocation through the coalesced aggregate outbox lease.
  */
 @Slf4j
 @Service
@@ -81,6 +88,14 @@ public class UserService {
     }
 
     public UserResponse createUser(CreateUserRequest request, CallerPrincipal caller) {
+        List<String> normalizedRoles = UserPersistenceService.validateAndNormalizeCreateInputs(request);
+        // Perform Keycloak composite-role expansion strictly outside any PostgreSQL transaction
+        roleGovernancePolicy.assertCanAssignRoles(
+                caller.tenantRealm(),
+                caller.directRoles(),
+                List.of(),
+                normalizedRoles != null ? normalizedRoles : List.of()
+        );
         UserResponse created = persistenceService.createUserTx(request, caller);
         dispatchOutboxSafely(caller.tenantRealm());
         return created;
@@ -88,6 +103,7 @@ public class UserService {
 
     public UserResponse updateUser(Long id, UpdateUserRequest request, CallerPrincipal caller) {
         UserEntity snapshot = loadUserOrThrow(id);
+        UserPersistenceService.assertNotSystemUser(snapshot);
         Set<String> targetRoles = collectTargetRolesWithLiveKeycloak(caller.tenantRealm(), snapshot);
         roleGovernancePolicy.assertCanManageTargetUser(caller.tenantRealm(), caller.directRoles(), targetRoles);
 
@@ -143,44 +159,78 @@ public class UserService {
 
     public DeactivationOutcome deactivateUser(Long id, CallerPrincipal caller) {
         UserEntity snapshot = loadUserOrThrow(id);
+        UserPersistenceService.assertNotSystemUser(snapshot);
         roleGovernancePolicy.assertNotSelfAction(caller.subject(), snapshot.getKeycloakSub(), "disable");
         assertCanManageForDeactivation(caller, snapshot);
 
         // Phase A: Commit PostgreSQL DISABLED status + coalesced RECONCILE_USER + audit log
         UserPersistenceService.DeactivatePhaseAResult phaseA =
-                persistenceService.deactivateUserPhaseATx(id, caller);
+                persistenceService.deactivateUserPhaseATx(id, snapshot.getOptLockVersion(), caller);
 
-        // Phase B: Synchronous-first Keycloak disable + logout outside PostgreSQL TX
-        boolean revoked = keycloakUserSyncClient.revokeUserSynchronously(
+        if (phaseA.keycloakSub() == null || phaseA.keycloakSub().isBlank()) {
+            return deferredOutcome();
+        }
+
+        // Phase B: Serialize synchronous Keycloak disable + logout through the aggregate outbox lease
+        Optional<ClaimedOutboxJob> claimedOpt = claimUserReconcileLeaseSafely(phaseA.userId(), caller.tenantRealm());
+        if (claimedOpt.isEmpty()) {
+            return deferredOutcome();
+        }
+
+        ClaimedOutboxJob claimed = claimedOpt.get();
+        KeycloakOutboxEventEntity job = claimed.event();
+        if (job.getTargetVersion() != null && job.getTargetVersion() > phaseA.syncVersion()) {
+            releaseUserReconcileSafely(job.getId(), job.getLeaseToken(), caller.tenantRealm());
+            dispatchOutboxSafely(caller.tenantRealm());
+            return deferredOutcome();
+        }
+
+        RevocationAttemptOutcome outcome = invokeRevocationSafely(
                 caller.tenantRealm(),
                 phaseA.keycloakSub(),
-                phaseA.syncVersion(),
-                UserStatus.DISABLED.name()
+                phaseA.syncVersion()
         );
-        if (revoked) {
-            persistenceService.markRevocationSyncedTx(
+        if (outcome == RevocationAttemptOutcome.REVOKED) {
+            CasCompletionResult completion = persistenceService.markRevocationSyncedTx(
+                    job.getId(),
+                    job.getLeaseToken(),
                     phaseA.userId(),
                     phaseA.keycloakSub(),
-                    phaseA.syncVersion()
+                    phaseA.syncVersion(),
+                    claimed.wasReclaimed()
             );
-            return new DeactivationOutcome(
-                    true,
-                    new UserDeactivationResponse(UserStatus.DISABLED, SyncStatus.SYNCED)
-            );
+            if (completion.casUpdated() && !completion.reQueuedBecauseDirty()) {
+                return new DeactivationOutcome(
+                        true,
+                        new UserDeactivationResponse(UserStatus.DISABLED, SyncStatus.SYNCED)
+                );
+            }
+            if (completion.reQueuedBecauseDirty()) {
+                dispatchOutboxSafely(caller.tenantRealm());
+            }
+            return deferredOutcome();
         }
-        return new DeactivationOutcome(
-                false,
-                new UserDeactivationResponse(UserStatus.DISABLED, SyncStatus.PENDING_SYNC)
+
+        boolean mayHaveLeftInFlightWrite = outcome == RevocationAttemptOutcome.DEFERRED_UNCERTAIN;
+        deferUserRevocationSafely(
+                job.getId(),
+                job.getLeaseToken(),
+                phaseA.userId(),
+                revocationDeferReason(outcome),
+                mayHaveLeftInFlightWrite,
+                caller.tenantRealm()
         );
+        return deferredOutcome();
     }
 
     public UserResponse reactivateUser(Long id, CallerPrincipal caller) {
         UserEntity snapshot = loadUserOrThrow(id);
+        UserPersistenceService.assertNotSystemUser(snapshot);
         roleGovernancePolicy.assertNotSelfAction(caller.subject(), snapshot.getKeycloakSub(), "reactivate");
         Set<String> targetRoles = collectTargetRolesWithLiveKeycloak(caller.tenantRealm(), snapshot);
         roleGovernancePolicy.assertCanManageTargetUser(caller.tenantRealm(), caller.directRoles(), targetRoles);
 
-        UserResponse reactivated = persistenceService.reactivateUserTx(id, caller);
+        UserResponse reactivated = persistenceService.reactivateUserTx(id, snapshot.getOptLockVersion(), caller);
         dispatchOutboxSafely(caller.tenantRealm());
         return reactivated;
     }
@@ -204,6 +254,85 @@ public class UserService {
             dispatchOutboxSafely(caller.tenantRealm());
         }
         return result.response();
+    }
+
+    private Optional<ClaimedOutboxJob> claimUserReconcileLeaseSafely(long userId, String tenantRealm) {
+        try {
+            return outboxService.claimUserReconcileLease(userId);
+        } catch (RuntimeException ex) {
+            log.warn("Unable to claim outbox lease for synchronous revocation (userId={}, tenant='{}'): {}",
+                    userId,
+                    ProblemDetailFactory.sanitizeForLog(tenantRealm),
+                    ProblemDetailFactory.sanitizeForLog(ex.getMessage()));
+            return Optional.empty();
+        }
+    }
+
+    private RevocationAttemptOutcome invokeRevocationSafely(
+            String tenantRealm, String keycloakSub, long syncVersion) {
+        try {
+            return keycloakUserSyncClient.revokeUserSynchronouslyWithOutcome(
+                    tenantRealm,
+                    keycloakSub,
+                    syncVersion,
+                    UserStatus.DISABLED.name()
+            );
+        } catch (RuntimeException ex) {
+            log.warn("Synchronous Keycloak revocation threw unexpectedly for tenant '{}': {}",
+                    ProblemDetailFactory.sanitizeForLog(tenantRealm),
+                    ProblemDetailFactory.sanitizeForLog(ex.getMessage()));
+            return RevocationAttemptOutcome.DEFERRED_UNCERTAIN;
+        }
+    }
+
+    private void deferUserRevocationSafely(
+            long outboxId,
+            UUID leaseToken,
+            long userId,
+            String reason,
+            boolean mayHaveLeftInFlightWrite,
+            String tenantRealm) {
+        try {
+            outboxService.deferUserRevocationSync(
+                    outboxId,
+                    leaseToken,
+                    userId,
+                    reason,
+                    mayHaveLeftInFlightWrite
+            );
+        } catch (RuntimeException ex) {
+            log.warn("Failed to defer outbox lease after sync revocation (outboxId={}, tenant='{}'): {}",
+                    outboxId,
+                    ProblemDetailFactory.sanitizeForLog(tenantRealm),
+                    ProblemDetailFactory.sanitizeForLog(ex.getMessage()));
+        }
+    }
+
+    private void releaseUserReconcileSafely(long outboxId, UUID leaseToken, String tenantRealm) {
+        try {
+            outboxService.releaseUserReconcileToPending(outboxId, leaseToken);
+        } catch (RuntimeException ex) {
+            log.warn("Failed to release superseded outbox lease (outboxId={}, tenant='{}'): {}",
+                    outboxId,
+                    ProblemDetailFactory.sanitizeForLog(tenantRealm),
+                    ProblemDetailFactory.sanitizeForLog(ex.getMessage()));
+        }
+    }
+
+    private static String revocationDeferReason(RevocationAttemptOutcome outcome) {
+        return switch (outcome) {
+            case FENCED -> "Fenced by higher awgment_sync_version in Keycloak.";
+            case DEFERRED_BEFORE_WRITE -> "Keycloak user not found or synchronous revocation failed before write.";
+            case DEFERRED_UNCERTAIN -> "Synchronous Keycloak revocation timed out or failed in-flight.";
+            case REVOKED -> "Completed";
+        };
+    }
+
+    private static DeactivationOutcome deferredOutcome() {
+        return new DeactivationOutcome(
+                false,
+                new UserDeactivationResponse(UserStatus.DISABLED, SyncStatus.PENDING_SYNC)
+        );
     }
 
     private void assertCanManageForDeactivation(CallerPrincipal caller, UserEntity target) {

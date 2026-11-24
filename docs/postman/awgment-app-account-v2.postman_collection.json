@@ -1284,7 +1284,7 @@
               "status": "OK",
               "code": 200,
               "header": [{ "key": "Content-Type", "value": "application/json" }],
-              "body": "{\n  \"id\": 3001,\n  \"jobType\": \"RECONCILE_USER\",\n  \"aggregateType\": \"USER\",\n  \"aggregateId\": 2001,\n  \"targetVersion\": 1,\n  \"dirty\": false,\n  \"ambiguousDelivery\": false,\n  \"status\": \"PENDING\",\n  \"retryCount\": 0,\n  \"nextRetryAt\": \"2026-11-24T05:16:00Z\",\n  \"createdOn\": \"2026-11-24T05:00:00Z\",\n  \"updatedOn\": \"2026-11-24T05:16:00Z\"\n}"
+              "body": "{\n  \"id\": 3001,\n  \"jobType\": \"RECONCILE_USER\",\n  \"aggregateType\": \"USER\",\n  \"aggregateId\": 2001,\n  \"targetVersion\": 1,\n  \"dirty\": false,\n  \"ambiguousDelivery\": false,\n  \"status\": \"COMPLETED\",\n  \"retryCount\": 0,\n  \"nextRetryAt\": \"2026-11-24T05:16:00Z\",\n  \"createdOn\": \"2026-11-24T05:00:00Z\",\n  \"updatedOn\": \"2026-11-24T05:16:00Z\"\n}"
             },
             {
               "name": "409 Conflict - INVALID_STATE_TRANSITION",
@@ -1295,7 +1295,7 @@
               "status": "Conflict",
               "code": 409,
               "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
-              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-state-transition\",\n  \"title\": \"Invalid State Transition\",\n  \"status\": 409,\n  \"detail\": \"Ambiguous SEND_ACTION_EMAIL delivery cannot be retried via outbox; use resend-invite explicitly.\",\n  \"instance\": \"/accounts/v2/sync/outbox/3001/retry\",\n  \"errorCode\": \"INVALID_STATE_TRANSITION\",\n  \"timestamp\": \"2026-11-24T05:16:00Z\"\n}"
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-state-transition\",\n  \"title\": \"Invalid State Transition\",\n  \"status\": 409,\n  \"detail\": \"Outbox action-email event '3001' has ambiguous delivery state; trigger explicit resend-invite instead.\",\n  \"instance\": \"/accounts/v2/sync/outbox/3001/retry\",\n  \"errorCode\": \"INVALID_STATE_TRANSITION\",\n  \"timestamp\": \"2026-11-24T05:16:00Z\"\n}"
             }
           ]
         }

@@ -16,6 +16,13 @@ public interface KeycloakUserSyncClient extends RoleCompositeExpander {
 
     boolean revokeUserSynchronously(String realm, String keycloakSub, long syncVersion, String statusName);
 
+    default RevocationAttemptOutcome revokeUserSynchronouslyWithOutcome(
+            String realm, String keycloakSub, long syncVersion, String statusName) {
+        return revokeUserSynchronously(realm, keycloakSub, syncVersion, statusName)
+                ? RevocationAttemptOutcome.REVOKED
+                : RevocationAttemptOutcome.DEFERRED_UNCERTAIN;
+    }
+
     @Override
     Set<String> expandCompositeClosure(String tenantRealm, Collection<String> directRoles);
 

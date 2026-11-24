@@ -91,6 +91,7 @@ class TenantProvisioningIT {
         registry.add("spring.flyway.default-schema", () -> "public");
         registry.add("awgment.multitenancy.enabled", () -> "true");
         registry.add("awgment.flyway.migrate-on-startup", () -> "false");
+        registry.add("awgment.outbox.worker-enabled", () -> "false");
 
         registry.add("awgment.security.keycloak-base-url", KEYCLOAK::getAuthServerUrl);
         registry.add("awgment.security.platform-realm", () -> "platform");
@@ -277,7 +278,7 @@ class TenantProvisioningIT {
         assertThat(reactivateJson.path("keycloakContractVerified").asBoolean()).isTrue();
         assertThat(kcAdmin.realm("acme").toRepresentation().isEnabled()).isTrue();
 
-        // Tenant token is no longer blocked by TenantAuthenticationManagerResolver (passes auth; /users/me is Phase 2 -> 404)
+        // Tenant token is no longer blocked by TenantAuthenticationManagerResolver (passes auth; /users/me returns 404 because acme-operator has no tp_user row yet)
         HttpResponse<String> activeTenantCall = sendApi("GET", "/accounts/v2/users/me", acmeOperatorToken, null);
         assertThat(activeTenantCall.statusCode()).isEqualTo(404);
 

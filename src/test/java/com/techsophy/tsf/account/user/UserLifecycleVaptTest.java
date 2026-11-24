@@ -26,13 +26,16 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -303,6 +306,102 @@ class UserLifecycleVaptTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"version\":0,\"selfServicePreferences\":" + nested + "}"))
                 .andExpect(status().isBadRequest());
+
+        // Oversized JSONB selfServicePreferences (> 16 KB) rejected with 400 VALIDATION_FAILED
+        String hugePref = "\"" + "x".repeat(3000) + "\"";
+        StringBuilder widePrefs = new StringBuilder("{");
+        for (int i = 0; i < 8; i++) {
+            if (i > 0) {
+                widePrefs.append(',');
+            }
+            widePrefs.append("\"k").append(i).append("\":").append(hugePref);
+        }
+        widePrefs.append('}');
+        mockMvc.perform(put("/accounts/v2/users/me")
+                        .header("Authorization", "Bearer " + basicUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":0,\"selfServicePreferences\":" + widePrefs + "}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // Oversized HTTP JSON request body (> 256 KB) rejected with 413 PAYLOAD_TOO_LARGE
+        String oversizedBody = "{\"version\":0,\"locale\":\"en\",\"selfServicePreferences\":{\"blob\":\""
+                + "z".repeat(270 * 1024) + "\"}}";
+        mockMvc.perform(put("/accounts/v2/users/me")
+                        .header("Authorization", "Bearer " + basicUserToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(oversizedBody))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("PAYLOAD_TOO_LARGE"));
+    }
+
+    @Test
+    void api5_systemUserImmutabilityAndPhase4bFailClosedGroupsAndNoTxKeycloakIoMustHold() throws Exception {
+        // Seeded system user (id = 1L) cannot be modified, disabled, or reactivated -> 403 ACCESS_DENIED
+        mockMvc.perform(put("/accounts/v2/users/1")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"department\":\"Pwned\",\"version\":0}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+
+        mockMvc.perform(delete("/accounts/v2/users/1")
+                        .header("Authorization", "Bearer " + operatorToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+
+        mockMvc.perform(post("/accounts/v2/users/1/reactivate")
+                        .header("Authorization", "Bearer " + approverOnlyToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+
+        // Non-empty groups on POST /users rejected fail-closed until Phase 4B
+        mockMvc.perform(post("/accounts/v2/users")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userName\":\"grp.user\",\"emailId\":\"" + "grp.user" + "@" + "acme.invalid"
+                                + "\",\"groups\":[\"admins\"]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // Invalid timezone & mobileNumber rejected with 400 VALIDATION_FAILED
+        mockMvc.perform(post("/accounts/v2/users")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userName\":\"tz.user\",\"emailId\":\"" + "tz.user" + "@" + "acme.invalid"
+                                + "\",\"timezone\":\"Mars/Olympus\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        mockMvc.perform(post("/accounts/v2/users")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userName\":\"mob.user\",\"emailId\":\"" + "mob.user" + "@" + "acme.invalid"
+                                + "\",\"mobileNumber\":\"bad<script>\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+
+        // Prove expandCompositeClosure during POST /users executes OUTSIDE any DB transaction
+        AtomicReference<Boolean> txActiveDuringKcIo = new AtomicReference<>();
+        when(keycloakUserSyncClient.expandCompositeClosure(eq("acme"), anyCollection())).thenAnswer(inv -> {
+            txActiveDuringKcIo.set(TransactionSynchronizationManager.isActualTransactionActive());
+            Collection<?> rawRoles = inv.getArgument(1, Collection.class);
+            Set<String> copied = new LinkedHashSet<>();
+            for (Object role : rawRoles) {
+                if (role != null) {
+                    copied.add(role.toString());
+                }
+            }
+            return copied;
+        });
+        mockMvc.perform(post("/accounts/v2/users")
+                        .header("Authorization", "Bearer " + operatorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userName\":\"notx.user\",\"emailId\":\"" + "notx.user" + "@" + "acme.invalid"
+                                + "\",\"roles\":[\"awgment-user\"]}"))
+                .andExpect(status().isCreated());
+        assertThat(txActiveDuringKcIo.get()).isFalse();
     }
 
     @Test

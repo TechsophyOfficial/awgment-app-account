@@ -1,13 +1,16 @@
 package com.techsophy.tsf.account.config;
 
+import com.fasterxml.jackson.core.StreamReadConstraints;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.techsophy.tsf.account.error.ApiErrorCode;
 import com.techsophy.tsf.account.error.ProblemDetailFactory;
 import com.techsophy.tsf.account.security.AwgmentSecurityProperties;
+import com.techsophy.tsf.account.security.JsonRequestSizeLimitFilter;
 import com.techsophy.tsf.account.security.TenantAccessAuthenticationException;
 import com.techsophy.tsf.account.security.TenantAuthenticationManagerResolver;
 import com.techsophy.tsf.account.security.TenantContextCleanupFilter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -79,6 +82,7 @@ public class BootstrapSecurityConfig {
             HttpSecurity http,
             ObjectMapper objectMapper,
             TenantAuthenticationManagerResolver tenantAuthenticationManagerResolver,
+            JsonRequestSizeLimitFilter jsonRequestSizeLimitFilter,
             TenantContextCleanupFilter tenantContextCleanupFilter) throws Exception {
         AuthenticationEntryPoint entryPoint = problemDetailEntryPoint(objectMapper);
         AccessDeniedHandler deniedHandler = problemDetailAccessDeniedHandler(objectMapper);
@@ -112,9 +116,32 @@ public class BootstrapSecurityConfig {
                         .authenticationEntryPoint(entryPoint)
                         .accessDeniedHandler(deniedHandler)
                 )
+                .addFilterBefore(jsonRequestSizeLimitFilter, BearerTokenAuthenticationFilter.class)
                 .addFilterAfter(tenantContextCleanupFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public FilterRegistrationBean<JsonRequestSizeLimitFilter> jsonRequestSizeLimitFilterRegistration(
+            JsonRequestSizeLimitFilter filter) {
+        FilterRegistrationBean<JsonRequestSizeLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public Jackson2ObjectMapperBuilderCustomizer awgmentJacksonStreamConstraintsCustomizer(
+            AwgmentSecurityProperties securityProperties) {
+        long maxDocBytes = securityProperties.effectiveMaxJsonBodyBytes();
+        return builder -> builder.postConfigurer(mapper -> mapper.getFactory().setStreamReadConstraints(
+                StreamReadConstraints.builder()
+                        .maxNestingDepth(1000)
+                        .maxDocumentLength(maxDocBytes)
+                        .maxStringLength(64 * 1024)
+                        .maxNameLength(1024)
+                        .build()
+        ));
     }
 
     @Bean

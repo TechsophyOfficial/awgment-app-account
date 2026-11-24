@@ -14,6 +14,7 @@ import com.techsophy.tsf.account.user.dto.UserResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -26,6 +27,7 @@ import org.springframework.security.web.method.annotation.AuthenticationPrincipa
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+import org.springframework.validation.beanvalidation.MethodValidationInterceptor;
 
 import java.time.Instant;
 import java.util.List;
@@ -74,7 +76,12 @@ class UserControllerTest {
         LocalValidatorFactoryBean validator = new LocalValidatorFactoryBean();
         validator.afterPropertiesSet();
 
-        mockMvc = MockMvcBuilders.standaloneSetup(new UserController(userService, detector, secProps))
+        ProxyFactory proxyFactory = new ProxyFactory(new UserController(userService, detector, secProps));
+        proxyFactory.setProxyTargetClass(true);
+        proxyFactory.addAdvice(new MethodValidationInterceptor(validator.getValidator()));
+        UserController validatedController = (UserController) proxyFactory.getProxy();
+
+        mockMvc = MockMvcBuilders.standaloneSetup(validatedController)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(strictMapper))
                 .setValidator(validator)
@@ -189,6 +196,14 @@ class UserControllerTest {
                         .content("{\"locale\":\"fr\",\"version\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.locale").value("fr"));
+
+        // Oversized search query parameters (> 255 chars) rejected with 400 VALIDATION_FAILED
+        mockMvc.perform(get("/accounts/v2/users").param("q", "a".repeat(256)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+        mockMvc.perform(get("/accounts/v2/users").param("loginId", "b".repeat(256)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
     }
 
     @Test

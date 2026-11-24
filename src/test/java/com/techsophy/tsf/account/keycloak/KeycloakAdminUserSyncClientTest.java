@@ -33,6 +33,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -287,7 +292,7 @@ class KeycloakAdminUserSyncClientTest {
         UserResource newerRes = mock(UserResource.class);
         when(usersResource.get("kc-newer")).thenReturn(newerRes);
         when(newerRes.toRepresentation()).thenReturn(newerRep);
-        assertThat(client.revokeUserSynchronously("acme", "kc-newer", 5L, "DISABLED")).isTrue();
+        assertThat(client.revokeUserSynchronously("acme", "kc-newer", 5L, "DISABLED")).isFalse();
         verify(newerRes, never()).update(any());
     }
 
@@ -691,6 +696,255 @@ class KeycloakAdminUserSyncClientTest {
                 .isInstanceOf(ApiException.class)
                 .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
                         .isEqualTo(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR));
+    }
+
+    @Test
+    void shouldIncludeGroupInheritedEffectiveRolesExpandNonTrustedClientCompositesConvergeMultiClientAndFailClosedOnMissingRealm() {
+        KeycloakAdminUserSyncClient client = newClient(false);
+
+        // 1. Missing realm itself -> 502 UPSTREAM_IDENTITY_PROVIDER_ERROR (never fail open as Set.of())
+        when(usersResource.get("kc-any")).thenThrow(new NotFoundException("Realm not found"));
+        when(realmResource.toRepresentation()).thenThrow(new NotFoundException("Realm not found"));
+        assertThatThrownBy(() -> client.fetchUserEffectiveRoles("acme", "kc-any"))
+                .isInstanceOf(ApiException.class)
+                .satisfies(ex -> assertThat(((ApiException) ex).errorCode())
+                        .isEqualTo(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR));
+
+        // 2. Group-inherited effective roles via listEffective() + non-trusted client composites
+        RoleRepresentation groupInheritedAdmin = role("id-adm", "awgment-account-admin", false);
+        RoleRepresentation groupRealmCustom = role("id-rc", "group-realm-role", false);
+        RoleRepresentation appComposite = role("id-app-comp", "app-bundle", true);
+        RoleRepresentation appViewer = role("id-app-view", "viewer", false);
+
+        ClientRepresentation trustedClientRep = new ClientRepresentation();
+        trustedClientRep.setId("client-uuid-awgment");
+        trustedClientRep.setClientId("awgment-account");
+        ClientRepresentation appClientRep = new ClientRepresentation();
+        appClientRep.setId("client-uuid-app");
+        appClientRep.setClientId("awgment-app-client");
+        ClientResource appClientRes = mock(ClientResource.class);
+        RolesResource appClientRolesRes = mock(RolesResource.class);
+        when(clientsResource.findAll()).thenReturn(List.of(trustedClientRep, appClientRep));
+        when(clientsResource.get("client-uuid-app")).thenReturn(appClientRes);
+        when(appClientRes.roles()).thenReturn(appClientRolesRes);
+        when(trustedClientRolesResource.list()).thenReturn(List.of(groupInheritedAdmin));
+        when(appClientRolesRes.list()).thenReturn(List.of(appComposite, appViewer));
+        when(realmRolesResource.list()).thenReturn(List.of(groupRealmCustom));
+        when(roleByIdResource.getRoleComposites("id-app-comp")).thenReturn(Set.of(groupInheritedAdmin, appViewer));
+
+        // expandCompositeClosure must resolve composites defined on awgment-app-client
+        assertThat(client.expandCompositeClosure("acme", List.of("app-bundle")))
+                .containsExactlyInAnyOrder("app-bundle", "awgment-account-admin", "viewer");
+
+        // fetchUserEffectiveRoles must include listEffective() from realm + trusted client + other clients
+        UserResource groupUserRes = mock(UserResource.class);
+        RoleMappingResource groupMappings = mockRoleMappings(List.of(), List.of());
+        RoleScopeResource appClientScope = mock(RoleScopeResource.class);
+        when(groupMappings.clientLevel("client-uuid-app")).thenReturn(appClientScope);
+        when(groupMappings.realmLevel().listEffective()).thenReturn(List.of(groupRealmCustom));
+        when(groupMappings.clientLevel("client-uuid-awgment").listEffective())
+                .thenReturn(List.of(groupInheritedAdmin));
+        when(appClientScope.listEffective()).thenReturn(List.of(appViewer));
+        when(groupMappings.getAll()).thenReturn(new MappingsRepresentation());
+        when(usersResource.get("kc-group-user")).thenReturn(groupUserRes);
+        when(groupUserRes.roles()).thenReturn(groupMappings);
+
+        Set<String> effective = client.fetchUserEffectiveRoles("acme", "kc-group-user");
+        assertThat(effective).containsExactlyInAnyOrder("group-realm-role", "awgment-account-admin", "viewer");
+
+        // 3. convergeRoles must converge non-trusted application client roles (viewer/editor) without dropping them
+        RoleRepresentation appEditor = role("id-app-edit", "editor", false);
+        when(appClientRolesRes.list()).thenReturn(List.of(appEditor, appViewer));
+        UserResource convergeRes = mock(UserResource.class);
+        RoleMappingResource convergeMappings = mockRoleMappings(List.of(), List.of());
+        RoleScopeResource convergeAppScope = mock(RoleScopeResource.class);
+        when(convergeMappings.clientLevel("client-uuid-app")).thenReturn(convergeAppScope);
+        when(convergeAppScope.listAll()).thenReturn(List.of(appViewer));
+        MappingsRepresentation currentAll = new MappingsRepresentation();
+        ClientMappingsRepresentation appCurrent = new ClientMappingsRepresentation();
+        appCurrent.setClient("awgment-app-client");
+        appCurrent.setMappings(List.of(appViewer));
+        currentAll.setClientMappings(Map.of("awgment-app-client", appCurrent));
+        when(convergeMappings.getAll()).thenReturn(currentAll);
+
+        when(usersResource.searchByUsername("multi.client", true)).thenReturn(List.of());
+        when(usersResource.create(any(UserRepresentation.class))).thenReturn(
+                Response.created(URI.create("http://localhost:8080/admin/realms/acme/users/kc-mc-1")).build());
+        when(usersResource.get("kc-mc-1")).thenReturn(convergeRes);
+        when(convergeRes.roles()).thenReturn(convergeMappings);
+
+        UserReconcilePayload multiPayload = new UserReconcilePayload(
+                990L, null, "multi.client", "mc" + "@" + "acme.invalid",
+                "Multi", "Client", "en", UserStatus.ACTIVE, IdentitySource.KEYCLOAK_LOCAL,
+                List.of("editor"), 1L
+        );
+        client.reconcileUser("acme", multiPayload);
+        verify(convergeAppScope).add(List.of(appEditor));
+        verify(convergeAppScope).remove(List.of(appViewer));
+    }
+
+    @Test
+    void revocationOutcomesExecutorSaturationBoundedPropertiesAndMissingRealmShouldFailClosed() throws Exception {
+        // 1. Blank sub / null rep -> DEFERRED_BEFORE_WRITE
+        KeycloakAdminUserSyncClient client = newClient(true);
+        assertThat(client.revokeUserSynchronouslyWithOutcome("acme", "   ", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE);
+
+        UserResource nullRepRes = mock(UserResource.class);
+        when(usersResource.get("kc-null")).thenReturn(nullRepRes);
+        when(nullRepRes.toRepresentation()).thenReturn(null);
+        assertThat(client.revokeUserSynchronouslyWithOutcome("acme", "kc-null", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE);
+
+        // 2. Bounded revocation client timeouts satisfy connect + read <= syncRevokeTimeoutMs (even at 500ms floor)
+        outboxProperties.setSyncRevokeTimeoutMs(500L);
+        AtomicReference<KeycloakAdminProperties> capturedProps = new AtomicReference<>();
+        UserResource okRes = mock(UserResource.class);
+        UserRepresentation okRep = new UserRepresentation();
+        okRep.setAttributes(Map.of("awgment_sync_version", List.of("1")));
+        when(usersResource.get("kc-ok-500")).thenReturn(okRes);
+        when(okRes.toRepresentation()).thenReturn(okRep);
+        KeycloakAdminUserSyncClient boundedTimeoutClient = new KeycloakAdminUserSyncClient(
+                adminProperties,
+                securityProperties,
+                outboxProperties,
+                meterRegistry,
+                props -> {
+                    capturedProps.set(props);
+                    return keycloak;
+                },
+                true
+        );
+        assertThat(boundedTimeoutClient.revokeUserSynchronouslyWithOutcome("acme", "kc-ok-500", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.REVOKED);
+        assertThat(capturedProps.get().getConnectTimeoutMs() + capturedProps.get().getReadTimeoutMs())
+                .isLessThanOrEqualTo(500);
+        boundedTimeoutClient.close();
+
+        // 3. Executor saturation (AbortPolicy / RejectedExecutionException) -> DEFERRED_BEFORE_WRITE + metric
+        ExecutorService fullExecutor = new ThreadPoolExecutor(
+                1, 1, 0L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(1), new ThreadPoolExecutor.AbortPolicy());
+        CountDownLatch releaseFull = new CountDownLatch(1);
+        CountDownLatch firstEntered = new CountDownLatch(1);
+        fullExecutor.submit(() -> {
+            firstEntered.countDown();
+            try {
+                releaseFull.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertThat(firstEntered.await(5, TimeUnit.SECONDS)).isTrue();
+        fullExecutor.submit(() -> {});
+        KeycloakAdminUserSyncClient saturatedClient = new KeycloakAdminUserSyncClient(
+                adminProperties, securityProperties, outboxProperties, meterRegistry,
+                p -> keycloak, true, fullExecutor);
+        assertThat(saturatedClient.revokeUserSynchronouslyWithOutcome("acme", "kc-sat", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE);
+        releaseFull.countDown();
+        saturatedClient.close();
+
+        // 4. Write-attempted exception -> DEFERRED_UNCERTAIN
+        UserResource writeFailRes = mock(UserResource.class);
+        UserRepresentation writeFailRep = new UserRepresentation();
+        writeFailRep.setAttributes(new HashMap<>());
+        when(usersResource.get("kc-write-fail")).thenReturn(writeFailRes);
+        when(writeFailRes.toRepresentation()).thenReturn(writeFailRep);
+        doAnswer(inv -> {
+            throw new IllegalStateException("socket reset after headers");
+        }).when(writeFailRes).update(any(UserRepresentation.class));
+        assertThat(client.revokeUserSynchronouslyWithOutcome("acme", "kc-write-fail", 2L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.DEFERRED_UNCERTAIN);
+
+        // 5. Missing realm throws NotFoundException on realmResource.toRepresentation() -> 502 UPSTREAM_IDENTITY_PROVIDER_ERROR
+        when(usersResource.get("kc-missing-realm")).thenThrow(new NotFoundException("user not found"));
+        when(realmResource.toRepresentation()).thenThrow(new NotFoundException("realm not found"));
+        assertThatThrownBy(() -> client.fetchUserEffectiveRoles("acme", "kc-missing-realm"))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR);
+
+        // 6. Interface default method + blank realm + parseSyncVersion malformed + findByClientId fallback + buildBoundedClient
+        KeycloakUserSyncClient defaultTrue = new KeycloakUserSyncClient() {
+            @Override public ReconcileResult reconcileUser(String r, UserReconcilePayload p) { return null; }
+            @Override public boolean revokeUserSynchronously(String r, String s, long v, String st) { return true; }
+            @Override public Set<String> expandCompositeClosure(String r, java.util.Collection<String> d) { return Set.of(); }
+            @Override public Set<String> fetchUserEffectiveRoles(String r, String s) { return Set.of(); }
+            @Override public void sendActionEmail(String r, String s, List<String> a, int l) {}
+        };
+        KeycloakUserSyncClient defaultFalse = new KeycloakUserSyncClient() {
+            @Override public ReconcileResult reconcileUser(String r, UserReconcilePayload p) { return null; }
+            @Override public boolean revokeUserSynchronously(String r, String s, long v, String st) { return false; }
+            @Override public Set<String> expandCompositeClosure(String r, java.util.Collection<String> d) { return Set.of(); }
+            @Override public Set<String> fetchUserEffectiveRoles(String r, String s) { return Set.of(); }
+            @Override public void sendActionEmail(String r, String s, List<String> a, int l) {}
+        };
+        assertThat(defaultTrue.revokeUserSynchronouslyWithOutcome("acme", "s", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.REVOKED);
+        assertThat(defaultFalse.revokeUserSynchronouslyWithOutcome("acme", "s", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.DEFERRED_UNCERTAIN);
+
+        assertThatThrownBy(() -> client.revokeUserSynchronouslyWithOutcome("  ", "s", 1L, "DISABLED"))
+                .isInstanceOf(ApiException.class);
+
+        UserResource nonNumericVerRes = mock(UserResource.class);
+        UserRepresentation nonNumericVerRep = new UserRepresentation();
+        nonNumericVerRep.setAttributes(new HashMap<>(Map.of("awgment_sync_version", List.of("not-a-number"))));
+        when(usersResource.get("kc-badver")).thenReturn(nonNumericVerRes);
+        when(nonNumericVerRes.toRepresentation()).thenReturn(nonNumericVerRep);
+        assertThat(client.revokeUserSynchronouslyWithOutcome("acme", "kc-badver", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.REVOKED);
+
+        when(clientsResource.findAll()).thenReturn(List.of());
+        ClientRepresentation trustedOnly = new ClientRepresentation();
+        trustedOnly.setId("client-uuid-awgment");
+        trustedOnly.setClientId("awgment-account");
+        when(clientsResource.findByClientId("awgment-account")).thenReturn(List.of(trustedOnly));
+        assertThat(client.expandCompositeClosure("acme", List.of("awgment-user"))).contains("awgment-user");
+
+        ClientRepresentation builtInBroker = new ClientRepresentation();
+        builtInBroker.setId("broker-uuid");
+        builtInBroker.setClientId("broker");
+        ClientRepresentation noIdClient = new ClientRepresentation();
+        noIdClient.setId("  ");
+        when(clientsResource.findAll()).thenReturn(java.util.Arrays.asList(null, noIdClient, builtInBroker, trustedOnly));
+        assertThat(client.expandCompositeClosure("acme", java.util.Arrays.asList(null, "  ", "awgment-user")))
+                .contains("awgment-user");
+
+        assertThatThrownBy(() -> client.revokeUserSynchronouslyWithOutcome(null, "s", 1L, "DISABLED"))
+                .isInstanceOf(ApiException.class);
+        assertThat(client.fetchUserEffectiveRoles("acme", "   ")).isEmpty();
+
+        UserResource emptyAttrRes = mock(UserResource.class);
+        UserRepresentation emptyAttrRep = new UserRepresentation();
+        emptyAttrRep.setAttributes(new HashMap<>(Map.of("awgment_sync_version", List.of())));
+        when(usersResource.get("kc-emptyver")).thenReturn(emptyAttrRes);
+        when(emptyAttrRes.toRepresentation()).thenReturn(emptyAttrRep);
+        assertThat(client.revokeUserSynchronouslyWithOutcome("acme", "kc-emptyver", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.REVOKED);
+
+        UserResource blankAttrRes = mock(UserResource.class);
+        UserRepresentation blankAttrRep = new UserRepresentation();
+        blankAttrRep.setAttributes(new HashMap<>(Map.of("awgment_sync_version", List.of("  "))));
+        when(usersResource.get("kc-blankver")).thenReturn(blankAttrRes);
+        when(blankAttrRes.toRepresentation()).thenReturn(blankAttrRep);
+        assertThat(client.revokeUserSynchronouslyWithOutcome("acme", "kc-blankver", 1L, "DISABLED"))
+                .isEqualTo(RevocationAttemptOutcome.REVOKED);
+
+        KeycloakAdminProperties secretProps = new KeycloakAdminProperties();
+        secretProps.setServerUrl("http://localhost:8080");
+        secretProps.setRealm("master");
+        secretProps.setClientId("svc");
+        secretProps.setClientSecret("sec");
+        KeycloakAdminUserSyncClient.buildBoundedClient(secretProps).close();
+        KeycloakAdminProperties pwProps = new KeycloakAdminProperties();
+        pwProps.setServerUrl("http://localhost:8080");
+        pwProps.setRealm("master");
+        pwProps.setClientId("admin-cli");
+        pwProps.setUsername("admin");
+        pwProps.setPassword("pw");
+        KeycloakAdminUserSyncClient.buildBoundedClient(pwProps).close();
+        client.close();
     }
 
     private KeycloakAdminUserSyncClient newClient(boolean reuseShared) {

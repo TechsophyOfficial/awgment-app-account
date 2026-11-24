@@ -25,6 +25,7 @@ import org.keycloak.admin.client.resource.ClientResource;
 import org.keycloak.admin.client.resource.ClientsResource;
 import org.keycloak.admin.client.resource.RealmResource;
 import org.keycloak.admin.client.resource.RoleMappingResource;
+import org.keycloak.admin.client.resource.RoleScopeResource;
 import org.keycloak.admin.client.resource.RolesResource;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
@@ -47,23 +48,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
  * Keycloak 26 Admin Client implementation for coalesced user reconciliation (with
  * {@code awgment_sync_version} pre-write fencing and zero password handling), bounded
- * synchronous revocation with Micrometer SLA counter, and cycle-safe composite role expansion.
+ * synchronous revocation on an isolated thread/client pool with Micrometer SLA counter,
+ * and cycle-safe multi-client/group-effective composite role expansion.
  */
 @Slf4j
 @Component
 public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, RoleCompositeExpander, AutoCloseable {
 
     private static final int ADMIN_POOL_SIZE = 20;
+    private static final int REVOKE_CORE_THREADS = 4;
+    private static final int REVOKE_MAX_THREADS = 16;
+    private static final int REVOKE_QUEUE_CAPACITY = 32;
     private static final int MIN_HTTP_TIMEOUT_MS = 100;
     private static final int MAX_HTTP_TIMEOUT_MS = 9500;
     private static final String ATTR_AWGMENT_STATUS = "awgment_status";
@@ -72,6 +82,14 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
     private static final String ATTR_LOCALE = "locale";
     private static final String REVOCATION_FAILED_METRIC = "awgment_revocation_sync_failed_total";
     private static final Set<String> PROTECTED_DEFAULT_ROLES = Set.of("offline_access", "uma_authorization");
+    private static final Set<String> BUILTIN_KEYCLOAK_CLIENTS = Set.of(
+            "account",
+            "account-console",
+            "admin-cli",
+            "broker",
+            "realm-management",
+            "security-admin-console"
+    );
 
     private final KeycloakAdminProperties properties;
     private final AwgmentSecurityProperties securityProperties;
@@ -81,12 +99,10 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
     private final Function<KeycloakAdminProperties, Keycloak> clientFactory;
     private final boolean reuseSharedClient;
     private final Object clientLock = new Object();
-    private final ExecutorService revocationExecutor = Executors.newCachedThreadPool(runnable -> {
-        Thread thread = new Thread(runnable, "awgment-kc-revoke");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final ExecutorService revocationExecutor;
     private volatile Keycloak sharedClient;
+    private volatile Keycloak revocationClient;
+    private volatile long revocationClientTimeoutMs = -1L;
 
     @Autowired
     public KeycloakAdminUserSyncClient(
@@ -105,6 +121,18 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
             MeterRegistry meterRegistry,
             Function<KeycloakAdminProperties, Keycloak> clientFactory,
             boolean reuseSharedClient) {
+        this(properties, securityProperties, outboxProperties, meterRegistry,
+                clientFactory, reuseSharedClient, createDefaultRevocationExecutor());
+    }
+
+    KeycloakAdminUserSyncClient(
+            KeycloakAdminProperties properties,
+            AwgmentSecurityProperties securityProperties,
+            OutboxProperties outboxProperties,
+            MeterRegistry meterRegistry,
+            Function<KeycloakAdminProperties, Keycloak> clientFactory,
+            boolean reuseSharedClient,
+            ExecutorService revocationExecutor) {
         this.properties = Objects.requireNonNull(properties, "properties must not be null");
         this.securityProperties = securityProperties;
         this.outboxProperties = Objects.requireNonNull(outboxProperties, "outboxProperties must not be null");
@@ -115,6 +143,28 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
                 : "awgment-account";
         this.clientFactory = Objects.requireNonNull(clientFactory, "clientFactory must not be null");
         this.reuseSharedClient = reuseSharedClient;
+        this.revocationExecutor = Objects.requireNonNull(revocationExecutor, "revocationExecutor must not be null");
+    }
+
+    private static ExecutorService createDefaultRevocationExecutor() {
+        AtomicInteger counter = new AtomicInteger(1);
+        return new ThreadPoolExecutor(
+                REVOKE_CORE_THREADS,
+                REVOKE_MAX_THREADS,
+                60L,
+                TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(REVOKE_QUEUE_CAPACITY),
+                runnable -> {
+                    Thread thread = new Thread(runnable, "awgment-kc-revoke-" + counter.getAndIncrement());
+                    thread.setDaemon(true);
+                    return thread;
+                },
+                new ThreadPoolExecutor.AbortPolicy()
+        );
+    }
+
+    ExecutorService revocationExecutor() {
+        return revocationExecutor;
     }
 
     @Override
@@ -170,23 +220,32 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
 
     @Override
     public boolean revokeUserSynchronously(String realm, String keycloakSub, long syncVersion, String statusName) {
+        return revokeUserSynchronouslyWithOutcome(realm, keycloakSub, syncVersion, statusName)
+                == RevocationAttemptOutcome.REVOKED;
+    }
+
+    @Override
+    public RevocationAttemptOutcome revokeUserSynchronouslyWithOutcome(
+            String realm, String keycloakSub, long syncVersion, String statusName) {
         requireRealmName(realm);
         if (keycloakSub == null || keycloakSub.isBlank()) {
-            return false;
+            return RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE;
         }
         String safeRealm = ProblemDetailFactory.sanitizeForLog(realm);
         String targetSub = keycloakSub.trim();
         long timeoutMs = Math.max(500L, Math.min(outboxProperties.getSyncRevokeTimeoutMs(), 10 * 1000L));
+        AtomicBoolean writeAttempted = new AtomicBoolean(false);
+        Future<RevocationAttemptOutcome> future = null;
 
         try {
-            Boolean succeeded = CompletableFuture.supplyAsync(() -> executeWithClient(keycloak -> {
+            future = revocationExecutor.submit(() -> executeWithRevocationClient(timeoutMs, keycloak -> {
                 UserResource userRes = keycloak.realm(realm).users().get(targetSub);
                 UserRepresentation rep = userRes.toRepresentation();
                 if (rep == null) {
-                    return false;
+                    return RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE;
                 }
                 if (parseSyncVersion(rep.getAttributes()) > syncVersion) {
-                    return true;
+                    return RevocationAttemptOutcome.FENCED;
                 }
                 rep.setEnabled(false);
                 Map<String, List<String>> attrs = rep.getAttributes() != null
@@ -195,20 +254,31 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
                 setOrRemoveManagedAttribute(attrs, ATTR_AWGMENT_STATUS, statusName);
                 setOrRemoveManagedAttribute(attrs, ATTR_AWGMENT_SYNC_VERSION, String.valueOf(syncVersion));
                 rep.setAttributes(attrs);
+                writeAttempted.set(true);
                 userRes.update(rep);
                 userRes.logout();
-                return true;
-            }), revocationExecutor)
-                    .orTimeout(timeoutMs, TimeUnit.MILLISECONDS)
-                    .get(timeoutMs + 250L, TimeUnit.MILLISECONDS);
-            return Boolean.TRUE.equals(succeeded);
+                return RevocationAttemptOutcome.REVOKED;
+            }));
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException ex) {
+            recordRevocationFailureMetric(realm, safeRealm, ex);
+            return RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE;
+        } catch (TimeoutException ex) {
+            future.cancel(true);
+            recordRevocationFailureMetric(realm, safeRealm, ex);
+            return RevocationAttemptOutcome.DEFERRED_UNCERTAIN;
         } catch (InterruptedException ex) {
+            if (future != null) {
+                future.cancel(true);
+            }
             Thread.currentThread().interrupt();
             recordRevocationFailureMetric(realm, safeRealm, ex);
-            return false;
+            return RevocationAttemptOutcome.DEFERRED_UNCERTAIN;
         } catch (Exception ex) {
             recordRevocationFailureMetric(realm, safeRealm, ex);
-            return false;
+            return writeAttempted.get()
+                    ? RevocationAttemptOutcome.DEFERRED_UNCERTAIN
+                    : RevocationAttemptOutcome.DEFERRED_BEFORE_WRITE;
         }
     }
 
@@ -222,8 +292,8 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
         try {
             return executeWithClient(keycloak -> {
                 RealmResource realmResource = keycloak.realm(tenantRealm);
-                Map<String, RoleRepresentation> trustedRoles = indexTrustedClientRoles(realmResource);
                 Map<String, RoleRepresentation> realmRoles = indexRealmRoles(realmResource);
+                Map<String, List<RoleRepresentation>> allClientRoles = indexAllClientRoles(realmResource);
 
                 Set<String> expanded = new LinkedHashSet<>();
                 Deque<RoleRepresentation> queue = new ArrayDeque<>();
@@ -233,9 +303,9 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
                     }
                     String roleName = rawRole.trim();
                     expanded.add(roleName);
-                    RoleRepresentation clientRole = trustedRoles.get(roleName);
-                    if (clientRole != null) {
-                        queue.add(clientRole);
+                    List<RoleRepresentation> clientRoleMatches = allClientRoles.get(roleName);
+                    if (clientRoleMatches != null) {
+                        queue.addAll(clientRoleMatches);
                     }
                     RoleRepresentation realmRole = realmRoles.get(roleName);
                     if (realmRole != null) {
@@ -267,23 +337,45 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
         try {
             return executeWithClient(keycloak -> {
                 RealmResource realmResource = keycloak.realm(tenantRealm);
-                MappingsRepresentation allMappings;
-                try {
-                    allMappings = realmResource.users().get(keycloakSub.trim()).roles().getAll();
-                } catch (NotFoundException ex) {
-                    return Set.of();
-                }
-                if (allMappings == null) {
-                    return Set.of();
-                }
                 Set<String> expanded = new LinkedHashSet<>();
                 Deque<RoleRepresentation> queue = new ArrayDeque<>();
-                enqueueRoleReps(allMappings.getRealmMappings(), queue);
-                if (allMappings.getClientMappings() != null) {
-                    ClientMappingsRepresentation trustedMappings = allMappings.getClientMappings().get(trustedClientId);
-                    if (trustedMappings != null) {
-                        enqueueRoleReps(trustedMappings.getMappings(), queue);
+                try {
+                    UserResource userResource = realmResource.users().get(keycloakSub.trim());
+                    RoleMappingResource roleMappings = userResource.roles();
+                    MappingsRepresentation allMappings = roleMappings != null ? roleMappings.getAll() : null;
+                    if (allMappings != null) {
+                        enqueueRoleReps(allMappings.getRealmMappings(), queue);
+                        if (allMappings.getClientMappings() != null) {
+                            for (ClientMappingsRepresentation cm : allMappings.getClientMappings().values()) {
+                                if (cm != null) {
+                                    enqueueRoleReps(cm.getMappings(), queue);
+                                }
+                            }
+                        }
                     }
+
+                    if (roleMappings != null) {
+                        RoleScopeResource realmScope = roleMappings.realmLevel();
+                        if (realmScope != null) {
+                            enqueueRoleReps(safeList(realmScope.listEffective()), queue);
+                        }
+                        List<ClientRepresentation> clients = resolveManageableClients(realmResource);
+                        for (ClientRepresentation client : clients) {
+                            if (client != null && client.getId() != null) {
+                                RoleScopeResource clientScope = roleMappings.clientLevel(client.getId());
+                                if (clientScope != null) {
+                                    enqueueRoleReps(safeList(clientScope.listEffective()), queue);
+                                }
+                            }
+                        }
+                    }
+                } catch (NotFoundException ex) {
+                    verifyRealmExists(realmResource, safeRealm);
+                    return Set.of();
+                }
+
+                if (queue.isEmpty()) {
+                    return Set.of();
                 }
                 expandBfsFromQueue(realmResource, queue, expanded);
                 return Set.copyOf(expanded);
@@ -331,14 +423,29 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
     @Override
     @PreDestroy
     public void close() {
-        revocationExecutor.shutdownNow();
-        Keycloak existing;
-        synchronized (clientLock) {
-            existing = sharedClient;
-            sharedClient = null;
+        revocationExecutor.shutdown();
+        try {
+            if (!revocationExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                revocationExecutor.shutdownNow();
+            }
+        } catch (InterruptedException ex) {
+            revocationExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
         }
-        if (existing != null) {
-            existing.close();
+        Keycloak existingShared;
+        Keycloak existingRevoke;
+        synchronized (clientLock) {
+            existingShared = sharedClient;
+            sharedClient = null;
+            existingRevoke = revocationClient;
+            revocationClient = null;
+            revocationClientTimeoutMs = -1L;
+        }
+        if (existingRevoke != null && existingRevoke != existingShared) {
+            existingRevoke.close();
+        }
+        if (existingShared != null) {
+            existingShared.close();
         }
     }
 
@@ -472,14 +579,38 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
         }
 
         Set<String> desiredSet = normalizeRoles(desiredRoles);
-        String clientUuid = findTrustedClientUuid(realmResource);
-        Map<String, RoleRepresentation> availableClientRoles = clientUuid != null
-                ? indexTrustedClientRoles(realmResource, clientUuid)
-                : Map.of();
-        Map<String, RoleRepresentation> availableRealmRoles = indexRealmRoles(realmResource);
+        List<ClientRepresentation> manageableClients = resolveManageableClients(realmResource);
+        Set<String> allClientRoleNames = new LinkedHashSet<>();
+        MappingsRepresentation currentAll = null;
+        if (manageableClients.size() > 1 || (manageableClients.size() == 1
+                && !trustedClientId.equals(manageableClients.getFirst().getClientId()))) {
+            currentAll = roleMappings.getAll();
+        }
 
-        if (clientUuid != null) {
-            List<RoleRepresentation> currentClientRoles = safeList(roleMappings.clientLevel(clientUuid).listAll());
+        for (ClientRepresentation client : manageableClients) {
+            if (client == null || client.getId() == null) {
+                continue;
+            }
+            String clientUuid = client.getId();
+            String clientId = client.getClientId();
+            Map<String, RoleRepresentation> availableClientRoles = indexClientRoles(realmResource, clientUuid);
+            allClientRoleNames.addAll(availableClientRoles.keySet());
+
+            boolean isTrustedClient = trustedClientId.equals(clientId);
+            boolean hasDesiredForClient = desiredSet.stream().anyMatch(availableClientRoles::containsKey);
+            boolean hasCurrentForClient = currentAll != null
+                    && currentAll.getClientMappings() != null
+                    && clientId != null
+                    && currentAll.getClientMappings().containsKey(clientId);
+            if (!isTrustedClient && !hasDesiredForClient && !hasCurrentForClient) {
+                continue;
+            }
+
+            RoleScopeResource clientScope = roleMappings.clientLevel(clientUuid);
+            if (clientScope == null) {
+                continue;
+            }
+            List<RoleRepresentation> currentClientRoles = safeList(clientScope.listAll());
             Set<String> currentClientNames = currentClientRoles.stream()
                     .map(RoleRepresentation::getName)
                     .filter(Objects::nonNull)
@@ -501,15 +632,20 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
                 }
             }
             if (!clientToAdd.isEmpty()) {
-                roleMappings.clientLevel(clientUuid).add(clientToAdd);
+                clientScope.add(clientToAdd);
             }
             if (!clientToRemove.isEmpty()) {
-                roleMappings.clientLevel(clientUuid).remove(clientToRemove);
+                clientScope.remove(clientToRemove);
             }
         }
 
+        Map<String, RoleRepresentation> availableRealmRoles = indexRealmRoles(realmResource);
         String defaultRealmRole = "default-roles-" + realm;
-        List<RoleRepresentation> currentRealmRoles = safeList(roleMappings.realmLevel().listAll());
+        RoleScopeResource realmScope = roleMappings.realmLevel();
+        if (realmScope == null) {
+            return;
+        }
+        List<RoleRepresentation> currentRealmRoles = safeList(realmScope.listAll());
         Set<String> currentRealmNames = currentRealmRoles.stream()
                 .map(RoleRepresentation::getName)
                 .filter(Objects::nonNull)
@@ -517,7 +653,7 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
 
         List<RoleRepresentation> realmToAdd = new ArrayList<>();
         for (String roleName : desiredSet) {
-            if (!availableClientRoles.containsKey(roleName)
+            if (!allClientRoleNames.contains(roleName)
                     && !currentRealmNames.contains(roleName)
                     && !defaultRealmRole.equals(roleName)
                     && !PROTECTED_DEFAULT_ROLES.contains(roleName)) {
@@ -538,32 +674,65 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
             }
         }
         if (!realmToAdd.isEmpty()) {
-            roleMappings.realmLevel().add(realmToAdd);
+            realmScope.add(realmToAdd);
         }
         if (!realmToRemove.isEmpty()) {
-            roleMappings.realmLevel().remove(realmToRemove);
+            realmScope.remove(realmToRemove);
         }
     }
 
-    private String findTrustedClientUuid(RealmResource realmResource) {
+    private List<ClientRepresentation> resolveManageableClients(RealmResource realmResource) {
         ClientsResource clientsResource = realmResource.clients();
         if (clientsResource == null) {
-            return null;
+            return List.of();
+        }
+        List<ClientRepresentation> allClients = safeList(clientsResource.findAll());
+        if (!allClients.isEmpty()) {
+            List<ClientRepresentation> manageable = new ArrayList<>(allClients.size());
+            for (ClientRepresentation client : allClients) {
+                if (client == null || client.getId() == null || client.getId().isBlank()) {
+                    continue;
+                }
+                String clientId = client.getClientId();
+                if (clientId != null && !BUILTIN_KEYCLOAK_CLIENTS.contains(clientId)) {
+                    manageable.add(client);
+                }
+            }
+            if (!manageable.isEmpty()) {
+                return manageable;
+            }
         }
         List<ClientRepresentation> found = clientsResource.findByClientId(trustedClientId);
         if (found == null || found.isEmpty() || found.getFirst() == null) {
-            return null;
+            return List.of();
         }
-        return found.getFirst().getId();
+        return List.of(found.getFirst());
     }
 
-    private Map<String, RoleRepresentation> indexTrustedClientRoles(RealmResource realmResource) {
-        String clientUuid = findTrustedClientUuid(realmResource);
-        return clientUuid != null ? indexTrustedClientRoles(realmResource, clientUuid) : Map.of();
+    private Map<String, List<RoleRepresentation>> indexAllClientRoles(RealmResource realmResource) {
+        List<ClientRepresentation> clients = resolveManageableClients(realmResource);
+        if (clients.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, List<RoleRepresentation>> indexed = new LinkedHashMap<>();
+        for (ClientRepresentation client : clients) {
+            if (client.getId() == null) {
+                continue;
+            }
+            Map<String, RoleRepresentation> clientRoles = indexClientRoles(realmResource, client.getId());
+            for (Map.Entry<String, RoleRepresentation> entry : clientRoles.entrySet()) {
+                indexed.computeIfAbsent(entry.getKey(), ignored -> new ArrayList<>(1)).add(entry.getValue());
+            }
+        }
+        return indexed;
     }
 
-    private Map<String, RoleRepresentation> indexTrustedClientRoles(RealmResource realmResource, String clientUuid) {
-        ClientResource clientResource = realmResource.clients().get(clientUuid);
+    private Map<String, RoleRepresentation> indexClientRoles(RealmResource realmResource, String clientUuid) {
+        ClientsResource clientsResource = realmResource.clients();
+        if (clientsResource == null) {
+            return Map.of();
+        }
+        ClientResource clientResource = clientsResource.get(clientUuid);
         if (clientResource == null || clientResource.roles() == null) {
             return Map.of();
         }
@@ -589,6 +758,17 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
             }
         }
         return map;
+    }
+
+    private static void verifyRealmExists(RealmResource realmResource, String safeRealm) {
+        try {
+            realmResource.toRepresentation();
+        } catch (NotFoundException realmNotFound) {
+            throw new ApiException(
+                    ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR,
+                    "Keycloak realm '" + safeRealm + "' was not found."
+            );
+        }
     }
 
     private static void expandBfsFromQueue(
@@ -641,6 +821,15 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
         }
     }
 
+    private <T> T executeWithRevocationClient(long timeoutMs, Function<Keycloak, T> operation) {
+        if (reuseSharedClient) {
+            return operation.apply(getOrCreateRevocationClient(timeoutMs));
+        }
+        try (Keycloak keycloak = clientFactory.apply(effectiveRevocationProperties(timeoutMs))) {
+            return operation.apply(keycloak);
+        }
+    }
+
     private Keycloak getOrCreateSharedClient() {
         Keycloak current = sharedClient;
         if (current != null && !current.isClosed()) {
@@ -654,22 +843,56 @@ public class KeycloakAdminUserSyncClient implements KeycloakUserSyncClient, Role
         }
     }
 
+    private Keycloak getOrCreateRevocationClient(long timeoutMs) {
+        Keycloak current = revocationClient;
+        if (current != null && !current.isClosed() && revocationClientTimeoutMs == timeoutMs) {
+            return current;
+        }
+        synchronized (clientLock) {
+            if (revocationClient == null || revocationClient.isClosed() || revocationClientTimeoutMs != timeoutMs) {
+                if (revocationClient != null) {
+                    revocationClient.close();
+                }
+                revocationClient = clientFactory.apply(effectiveRevocationProperties(timeoutMs));
+                revocationClientTimeoutMs = timeoutMs;
+            }
+            return revocationClient;
+        }
+    }
+
     private KeycloakAdminProperties effectiveBoundedProperties() {
+        KeycloakAdminProperties bounded = baseAdminPropertiesCopy();
+        bounded.setConnectTimeoutMs(clampTimeoutMs(properties.getConnectTimeoutMs()));
+        bounded.setReadTimeoutMs(clampTimeoutMs(properties.getReadTimeoutMs()));
+        return bounded;
+    }
+
+    private KeycloakAdminProperties effectiveRevocationProperties(long syncRevokeTimeoutMs) {
+        long boundedTotal = Math.max(500L, Math.min(syncRevokeTimeoutMs, 10 * 1000L));
+        int revConnect = Math.max(MIN_HTTP_TIMEOUT_MS,
+                (int) Math.min(properties.getConnectTimeoutMs(), boundedTotal / 3L));
+        int revRead = Math.max(MIN_HTTP_TIMEOUT_MS,
+                (int) Math.min(properties.getReadTimeoutMs(), boundedTotal - revConnect));
+        KeycloakAdminProperties bounded = baseAdminPropertiesCopy();
+        bounded.setConnectTimeoutMs(revConnect);
+        bounded.setReadTimeoutMs(revRead);
+        return bounded;
+    }
+
+    private KeycloakAdminProperties baseAdminPropertiesCopy() {
         String serverUrl = properties.getServerUrl();
         if ((serverUrl == null || serverUrl.isBlank()) && securityProperties != null) {
             String internal = securityProperties.normalizedKeycloakInternalBaseUrl();
             serverUrl = !internal.isEmpty() ? internal : securityProperties.normalizedKeycloakBaseUrl();
         }
-        KeycloakAdminProperties bounded = new KeycloakAdminProperties();
-        bounded.setServerUrl(serverUrl != null && !serverUrl.isBlank() ? serverUrl : "http://localhost:8080");
-        bounded.setRealm(properties.getRealm());
-        bounded.setClientId(properties.getClientId());
-        bounded.setClientSecret(properties.getClientSecret());
-        bounded.setUsername(properties.getUsername());
-        bounded.setPassword(properties.getPassword());
-        bounded.setConnectTimeoutMs(clampTimeoutMs(properties.getConnectTimeoutMs()));
-        bounded.setReadTimeoutMs(clampTimeoutMs(properties.getReadTimeoutMs()));
-        return bounded;
+        KeycloakAdminProperties copy = new KeycloakAdminProperties();
+        copy.setServerUrl(serverUrl != null && !serverUrl.isBlank() ? serverUrl : "http://localhost:8080");
+        copy.setRealm(properties.getRealm());
+        copy.setClientId(properties.getClientId());
+        copy.setClientSecret(properties.getClientSecret());
+        copy.setUsername(properties.getUsername());
+        copy.setPassword(properties.getPassword());
+        return copy;
     }
 
     static int clampTimeoutMs(int timeoutMs) {

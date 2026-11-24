@@ -9,6 +9,10 @@ import com.techsophy.tsf.account.governance.RoleGovernancePolicy;
 import com.techsophy.tsf.account.idp.TrustedIdpEntity;
 import com.techsophy.tsf.account.idp.TrustedIdpRepository;
 import com.techsophy.tsf.account.keycloak.KeycloakUserSyncClient;
+import com.techsophy.tsf.account.keycloak.RevocationAttemptOutcome;
+import com.techsophy.tsf.account.outbox.CasCompletionResult;
+import com.techsophy.tsf.account.outbox.ClaimedOutboxJob;
+import com.techsophy.tsf.account.outbox.KeycloakOutboxEventEntity;
 import com.techsophy.tsf.account.outbox.OutboxService;
 import com.techsophy.tsf.account.tenant.dto.PageResponse;
 import com.techsophy.tsf.account.user.dto.CreateUserRequest;
@@ -30,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -96,7 +101,6 @@ class UserServiceTest {
         UserPersistenceService persistenceService = new UserPersistenceService(
                 userRepository,
                 trustedIdpRepository,
-                roleGovernancePolicy,
                 outboxService,
                 securityAuditService,
                 idGenerator
@@ -127,7 +131,7 @@ class UserServiceTest {
                 null,
                 null,
                 List.of("awgment-user", "awgment-user"),
-                List.of("eng-group")
+                List.of()
         );
 
         UserResponse response = userService.createUser(request, OPERATOR);
@@ -143,7 +147,7 @@ class UserServiceTest {
         assertThat(response.provisioningMode()).isEqualTo(ProvisioningMode.DIRECT_OPERATOR);
         assertThat(response.status()).isEqualTo(UserStatus.ACTIVE);
         assertThat(response.desiredRoles()).containsExactly("awgment-user");
-        assertThat(response.desiredGroups()).containsExactly("eng-group");
+        assertThat(response.desiredGroups()).isEmpty();
         assertThat(response.syncStatus()).isEqualTo(SyncStatus.PENDING_SYNC);
 
         verify(roleGovernancePolicy).assertCanAssignRoles(
@@ -407,11 +411,17 @@ class UserServiceTest {
     void deactivateUserShouldCommitPhaseABeforeSyncRevokeAndReturn204Vs202() {
         UserEntity target = activeUser(4001L, "kc-sub-4001", "dave");
         target.setSyncVersion(1L);
+        UUID lease1 = UUID.randomUUID();
+        KeycloakOutboxEventEntity job1 = outboxJob(7001L, 4001L, 2L, lease1);
         when(userRepository.findById(4001L)).thenReturn(Optional.of(target));
         when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-4001"))
                 .thenReturn(Set.of("awgment-user"));
-        when(keycloakUserSyncClient.revokeUserSynchronously(REALM, "kc-sub-4001", 2L, "DISABLED"))
-                .thenReturn(true);
+        when(outboxService.claimUserReconcileLease(4001L))
+                .thenReturn(Optional.of(new ClaimedOutboxJob(job1, false)));
+        when(keycloakUserSyncClient.revokeUserSynchronouslyWithOutcome(REALM, "kc-sub-4001", 2L, "DISABLED"))
+                .thenReturn(RevocationAttemptOutcome.REVOKED);
+        when(outboxService.completeUserRevocationSync(7001L, lease1, 4001L, 2L, "kc-sub-4001", false))
+                .thenReturn(new CasCompletionResult(true, false));
 
         UserService.DeactivationOutcome syncOk = userService.deactivateUser(4001L, OPERATOR);
 
@@ -420,31 +430,37 @@ class UserServiceTest {
         assertThat(syncOk.response().syncStatus()).isEqualTo(SyncStatus.SYNCED);
 
         InOrder order = inOrder(userRepository, outboxService, securityAuditService, keycloakUserSyncClient);
-        order.verify(userRepository).saveAndFlush(target);
         order.verify(outboxService).enqueueUserReconcile(4001L, 2L);
+        order.verify(userRepository).saveAndFlush(target);
         order.verify(securityAuditService).record(
                 eq("USER_DISABLE"), eq("USER"), eq("4001"), eq(AuditOutcome.SUCCESS),
                 eq("op-sub-1"), isNull(), anyMap());
-        order.verify(keycloakUserSyncClient).revokeUserSynchronously(REALM, "kc-sub-4001", 2L, "DISABLED");
-        order.verify(userRepository).updateSyncProgress(
-                eq(4001L), eq("kc-sub-4001"), eq(2L), eq(SyncStatus.SYNCED), any(Instant.class));
+        order.verify(outboxService).claimUserReconcileLease(4001L);
+        order.verify(keycloakUserSyncClient).revokeUserSynchronouslyWithOutcome(REALM, "kc-sub-4001", 2L, "DISABLED");
+        order.verify(outboxService).completeUserRevocationSync(7001L, lease1, 4001L, 2L, "kc-sub-4001", false);
 
-        // Degraded KC path -> 202 PENDING_SYNC
+        // Degraded KC path (uncertain timeout/error) -> 202 PENDING_SYNC with verification scheduled
         UserEntity target2 = activeUser(4002L, "kc-sub-4002", "eve");
         target2.setSyncVersion(3L);
+        UUID lease2 = UUID.randomUUID();
+        KeycloakOutboxEventEntity job2 = outboxJob(7002L, 4002L, 4L, lease2);
         when(userRepository.findById(4002L)).thenReturn(Optional.of(target2));
         when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-4002"))
                 .thenReturn(Set.of("awgment-user"));
-        when(keycloakUserSyncClient.revokeUserSynchronously(REALM, "kc-sub-4002", 4L, "DISABLED"))
-                .thenReturn(false);
+        when(outboxService.claimUserReconcileLease(4002L))
+                .thenReturn(Optional.of(new ClaimedOutboxJob(job2, false)));
+        when(keycloakUserSyncClient.revokeUserSynchronouslyWithOutcome(REALM, "kc-sub-4002", 4L, "DISABLED"))
+                .thenReturn(RevocationAttemptOutcome.DEFERRED_UNCERTAIN);
 
         UserService.DeactivationOutcome degraded = userService.deactivateUser(4002L, OPERATOR);
 
         assertThat(degraded.revokedSynchronously()).isFalse();
         assertThat(degraded.response().status()).isEqualTo(UserStatus.DISABLED);
         assertThat(degraded.response().syncStatus()).isEqualTo(SyncStatus.PENDING_SYNC);
-        verify(userRepository, never()).updateSyncProgress(
-                eq(4002L), anyString(), anyLong(), any(), any());
+        verify(outboxService).deferUserRevocationSync(
+                eq(7002L), eq(lease2), eq(4002L), anyString(), eq(true));
+        verify(outboxService, never()).completeUserRevocationSync(
+                eq(7002L), any(), anyLong(), anyLong(), anyString(), any(Boolean.class));
     }
 
     @Test
@@ -799,6 +815,288 @@ class UserServiceTest {
                 .isInstanceOf(ApiException.class)
                 .extracting(e -> ((ApiException) e).errorCode())
                 .isEqualTo(ApiErrorCode.UPSTREAM_IDENTITY_PROVIDER_ERROR);
+    }
+
+    @Test
+    void shouldEnforceCanonicalLockOrderSystemImmutabilityOptLockToctouAndPayloadGuards() {
+        // 1. Canonical lock order (outbox BEFORE tp_user saveAndFlush) on updateUser, reactivateUser, updateMyProfile
+        UserEntity updTarget = activeUser(8001L, "kc-sub-8001", "lock.user");
+        updTarget.setOptLockVersion(0L);
+        when(userRepository.findById(8001L)).thenReturn(Optional.of(updTarget));
+        userService.updateUser(8001L, new UpdateUserRequest("Lock", null, null, "Eng", "fr", "UTC", null, 0L), OPERATOR);
+        InOrder updateOrder = inOrder(outboxService, userRepository);
+        updateOrder.verify(outboxService).enqueueUserReconcile(8001L, 2L);
+        updateOrder.verify(userRepository).saveAndFlush(updTarget);
+
+        UserEntity reactTarget = activeUser(8002L, "kc-sub-8002", "react.user");
+        reactTarget.setStatus(UserStatus.DISABLED);
+        reactTarget.setOptLockVersion(0L);
+        when(userRepository.findById(8002L)).thenReturn(Optional.of(reactTarget));
+        userService.reactivateUser(8002L, APPROVER);
+        InOrder reactOrder = inOrder(outboxService, userRepository);
+        reactOrder.verify(outboxService).enqueueUserReconcile(8002L, 2L);
+        reactOrder.verify(userRepository).saveAndFlush(reactTarget);
+
+        UserEntity meTarget = activeUser(8003L, "sub-me-8003", "me.user");
+        meTarget.setOptLockVersion(0L);
+        when(userRepository.findByKeycloakSub("sub-me-8003")).thenReturn(Optional.of(meTarget));
+        userService.updateMyProfile(
+                new UpdateMyProfileRequest(null, null, null, "ja", "Asia/Tokyo", null, 0L),
+                new CallerPrincipal("sub-me-8003", REALM, Set.of("awgment-user"), false));
+        InOrder meOrder = inOrder(outboxService, userRepository);
+        meOrder.verify(outboxService).enqueueUserReconcile(8003L, 2L);
+        meOrder.verify(userRepository).saveAndFlush(meTarget);
+
+        // 2. Seeded 'system' user immutability (403 ACCESS_DENIED on update, deactivate, reactivate)
+        UserEntity sysUser = activeUser(1L, null, "system");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(sysUser));
+        assertThatThrownBy(() -> userService.updateUser(
+                1L, new UpdateUserRequest("Sys", null, null, null, null, null, null, 0L), OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.ACCESS_DENIED);
+        assertThatThrownBy(() -> userService.deactivateUser(1L, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.ACCESS_DENIED);
+        assertThatThrownBy(() -> userService.reactivateUser(1L, APPROVER))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.ACCESS_DENIED);
+
+        // 3. OptLock TOCTOU between pre-TX snapshot and TX mutation in deactivateUser & reactivateUser
+        UserEntity staleSnap = activeUser(8004L, "kc-sub-8004", "toctou.user");
+        staleSnap.setOptLockVersion(1L);
+        UserEntity newerRow = activeUser(8004L, "kc-sub-8004", "toctou.user");
+        newerRow.setOptLockVersion(2L);
+        when(userRepository.findById(8004L))
+                .thenReturn(Optional.of(staleSnap))
+                .thenReturn(Optional.of(newerRow));
+        assertThatThrownBy(() -> userService.deactivateUser(8004L, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.CONCURRENT_MODIFICATION);
+
+        staleSnap.setStatus(UserStatus.DISABLED);
+        newerRow.setStatus(UserStatus.DISABLED);
+        when(userRepository.findById(8004L))
+                .thenReturn(Optional.of(staleSnap))
+                .thenReturn(Optional.of(newerRow));
+        assertThatThrownBy(() -> userService.reactivateUser(8004L, APPROVER))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.CONCURRENT_MODIFICATION);
+
+        // 4. Non-empty groups fail-closed until Phase 4B, roles > 100, JSONB bounds, timezone & mobileNumber
+        CreateUserRequest nonEmptyGroups = new CreateUserRequest(
+                "grp.user", "grp" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", null, IdentitySource.KEYCLOAK_LOCAL, null, List.of("awgment-user"), List.of("eng"));
+        assertThatThrownBy(() -> userService.createUser(nonEmptyGroups, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        List<String> tooManyRoles = java.util.stream.IntStream.range(0, 101)
+                .mapToObj(i -> "role-" + i).toList();
+        CreateUserRequest tooManyRolesReq = new CreateUserRequest(
+                "many.roles", "many" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", null, IdentitySource.KEYCLOAK_LOCAL, null, tooManyRoles, List.of());
+        assertThatThrownBy(() -> userService.createUser(tooManyRolesReq, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        Map<String, Object> tooManyKeys = new LinkedHashMap<>();
+        for (int i = 0; i < 65; i++) {
+            tooManyKeys.put("k" + i, "v");
+        }
+        CreateUserRequest tooManyKeysReq = new CreateUserRequest(
+                "many.keys", "keys" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", tooManyKeys, IdentitySource.KEYCLOAK_LOCAL, null, null, null);
+        assertThatThrownBy(() -> userService.createUser(tooManyKeysReq, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        CreateUserRequest badTz = new CreateUserRequest(
+                "bad.tz", "tz" + "@" + "acme.invalid", null, null, null, null,
+                "en", "Mars/Olympus", null, IdentitySource.KEYCLOAK_LOCAL, null, null, null);
+        assertThatThrownBy(() -> userService.createUser(badTz, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        CreateUserRequest badMobile = new CreateUserRequest(
+                "bad.mob", "mob" + "@" + "acme.invalid", null, null, "bad\r\n123", null,
+                "en", "UTC", null, IdentitySource.KEYCLOAK_LOCAL, null, null, null);
+        assertThatThrownBy(() -> userService.createUser(badMobile, OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+    }
+
+    @Test
+    void deactivateUserShouldHandleLeaseContentionSupersessionFencedDirtyAndUnexpectedErrors() {
+        // 1. Null keycloakSub -> immediate 202 without outbox lease claim
+        UserEntity noSub = activeUser(8101L, null, "no.sub");
+        when(userRepository.findById(8101L)).thenReturn(Optional.of(noSub));
+        UserService.DeactivationOutcome noSubOutcome = userService.deactivateUser(8101L, OPERATOR);
+        assertThat(noSubOutcome.revokedSynchronously()).isFalse();
+        assertThat(noSubOutcome.response().syncStatus()).isEqualTo(SyncStatus.PENDING_SYNC);
+        verify(outboxService, never()).claimUserReconcileLease(8101L);
+
+        // 2. Lease already held (Optional.empty()) -> 202 without KC revocation
+        UserEntity heldTarget = activeUser(8102L, "kc-sub-8102", "held.user");
+        when(userRepository.findById(8102L)).thenReturn(Optional.of(heldTarget));
+        when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-8102"))
+                .thenReturn(Set.of("awgment-user"));
+        when(outboxService.claimUserReconcileLease(8102L)).thenReturn(Optional.empty());
+        UserService.DeactivationOutcome heldOutcome = userService.deactivateUser(8102L, OPERATOR);
+        assertThat(heldOutcome.revokedSynchronously()).isFalse();
+        verify(keycloakUserSyncClient, never())
+                .revokeUserSynchronouslyWithOutcome(anyString(), eq("kc-sub-8102"), anyLong(), anyString());
+
+        // 3. Claim throwing RuntimeException -> fail-open to async 202
+        UserEntity claimErrTarget = activeUser(8103L, "kc-sub-8103", "claim.err");
+        when(userRepository.findById(8103L)).thenReturn(Optional.of(claimErrTarget));
+        when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-8103"))
+                .thenReturn(Set.of("awgment-user"));
+        when(outboxService.claimUserReconcileLease(8103L)).thenThrow(new IllegalStateException("db lock"));
+        assertThat(userService.deactivateUser(8103L, OPERATOR).revokedSynchronously()).isFalse();
+
+        // 4. Outbox targetVersion > Phase A syncVersion -> release lease + dispatch + 202
+        UserEntity supersededTarget = activeUser(8104L, "kc-sub-8104", "superseded.user");
+        supersededTarget.setSyncVersion(1L);
+        UUID lease4 = UUID.randomUUID();
+        when(userRepository.findById(8104L)).thenReturn(Optional.of(supersededTarget));
+        when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-8104"))
+                .thenReturn(Set.of("awgment-user"));
+        when(outboxService.claimUserReconcileLease(8104L))
+                .thenReturn(Optional.of(new ClaimedOutboxJob(outboxJob(7104L, 8104L, 99L, lease4), false)));
+        UserService.DeactivationOutcome supersededOutcome = userService.deactivateUser(8104L, OPERATOR);
+        assertThat(supersededOutcome.revokedSynchronously()).isFalse();
+        verify(outboxService).releaseUserReconcileToPending(7104L, lease4);
+        verify(outboxService).dispatchPendingBatch(REALM, 1);
+
+        // 5. FENCED outcome -> defer with schedulePostRecoveryVerification = false, return 202
+        UserEntity fencedTarget = activeUser(8105L, "kc-sub-8105", "fenced.user");
+        UUID lease5 = UUID.randomUUID();
+        when(userRepository.findById(8105L)).thenReturn(Optional.of(fencedTarget));
+        when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-8105"))
+                .thenReturn(Set.of("awgment-user"));
+        when(outboxService.claimUserReconcileLease(8105L))
+                .thenReturn(Optional.of(new ClaimedOutboxJob(outboxJob(7105L, 8105L, 2L, lease5), false)));
+        when(keycloakUserSyncClient.revokeUserSynchronouslyWithOutcome(REALM, "kc-sub-8105", 2L, "DISABLED"))
+                .thenReturn(RevocationAttemptOutcome.FENCED);
+        assertThat(userService.deactivateUser(8105L, OPERATOR).revokedSynchronously()).isFalse();
+        verify(outboxService).deferUserRevocationSync(
+                eq(7105L), eq(lease5), eq(8105L), anyString(), eq(false));
+
+        // 6. REVOKED but reQueuedBecauseDirty = true -> dispatch + 202
+        UserEntity dirtyTarget = activeUser(8106L, "kc-sub-8106", "dirty.user");
+        UUID lease6 = UUID.randomUUID();
+        when(userRepository.findById(8106L)).thenReturn(Optional.of(dirtyTarget));
+        when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-8106"))
+                .thenReturn(Set.of("awgment-user"));
+        when(outboxService.claimUserReconcileLease(8106L))
+                .thenReturn(Optional.of(new ClaimedOutboxJob(outboxJob(7106L, 8106L, 2L, lease6), false)));
+        when(keycloakUserSyncClient.revokeUserSynchronouslyWithOutcome(REALM, "kc-sub-8106", 2L, "DISABLED"))
+                .thenReturn(RevocationAttemptOutcome.REVOKED);
+        when(outboxService.completeUserRevocationSync(7106L, lease6, 8106L, 2L, "kc-sub-8106", false))
+                .thenReturn(new CasCompletionResult(true, true));
+        assertThat(userService.deactivateUser(8106L, OPERATOR).revokedSynchronously()).isFalse();
+        verify(outboxService, org.mockito.Mockito.times(2)).dispatchPendingBatch(REALM, 1);
+
+        // 7. KC throws unexpected RuntimeException -> treated as DEFERRED_UNCERTAIN + defer throwing caught safely
+        UserEntity kcThrowsTarget = activeUser(8107L, "kc-sub-8107", "kc.throws");
+        UUID lease7 = UUID.randomUUID();
+        when(userRepository.findById(8107L)).thenReturn(Optional.of(kcThrowsTarget));
+        when(keycloakUserSyncClient.fetchUserEffectiveRoles(REALM, "kc-sub-8107"))
+                .thenReturn(Set.of("awgment-user"));
+        when(outboxService.claimUserReconcileLease(8107L))
+                .thenReturn(Optional.of(new ClaimedOutboxJob(outboxJob(7107L, 8107L, 2L, lease7), false)));
+        when(keycloakUserSyncClient.revokeUserSynchronouslyWithOutcome(REALM, "kc-sub-8107", 2L, "DISABLED"))
+                .thenThrow(new RuntimeException("boom\r\ncrlf"));
+        doThrow(new RuntimeException("defer\nbroke"))
+                .when(outboxService)
+                .deferUserRevocationSync(eq(7107L), eq(lease7), eq(8107L), anyString(), eq(true));
+        assertThat(userService.deactivateUser(8107L, OPERATOR).revokedSynchronously()).isFalse();
+    }
+
+    @Test
+    void createUserAndJsonBoundsShouldEnforcePreTxGovernanceAndPayloadCaps() {
+        // Role governance check fires BEFORE persistence/outbox even runs
+        CreateUserRequest okReq = new CreateUserRequest(
+                "order.user", "order" + "@" + "acme.invalid", "Order", "User", null, null,
+                "en", "UTC", null, IdentitySource.KEYCLOAK_LOCAL, null, List.of("awgment-user"), List.of());
+        userService.createUser(okReq, OPERATOR);
+        InOrder createOrder = inOrder(roleGovernancePolicy, userRepository, outboxService);
+        createOrder.verify(roleGovernancePolicy).assertCanAssignRoles(
+                eq(REALM), eq(OPERATOR.directRoles()), eq(List.of()), eq(List.of("awgment-user")));
+        createOrder.verify(userRepository).saveAndFlush(any(UserEntity.class));
+        createOrder.verify(outboxService).enqueueUserReconcile(eq(2001L), eq(1L));
+
+        // JSONB key length > 128
+        String longKey = "k".repeat(129);
+        assertThatThrownBy(() -> userService.createUser(new CreateUserRequest(
+                "longkey", "lk" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", Map.of(longKey, "v"), IdentitySource.KEYCLOAK_LOCAL, null, null, null), OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        // JSONB string value > 2048
+        String longVal = "v".repeat(2049);
+        assertThatThrownBy(() -> userService.createUser(new CreateUserRequest(
+                "longval", "lv" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", Map.of("k", longVal), IdentitySource.KEYCLOAK_LOCAL, null, null, null), OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        // JSONB nested list > 64 and node count > 128
+        List<String> tooLongList = java.util.stream.IntStream.range(0, 65).mapToObj(i -> "x").toList();
+        assertThatThrownBy(() -> userService.createUser(new CreateUserRequest(
+                "longlist", "ll" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", Map.of("items", tooLongList), IdentitySource.KEYCLOAK_LOCAL, null, null, null), OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        Map<String, Object> tooManyNodes = new LinkedHashMap<>();
+        tooManyNodes.put("a", java.util.stream.IntStream.range(0, 64).mapToObj(i -> "x").toList());
+        tooManyNodes.put("b", java.util.stream.IntStream.range(0, 64).mapToObj(i -> "y").toList());
+        assertThatThrownBy(() -> userService.createUser(new CreateUserRequest(
+                "nodes", "nd" + "@" + "acme.invalid", null, null, null, null,
+                "en", "UTC", tooManyNodes, IdentitySource.KEYCLOAK_LOCAL, null, null, null), OPERATOR))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+
+        // JSONB serialized size > 16 KB on selfServicePreferences
+        Map<String, Object> bigPrefs = new LinkedHashMap<>();
+        String chunk = "z".repeat(2000);
+        for (int i = 0; i < 9; i++) {
+            bigPrefs.put("k" + i, chunk);
+        }
+        UserEntity meUser = activeUser(8201L, "sub-me-8201", "me.bounds");
+        when(userRepository.findByKeycloakSub("sub-me-8201")).thenReturn(Optional.of(meUser));
+        assertThatThrownBy(() -> userService.updateMyProfile(
+                new UpdateMyProfileRequest(null, null, null, null, null, bigPrefs, 0L),
+                new CallerPrincipal("sub-me-8201", REALM, Set.of("awgment-user"), false)))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.VALIDATION_FAILED);
+    }
+
+    private static KeycloakOutboxEventEntity outboxJob(
+            long id, long aggregateId, long targetVersion, UUID leaseToken) {
+        KeycloakOutboxEventEntity job = new KeycloakOutboxEventEntity();
+        job.setId(id);
+        job.setAggregateId(aggregateId);
+        job.setTargetVersion(targetVersion);
+        job.setLeaseToken(leaseToken);
+        return job;
     }
 
     private static UserEntity activeUser(Long id, String keycloakSub, String userName) {

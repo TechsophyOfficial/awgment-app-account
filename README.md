@@ -72,6 +72,7 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 | `AWGMENT_SECURITY_DECODER_CACHE_TTL_SECONDS` | `300` | No | TTL (seconds) before cached per-issuer `JwtDecoder` managers refresh JWKS metadata. |
 | `AWGMENT_SECURITY_OIDC_CONNECT_TIMEOUT_MS` | `5000` | No | Bounded non-redirecting HTTP connect timeout (ms, min `100`) for OIDC discovery/JWKS calls. |
 | `AWGMENT_SECURITY_OIDC_READ_TIMEOUT_MS` | `8000` | No | Bounded non-redirecting HTTP read timeout (ms, min `100`) for OIDC discovery/JWKS calls. |
+| `AWGMENT_SECURITY_MAX_JSON_BODY_SIZE` | `256KB` | No | Maximum accepted HTTP JSON request payload size enforced by `JsonRequestSizeLimitFilter` & Jackson `StreamReadConstraints` (`413 PAYLOAD_TOO_LARGE`). |
 | `AWGMENT_KEYCLOAK_ADMIN_URL` | `AWGMENT_KEYCLOAK_INTERNAL_URL` or `AWGMENT_KEYCLOAK_URL` | **Yes** | Internal or external Keycloak Admin REST base URL used by `KeycloakAdminRealmClient`. |
 | `AWGMENT_KEYCLOAK_ADMIN_REALM` | `master` | **Yes** | Realm used by `KeycloakAdminRealmClient` when inspecting/updating tenant realms. |
 | `AWGMENT_KEYCLOAK_ADMIN_CLIENT_ID` | `admin-cli` | **Yes** | Client ID for Keycloak Admin REST access. |
@@ -89,6 +90,7 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 | `AWGMENT_OUTBOX_BATCH_SIZE` | `20` | No | Maximum outbox rows claimed per tenant poll (`1..200`). |
 | `AWGMENT_OUTBOX_BASE_BACKOFF_SECONDS` | `5` | No | Initial exponential retry backoff delay (seconds, min `1`). |
 | `AWGMENT_OUTBOX_MAX_BACKOFF_SECONDS` | `300` | No | Maximum exponential retry backoff delay (seconds, min `5`). |
+| `AWGMENT_OUTBOX_ACTION_EMAIL_DELIVERY_ENABLED` | `false` | No | Phase 2 scaffolding guard: when `false`, `SEND_ACTION_EMAIL` jobs stamp `DISPATCHED` without live SMTP `execute-actions-email` until Phase 4A invite delivery is enabled. |
 | `AWGMENT_OUTBOX_WORKER_ID` | *(hostname/UUID)* | No | Optional worker identifier stamped onto `tp_keycloak_outbox.locked_by` (truncated to 100 chars). |
 | `AWGMENT_OPENAPI_ENABLED` | `false` | No | Exposes `/v3/api-docs` & `/swagger-ui.html`. **Must remain `false` in production.** |
 
@@ -119,6 +121,11 @@ Tenant user and outbox endpoints require an `ACTIVE` tenant JWT (`iss` prefix-va
 | `UC-USER-07` | `PUT /accounts/v2/users/me` | Self-service non-ACL profile update (`isAuthenticated()`): rejects admin/identity fields (`department`, `attributes`, `status`, `roles`, `groups`) and `EXTERNAL_IDP` name edits (`400 IMMUTABLE_FIELD_MODIFICATION`); syncs `locale`/local name changes to Keycloak. |
 | `UC-SYNC-01` | `GET /accounts/v2/sync/outbox` | Paginated inspection of `tp_keycloak_outbox` (`status`, `aggregateType`, `page >= 0`, `size` `1..100`) for `awgment-account-read` / `all` / `admin`. |
 | `UC-SYNC-02` | `POST /accounts/v2/sync/outbox/{id}/retry` | Resets a `FAILED` `RECONCILE_*` outbox job to `PENDING` (`200 OK`) and triggers immediate dispatch; blocks ambiguous `SEND_ACTION_EMAIL` retries (`409 INVALID_STATE_TRANSITION`). |
+
+> [!NOTE]
+> **Phase 2 Scope Boundaries:**
+> * `GET/PUT /accounts/v2/users/me` enforces fail-closed human status checks (`DISABLED`/`PENDING_APPROVAL`/`REJECTED` -> `403`) in Phase 2; global enforcement of `UserApprovalGatekeeperFilter` across all non-`/me` tenant endpoints plus `POST /accounts/v2/onboarding/session` lands in **Phase 3**.
+> * `POST /accounts/v2/users` rejects non-empty `groups` fail-closed (`400 VALIDATION_FAILED`) until group management (`Phase 4B`) is active, and `AWGMENT_OUTBOX_ACTION_EMAIL_DELIVERY_ENABLED` defaults to `false` until Phase 4A onboarding email flows are wired.
 
 ---
 
@@ -275,7 +282,7 @@ This guide covers deploying `awgment-app-account` onto a standalone Linux server
    * Ensure tenant realms enforce:
      * Zero default Awgment roles on new users.
      * Short access-token lifespan (`accessTokenLifespan <= 300`).
-     * Declarative User Profile locking `awgment_status`, `userId`, and `awgment_sync_version` to `edit = ["admin"]` with unmanaged attributes disabled (omit `unmanagedAttributePolicy`).
+     * Declarative User Profile locking `awgment_status`, `userId`, `awgment_sync_version`, and `locale` to `edit = ["admin"]` with unmanaged attributes disabled (omit `unmanagedAttributePolicy`).
      * First Broker Login automatic email linking disabled.
      * Note: On Keycloak `26.0.5`, set `KC_FEATURES_DISABLED=organization` if importing realms containing service-account clients at startup.
 3. **Production Security Rules:**

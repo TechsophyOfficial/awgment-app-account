@@ -3,6 +3,7 @@ package com.techsophy.tsf.account.config;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.scheduling.annotation.ScheduledAnnotationBeanPostProcessor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,6 +17,9 @@ class OutboxSchedulingConfigTest {
         contextRunner.run(context -> {
             assertThat(context).hasSingleBean(OutboxSchedulingConfig.class);
             assertThat(context).hasSingleBean(ScheduledAnnotationBeanPostProcessor.class);
+            assertThat(context).hasSingleBean(ThreadPoolTaskScheduler.class);
+            ThreadPoolTaskScheduler scheduler = context.getBean(ThreadPoolTaskScheduler.class);
+            assertThat(scheduler.getThreadNamePrefix()).startsWith("awgment-outbox-sched-");
         });
 
         contextRunner
@@ -23,6 +27,7 @@ class OutboxSchedulingConfigTest {
                 .run(context -> {
                     assertThat(context).hasSingleBean(OutboxSchedulingConfig.class);
                     assertThat(context).hasSingleBean(ScheduledAnnotationBeanPostProcessor.class);
+                    assertThat(context).hasSingleBean(ThreadPoolTaskScheduler.class);
                 });
     }
 

@@ -411,6 +411,153 @@ class CoalescedOutboxConcurrencyIT {
         }
     }
 
+    @Test
+    @Order(3)
+    void shouldRecoverDirtyAtMaxRetriesPreserveReclaimedVerificationAndHaveV3Indexes() throws Exception {
+        // 1. Verify Flyway V3 columns and search/SLA indexes exist on tenant_acme
+        List<String> expectedIndexes = List.of(
+                "idx_tp_user_user_name_lower_pattern",
+                "idx_tp_user_email_id_lower_pattern",
+                "idx_tp_user_first_name_lower_pattern",
+                "idx_tp_user_last_name_lower_pattern",
+                "idx_tp_user_created_at_desc",
+                "idx_tp_keycloak_outbox_pending_since"
+        );
+        Set<String> foundIndexes = new HashSet<>();
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT indexname FROM pg_indexes WHERE schemaname = 'tenant_acme'");
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                foundIndexes.add(rs.getString(1));
+            }
+        }
+        assertThat(foundIndexes).containsAll(expectedIndexes);
+
+        // 2. dirty = TRUE at retry_count = maxRetries - 1 re-queues PENDING (retry_count = 0) and recovers cleanly
+        TenantContext.setTenantId("acme");
+        long maxRetryUserId = idGenerator.nextId().longValue();
+        UserEntity maxRetryUser = new UserEntity();
+        maxRetryUser.setId(maxRetryUserId);
+        maxRetryUser.setUserName("dirty.maxretry");
+        maxRetryUser.setEmailId("dirty.maxretry" + "@" + "acme.invalid");
+        maxRetryUser.setFirstName("Dirty");
+        maxRetryUser.setLastName("MaxRetry");
+        maxRetryUser.setLocale("en");
+        maxRetryUser.setIdentitySource(IdentitySource.KEYCLOAK_LOCAL);
+        maxRetryUser.setProvisioningMode(ProvisioningMode.DIRECT_OPERATOR);
+        maxRetryUser.setStatus(UserStatus.ACTIVE);
+        maxRetryUser.setDesiredRoles(List.of("awgment-user"));
+        maxRetryUser.setSyncVersion(1L);
+        maxRetryUser.setSyncedVersion(0L);
+        maxRetryUser.setSyncStatus(SyncStatus.PENDING_SYNC);
+        maxRetryUser.setCreatedBy("op-it");
+        maxRetryUser.setUpdatedBy("op-it");
+        userRepository.saveAndFlush(maxRetryUser);
+
+        outboxStore.upsertUserReconcile(maxRetryUserId, 1L);
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE tenant_acme.tp_keycloak_outbox SET retry_count = 4 "
+                             + "WHERE aggregate_type = 'USER' AND aggregate_id = ? AND job_type = 'RECONCILE_USER'")) {
+            ps.setLong(1, maxRetryUserId);
+            ps.executeUpdate();
+        }
+        ClaimedOutboxJob maxRetryClaim = outboxStore.claimSpecificUserReconcileJob(
+                maxRetryUserId, Duration.ofSeconds(60), "it-worker-a").orElseThrow();
+
+        // Simulate newer DB edit while in-flight before failure at retry_count = 4
+        maxRetryUser.setFirstName("DirtyUpdated");
+        maxRetryUser.setSyncVersion(2L);
+        userRepository.saveAndFlush(maxRetryUser);
+        outboxStore.upsertUserReconcile(maxRetryUserId, 2L);
+
+        assertThat(outboxStore.markRetryOrFailedWithCas(
+                maxRetryClaim.event().getId(),
+                maxRetryClaim.event().getLeaseToken(),
+                maxRetryUserId,
+                OutboxAggregateType.USER,
+                OutboxJobType.RECONCILE_USER,
+                "Transient KC timeout at retry 4",
+                false)).isTrue();
+
+        KeycloakOutboxEventEntity afterDirtyMaxRetry = outboxRepository.findById(maxRetryClaim.event().getId())
+                .orElseThrow();
+        assertThat(afterDirtyMaxRetry.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(afterDirtyMaxRetry.getRetryCount()).isZero();
+        assertThat(afterDirtyMaxRetry.isDirty()).isFalse();
+        assertThat(afterDirtyMaxRetry.getLastError()).isNull();
+        assertThat(userRepository.findById(maxRetryUserId).orElseThrow().getSyncStatus())
+                .isNotEqualTo(SyncStatus.SYNC_FAILED);
+
+        assertThat(worker.processTenantQueue("acme", 20)).isGreaterThanOrEqualTo(1);
+        assertThat(userRepository.findById(maxRetryUserId).orElseThrow().getSyncStatus())
+                .isEqualTo(SyncStatus.SYNCED);
+
+        // 3. Reclaimed lease hitting dirty = TRUE preserves reclaimed_verification_pending and heals via 15s pass
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE tenant_acme.tp_keycloak_outbox "
+                             + "SET status = 'IN_PROGRESS', lease_token = gen_random_uuid(), "
+                             + "    locked_at = NOW() - INTERVAL '300 seconds', verification_required_at = NULL "
+                             + "WHERE id = ?")) {
+            ps.setLong(1, afterDirtyMaxRetry.getId());
+            ps.executeUpdate();
+        }
+
+        ClaimedOutboxJob reclaimedClaim = outboxStore.claimSpecificUserReconcileJob(
+                maxRetryUserId, Duration.ofSeconds(60), "it-worker-b").orElseThrow();
+        assertThat(reclaimedClaim.wasReclaimed()).isTrue();
+        assertThat(reclaimedClaim.event().isReclaimedVerificationPending()).isTrue();
+
+        // Concurrent mutation marks dirty = TRUE before reclaimed worker finishes v2
+        maxRetryUser = userRepository.findById(maxRetryUserId).orElseThrow();
+        maxRetryUser.setFirstName("ReclaimFollowUp");
+        maxRetryUser.setSyncVersion(3L);
+        userRepository.saveAndFlush(maxRetryUser);
+        outboxStore.upsertUserReconcile(maxRetryUserId, 3L);
+
+        assertThat(outboxStore.completeReconcileWithCas(
+                reclaimedClaim.event().getId(),
+                reclaimedClaim.event().getLeaseToken(),
+                maxRetryUserId,
+                OutboxAggregateType.USER,
+                2L,
+                maxRetryUser.getKeycloakSub(),
+                true,
+                false).reQueuedBecauseDirty()).isTrue();
+
+        KeycloakOutboxEventEntity carried = outboxRepository.findById(reclaimedClaim.event().getId()).orElseThrow();
+        assertThat(carried.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(carried.isReclaimedVerificationPending()).isTrue();
+        assertThat(carried.getVerificationRequiredAt()).isNull();
+
+        // Next pass is NOT a reclaim, yet schedules forced verification because reclaimed_verification_pending=true
+        assertThat(worker.processTenantQueue("acme", 20)).isGreaterThanOrEqualTo(1);
+        KeycloakOutboxEventEntity scheduledVerify = outboxRepository.findById(carried.getId()).orElseThrow();
+        assertThat(scheduledVerify.getStatus()).isEqualTo(OutboxStatus.COMPLETED);
+        assertThat(scheduledVerify.getVerificationRequiredAt()).isNotNull();
+        assertThat(scheduledVerify.isReclaimedVerificationPending()).isFalse();
+
+        // Out-of-band Keycloak drift gets healed when the 15s verification pass matures
+        var kcUsers = KEYCLOAK.getKeycloakAdminClient().realm("acme").users();
+        String kcSub = userRepository.findById(maxRetryUserId).orElseThrow().getKeycloakSub();
+        UserRepresentation drifted = kcUsers.get(kcSub).toRepresentation();
+        drifted.setFirstName("DriftedInKc");
+        kcUsers.get(kcSub).update(drifted);
+
+        try (Connection conn = dataSource.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "UPDATE tenant_acme.tp_keycloak_outbox "
+                             + "SET verification_required_at = NOW() - INTERVAL '1 second' WHERE id = ?")) {
+            ps.setLong(1, carried.getId());
+            ps.executeUpdate();
+        }
+        assertThat(worker.processTenantQueue("acme", 20)).isGreaterThanOrEqualTo(1);
+        assertThat(kcUsers.get(kcSub).toRepresentation().getFirstName()).isEqualTo("ReclaimFollowUp");
+        assertThat(outboxRepository.findById(carried.getId()).orElseThrow().getVerificationRequiredAt()).isNull();
+    }
+
     private HttpResponse<String> sendApi(String method, String path, String bearerToken) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + path))

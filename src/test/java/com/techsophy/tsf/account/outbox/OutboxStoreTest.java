@@ -2,12 +2,15 @@ package com.techsophy.tsf.account.outbox;
 
 import com.techsophy.idgenerator.IdGeneratorImpl;
 import com.techsophy.tsf.account.config.IdGeneratorConfig;
+import com.techsophy.tsf.account.error.ApiErrorCode;
+import com.techsophy.tsf.account.error.ApiException;
 import com.techsophy.tsf.account.user.IdentitySource;
 import com.techsophy.tsf.account.user.ProvisioningMode;
 import com.techsophy.tsf.account.user.SyncStatus;
 import com.techsophy.tsf.account.user.UserEntity;
 import com.techsophy.tsf.account.user.UserRepository;
 import com.techsophy.tsf.account.user.UserStatus;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import jakarta.validation.Validation;
@@ -21,9 +24,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -275,7 +280,7 @@ class OutboxStoreTest {
         assertThat(syncedUser.getSyncedVersion()).isEqualTo(2L);
         assertThat(syncedUser.getSyncStatus()).isEqualTo(SyncStatus.SYNCED);
 
-        // Fenced completion must not advance syncedVersion
+        // Fenced completion must not advance syncedVersion and must NOT mark outbox COMPLETED
         outboxStore.upsertUserReconcile(user.getId(), 5L);
         ClaimedOutboxJob fencedClaim = outboxStore.claimNextJobs(5, Duration.ZERO, "  ").getFirst();
         assertThat(outboxStore.completeReconcileWithCas(
@@ -289,6 +294,69 @@ class OutboxStoreTest {
                 true
         ).casUpdated()).isTrue();
         assertThat(userRepository.findById(user.getId()).orElseThrow().getSyncedVersion()).isEqualTo(2L);
+        assertThat(outboxRepository.findById(fencedClaim.event().getId()).orElseThrow().getStatus())
+                .isNotEqualTo(OutboxStatus.COMPLETED);
+    }
+
+    @Test
+    void markRetryOrFailedWithCasShouldRequeueDirtyImmediatelyAndCompleteShouldResetRetryCount() {
+        UserEntity user = createUser("dirty.retry", 1L, UserStatus.ACTIVE);
+        outboxStore.upsertUserReconcile(user.getId(), 1L);
+
+        // Drive retry_count to maxRetries - 1 (4)
+        for (int i = 0; i < outboxProperties.getMaxRetries() - 1; i++) {
+            KeycloakOutboxEventEntity row = outboxRepository.findAll().getFirst();
+            row.setNextRetryAt(Instant.now().minusSeconds(1));
+            outboxRepository.saveAndFlush(row);
+            ClaimedOutboxJob c = outboxStore.claimNextJobs(5, Duration.ofSeconds(60), "w1").getFirst();
+            assertThat(outboxStore.markRetryOrFailedWithCas(
+                    c.event().getId(), c.event().getLeaseToken(), user.getId(),
+                    OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "transient")).isTrue();
+        }
+
+        // Claim attempt 5 while a concurrent mutation (v2) marks dirty = TRUE
+        KeycloakOutboxEventEntity row = outboxRepository.findAll().getFirst();
+        row.setNextRetryAt(Instant.now().minusSeconds(1));
+        outboxRepository.saveAndFlush(row);
+        ClaimedOutboxJob finalAttempt = outboxStore.claimNextJobs(5, Duration.ofSeconds(60), "w1").getFirst();
+        user.setSyncVersion(2L);
+        user.setSyncStatus(SyncStatus.PENDING_SYNC);
+        userRepository.saveAndFlush(user);
+        outboxStore.upsertUserReconcile(user.getId(), 2L);
+
+        // Failing v1 on attempt 5 MUST re-queue dirty v2 as PENDING with retry_count = 0 (never FAILED / SYNC_FAILED)
+        assertThat(outboxStore.markRetryOrFailedWithCas(
+                finalAttempt.event().getId(), finalAttempt.event().getLeaseToken(), user.getId(),
+                OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "kc error on v1")).isTrue();
+
+        KeycloakOutboxEventEntity afterDirtyFail = outboxRepository.findById(row.getId()).orElseThrow();
+        assertThat(afterDirtyFail.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(afterDirtyFail.isDirty()).isFalse();
+        assertThat(afterDirtyFail.getRetryCount()).isZero();
+        assertThat(afterDirtyFail.getLastError()).isNull();
+        assertThat(afterDirtyFail.getTargetVersion()).isEqualTo(2L);
+        assertThat(userRepository.findById(user.getId()).orElseThrow().getSyncStatus())
+                .isEqualTo(SyncStatus.PENDING_SYNC);
+
+        // Drive retry_count to 3 then complete -> completeReconcileWithCas MUST reset retry_count = 0
+        for (int i = 0; i < 3; i++) {
+            afterDirtyFail.setNextRetryAt(Instant.now().minusSeconds(1));
+            outboxRepository.saveAndFlush(afterDirtyFail);
+            ClaimedOutboxJob c = outboxStore.claimNextJobs(5, Duration.ofSeconds(60), "w1").getFirst();
+            assertThat(outboxStore.markRetryOrFailedWithCas(
+                    c.event().getId(), c.event().getLeaseToken(), user.getId(),
+                    OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "err")).isTrue();
+            afterDirtyFail = outboxRepository.findById(row.getId()).orElseThrow();
+        }
+        afterDirtyFail.setNextRetryAt(Instant.now().minusSeconds(1));
+        outboxRepository.saveAndFlush(afterDirtyFail);
+        ClaimedOutboxJob recoverClaim = outboxStore.claimNextJobs(5, Duration.ofSeconds(60), "w1").getFirst();
+        assertThat(outboxStore.completeWithCas(
+                recoverClaim.event().getId(), recoverClaim.event().getLeaseToken(),
+                user.getId(), 2L, "kc-sub-dirty", false)).isTrue();
+        KeycloakOutboxEventEntity completed = outboxRepository.findById(row.getId()).orElseThrow();
+        assertThat(completed.getStatus()).isEqualTo(OutboxStatus.COMPLETED);
+        assertThat(completed.getRetryCount()).isZero();
     }
 
     @Test
@@ -606,6 +674,202 @@ class OutboxStoreTest {
                 .thenThrow(new org.springframework.dao.DataIntegrityViolationException("race"))
                 .thenAnswer(inv -> inv.getArgument(0));
         h2ConflictStore.upsertUserReconcile(88L, 5L);
+    }
+
+    @Test
+    void specificClaimReleaseDirtyVerificationCarryoverAtomicResetAndMetricsShouldWorkAcrossH2AndPg() {
+        SimpleMeterRegistry metrics = new SimpleMeterRegistry();
+        EntityManager h2Em = org.mockito.Mockito.mock(EntityManager.class);
+        org.hibernate.Session h2Session = org.mockito.Mockito.mock(org.hibernate.Session.class);
+        when(h2Em.unwrap(org.hibernate.Session.class)).thenReturn(h2Session);
+        when(h2Session.doReturningWork(any())).thenReturn("H2");
+
+        // Use Spring-managed outboxStore (connected to H2) for DB state machine, plus a metric-instrumented store for SLA checks
+        UserEntity user = createUser("lease_user", 1L, UserStatus.ACTIVE);
+        assertThat(outboxStore.claimSpecificUserReconcileJob(user.getId(), Duration.ofSeconds(60), "sync-w"))
+                .isEmpty();
+
+        outboxStore.upsertUserReconcile(user.getId(), 1L);
+        ClaimedOutboxJob claimed = outboxStore.claimSpecificUserReconcileJob(
+                user.getId(), Duration.ofSeconds(60), "sync-w").orElseThrow();
+        assertThat(claimed.wasReclaimed()).isFalse();
+        assertThat(claimed.event().isReclaimedVerificationPending()).isFalse();
+
+        // Contention while lease active returns empty
+        assertThat(outboxStore.claimSpecificUserReconcileJob(
+                user.getId(), Duration.ofSeconds(60), "sync-w-2")).isEmpty();
+
+        // Wrong lease release returns false; valid lease releases back to PENDING cleanly
+        assertThat(outboxStore.releaseReconcileToPendingWithCas(claimed.event().getId(), UUID.randomUUID())).isFalse();
+        assertThat(outboxStore.releaseReconcileToPendingWithCas(
+                claimed.event().getId(), claimed.event().getLeaseToken())).isTrue();
+        KeycloakOutboxEventEntity released = outboxRepository.findById(claimed.event().getId()).orElseThrow();
+        assertThat(released.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(released.getLeaseToken()).isNull();
+
+        // Reclaim expired IN_PROGRESS lease sets reclaimedVerificationPending=true and carries across dirty retry!
+        released.setStatus(OutboxStatus.IN_PROGRESS);
+        released.setLockedAt(Instant.now().minusSeconds(300));
+        released.setLeaseToken(UUID.randomUUID());
+        outboxRepository.saveAndFlush(released);
+
+        ClaimedOutboxJob reclaimed = outboxStore.claimSpecificUserReconcileJob(
+                user.getId(), Duration.ofSeconds(60), "reclaim-w").orElseThrow();
+        assertThat(reclaimed.wasReclaimed()).isTrue();
+        assertThat(reclaimed.event().isReclaimedVerificationPending()).isTrue();
+
+        // Simulate concurrent mutation setting dirty=TRUE while IN_PROGRESS -> failure resets retryCount=0 & stays PENDING
+        outboxStore.upsertUserReconcile(user.getId(), 2L);
+        assertThat(outboxStore.markRetryOrFailedWithCas(
+                reclaimed.event().getId(),
+                reclaimed.event().getLeaseToken(),
+                user.getId(),
+                OutboxAggregateType.USER,
+                OutboxJobType.RECONCILE_USER,
+                "transient error",
+                true)).isTrue();
+        KeycloakOutboxEventEntity afterDirtyFail = outboxRepository.findById(reclaimed.event().getId()).orElseThrow();
+        assertThat(afterDirtyFail.getStatus()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(afterDirtyFail.getRetryCount()).isEqualTo(0);
+        assertThat(afterDirtyFail.isDirty()).isFalse();
+        assertThat(afterDirtyFail.isReclaimedVerificationPending()).isTrue();
+
+        // Complete non-reclaimed follow-up pass -> verificationRequiredAt must still be scheduled!
+        ClaimedOutboxJob followUp = outboxStore.claimSpecificUserReconcileJob(
+                user.getId(), Duration.ofSeconds(60), "sync-w").orElseThrow();
+        assertThat(followUp.wasReclaimed()).isFalse();
+        CasCompletionResult followDone = outboxStore.completeReconcileWithCas(
+                followUp.event().getId(),
+                followUp.event().getLeaseToken(),
+                user.getId(),
+                OutboxAggregateType.USER,
+                2L,
+                "kc-lease-sub",
+                false,
+                false);
+        assertThat(followDone.casUpdated()).isTrue();
+        assertThat(followDone.reQueuedBecauseDirty()).isFalse();
+        KeycloakOutboxEventEntity completedRow = outboxRepository.findById(followUp.event().getId()).orElseThrow();
+        assertThat(completedRow.getStatus()).isEqualTo(OutboxStatus.COMPLETED);
+        assertThat(completedRow.getVerificationRequiredAt()).isNotNull();
+        assertThat(completedRow.isReclaimedVerificationPending()).isFalse();
+
+        // Atomic retry guard: non-FAILED row throws INVALID_STATE_TRANSITION
+        assertThatThrownBy(() -> outboxStore.resetFailedForRetry(completedRow.getId()))
+                .isInstanceOf(ApiException.class)
+                .extracting(e -> ((ApiException) e).errorCode())
+                .isEqualTo(ApiErrorCode.INVALID_STATE_TRANSITION);
+
+        // PG mocked branch coverage for new SQL paths + Micrometer lag/failure metrics
+        EntityManager mockPgEm = mock(EntityManager.class);
+        org.hibernate.Session mockPgSession = mock(org.hibernate.Session.class);
+        when(mockPgEm.unwrap(org.hibernate.Session.class)).thenReturn(mockPgSession);
+        when(mockPgSession.doReturningWork(any())).thenReturn("PostgreSQL");
+        KeycloakOutboxRepository mockPgRepo = mock(KeycloakOutboxRepository.class);
+        UserRepository mockPgUserRepo = mock(UserRepository.class);
+
+        UUID pgLease = UUID.randomUUID();
+        KeycloakOutboxEventEntity pgEvent = newEvent(78L, OutboxStatus.IN_PROGRESS, Instant.now(), Instant.now(), pgLease, null, false);
+        pgEvent.setId(202L);
+        pgEvent.setRetryCount(4);
+        pgEvent.setPendingSince(Instant.now().minusSeconds(45));
+
+        Query specificSelectQ = mock(Query.class);
+        when(specificSelectQ.setParameter(anyString(), any())).thenReturn(specificSelectQ);
+        when(specificSelectQ.getResultList()).thenReturn(List.<Object[]>of(new Object[]{202L, "IN_PROGRESS"}));
+
+        Query pgUpdateQ = mock(Query.class);
+        when(pgUpdateQ.setParameter(anyString(), any())).thenReturn(pgUpdateQ);
+        when(pgUpdateQ.executeUpdate()).thenReturn(1);
+
+        Query pgLockQ = mock(Query.class);
+        when(pgLockQ.setParameter(anyString(), any())).thenReturn(pgLockQ);
+        when(pgLockQ.getResultList()).thenReturn(
+                List.<Object[]>of(new Object[]{Boolean.TRUE, 2L, 4, Boolean.TRUE, Timestamp.from(Instant.now().minusSeconds(45))}),
+                List.<Object[]>of(new Object[]{Boolean.FALSE, 2L, 4, Boolean.TRUE, Timestamp.from(Instant.now().minusSeconds(45))})
+        );
+
+        Query pgLagQ = mock(Query.class);
+        when(pgLagQ.getSingleResult()).thenReturn(Timestamp.from(Instant.now().minusSeconds(45)));
+
+        when(mockPgEm.createNativeQuery(anyString())).thenAnswer(inv -> {
+            String sql = inv.getArgument(0);
+            if (sql.contains("AND aggregate_id = :aggregateId") && sql.contains("FOR UPDATE SKIP LOCKED")) {
+                return specificSelectQ;
+            }
+            if (sql.contains("SELECT dirty, target_version")) {
+                return pgLockQ;
+            }
+            if (sql.contains("MIN(pending_since)")) {
+                return pgLagQ;
+            }
+            return pgUpdateQ;
+        });
+        when(mockPgRepo.findAllById(List.of(202L))).thenReturn(List.of(pgEvent));
+        when(mockPgRepo.findById(202L)).thenReturn(Optional.of(pgEvent));
+
+        OutboxStore pgInstrumented = new OutboxStore(
+                mockPgEm, mockPgRepo, mockPgUserRepo, idGenerator, outboxProperties, metrics);
+        assertThat(pgInstrumented.claimSpecificUserReconcileJob(78L, Duration.ofSeconds(60), "pg-sync"))
+                .isPresent();
+        assertThat(pgInstrumented.releaseReconcileToPendingWithCas(202L, pgLease)).isTrue();
+        assertThat(pgInstrumented.markRetryOrFailedWithCas(
+                202L, pgLease, 78L, OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "dirty-retry", true))
+                .isTrue();
+        assertThat(pgInstrumented.markRetryOrFailedWithCas(
+                202L, pgLease, 78L, OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "perm-fail", false))
+                .isTrue();
+        assertThat(metrics.get("awgment_outbox_sync_failed_total").counter().count()).isEqualTo(1.0);
+        assertThat(pgInstrumented.measurePendingReconcileLagSeconds()).isGreaterThanOrEqualTo(40L);
+        assertThat(metrics.get("awgment_outbox_sla_breach_total").counter().count()).isGreaterThanOrEqualTo(1.0);
+        pgInstrumented.resetFailedForRetry(202L);
+        verify(mockPgUserRepo).updateSyncProgress(
+                org.mockito.ArgumentMatchers.eq(78L),
+                org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.eq(0L),
+                org.mockito.ArgumentMatchers.eq(SyncStatus.PENDING_SYNC),
+                any(Instant.class));
+
+        // Additional edge branches: null lease release, H2 wrong-status/null-pendingSince markRetry, PG dirty complete + toInstant variants
+        assertThat(outboxStore.releaseReconcileToPendingWithCas(101L, null)).isFalse();
+        KeycloakOutboxEventEntity pendingNonInProgress = outboxRepository.saveAndFlush(newEvent(
+                user.getId(), OutboxStatus.PENDING, Instant.now(), Instant.now(), UUID.randomUUID(), null, true));
+        assertThat(outboxStore.markRetryOrFailedWithCas(
+                pendingNonInProgress.getId(), pendingNonInProgress.getLeaseToken(),
+                user.getId(), OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "not-in-prog", false))
+                .isFalse();
+        UUID dirtyLease = UUID.randomUUID();
+        KeycloakOutboxEventEntity nullPendingDirty = newEvent(
+                user.getId() + 1L, OutboxStatus.IN_PROGRESS, Instant.now(), Instant.now(), dirtyLease, null, true);
+        nullPendingDirty.setPendingSince(null);
+        nullPendingDirty.setJobType(OutboxJobType.SEND_ACTION_EMAIL);
+        outboxRepository.saveAndFlush(nullPendingDirty);
+        assertThat(outboxStore.markRetryOrFailedWithCas(
+                nullPendingDirty.getId(), dirtyLease, user.getId() + 1L,
+                OutboxAggregateType.USER, OutboxJobType.SEND_ACTION_EMAIL, "e", false)).isTrue();
+
+        when(pgLockQ.getResultList()).thenReturn(
+                List.<Object[]>of(new Object[]{Boolean.FALSE, 5L, 0, Boolean.FALSE, null}),
+                List.<Object[]>of(new Object[]{Boolean.TRUE, 2L, 0, Boolean.FALSE, null})
+        );
+        when(pgUpdateQ.executeUpdate()).thenReturn(1, 0, 0);
+        assertThat(pgInstrumented.completeReconcileWithCas(
+                202L, pgLease, 78L, OutboxAggregateType.USER, 2L, "kc-78", true, false)
+                .reQueuedBecauseDirty()).isTrue();
+        assertThat(pgInstrumented.markRetryOrFailedWithCas(
+                202L, pgLease, 78L, OutboxAggregateType.USER, OutboxJobType.RECONCILE_USER, "err", false))
+                .isFalse();
+        assertThat(pgInstrumented.releaseReconcileToPendingWithCas(202L, pgLease)).isFalse();
+
+        when(pgLagQ.getSingleResult()).thenReturn(
+                null,
+                Instant.now().minusSeconds(10),
+                java.time.OffsetDateTime.now().minusSeconds(5),
+                "unexpected-type");
+        assertThat(pgInstrumented.measurePendingReconcileLagSeconds()).isZero();
+        assertThat(pgInstrumented.measurePendingReconcileLagSeconds()).isGreaterThanOrEqualTo(9L);
+        assertThat(pgInstrumented.measurePendingReconcileLagSeconds()).isGreaterThanOrEqualTo(4L);
+        assertThat(pgInstrumented.measurePendingReconcileLagSeconds()).isZero();
     }
 
     private UserEntity createUser(String userName, long syncVersion, UserStatus status) {
