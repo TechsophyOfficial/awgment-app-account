@@ -2,6 +2,10 @@ package com.techsophy.tsf.account.error;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.techsophy.tsf.account.security.JsonPayloadTooLargeException;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.persistence.PessimisticLockException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Path;
@@ -14,8 +18,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.MethodParameter;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -244,14 +250,36 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldMapOptimisticLockingFailureTo409ConcurrentModification() throws Exception {
+    void shouldMapOptimisticLockingAndConcurrencyFailuresTo409ConcurrentModification() throws Exception {
         mockMvc.perform(get("/test/concurrent"))
                 .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("CONCURRENT_MODIFICATION"));
+
+        mockMvc.perform(get("/test/deadlock"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("CONCURRENT_MODIFICATION"));
+
+        mockMvc.perform(get("/test/lock-acquire"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errorCode").value("CONCURRENT_MODIFICATION"));
     }
 
     @Test
-    void shouldMapDataIntegrityViolationsBySqlStateWithoutSqlLeakage() throws Exception {
+    void shouldMapDataIntegrityViolationsBySqlStateAndConstraintNameWithoutSqlLeakage() throws Exception {
+        mockMvc.perform(get("/test/duplicate-email-hibernate"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("EMAIL_ALREADY_CLAIMED"))
+                .andExpect(jsonPath("$.detail", not(containsString("uq_tp_user_active_email"))));
+
+        mockMvc.perform(get("/test/duplicate-email-sql"))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.errorCode").value("EMAIL_ALREADY_CLAIMED"))
+                .andExpect(jsonPath("$.detail", not(containsString("uq_tp_user_active_email"))));
+
         mockMvc.perform(get("/test/duplicate-sql"))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
@@ -405,6 +433,19 @@ class GlobalExceptionHandlerTest {
         assertThat(cvResp.getStatusCode().value()).isEqualTo(400);
         assertThat(cvResp.getBody()).isNotNull();
         assertThat(cvResp.getBody().getProperties()).containsKey("fieldErrors");
+
+        assertThat(handler.handleConcurrencyFailure(new OptimisticLockException("ver"), request)
+                .getStatusCode().value()).isEqualTo(409);
+        assertThat(handler.handleConcurrencyFailure(new PessimisticLockException("lock"), request)
+                .getStatusCode().value()).isEqualTo(409);
+        assertThat(handler.handleConcurrencyFailure(new LockTimeoutException("timeout"), request)
+                .getStatusCode().value()).isEqualTo(409);
+        assertThat(handler.handleMessageNotReadable(
+                new org.springframework.http.converter.HttpMessageNotReadableException(
+                        "too large",
+                        new JsonPayloadTooLargeException("too large"),
+                        new org.springframework.mock.http.MockHttpInputMessage(new byte[0])),
+                request).getStatusCode().value()).isEqualTo(413);
     }
 
     @Test
@@ -509,6 +550,38 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/test/concurrent")
         void concurrent() {
             throw new OptimisticLockingFailureException("Row updated by another transaction");
+        }
+
+        @GetMapping("/test/deadlock")
+        void deadlock() {
+            throw new PessimisticLockingFailureException(
+                    "deadlock", new java.sql.SQLException("deadlock detected", "40P01"));
+        }
+
+        @GetMapping("/test/lock-acquire")
+        void lockAcquire() {
+            throw new CannotAcquireLockException("could not obtain lock on row in relation tp_keycloak_outbox");
+        }
+
+        @GetMapping("/test/duplicate-email-hibernate")
+        void duplicateEmailHibernate() {
+            throw new DataIntegrityViolationException(
+                    "dup email",
+                    new org.hibernate.exception.ConstraintViolationException(
+                            "duplicate key value violates unique constraint",
+                            new java.sql.SQLException("duplicate key", "235" + "05"),
+                            "uq_tp_user_active_email"
+                    ));
+        }
+
+        @GetMapping("/test/duplicate-email-sql")
+        void duplicateEmailSql() {
+            throw new DataIntegrityViolationException(
+                    "dup email",
+                    new java.sql.SQLException(
+                            "ERROR: duplicate key value violates unique constraint \"uq_tp_user_active_email\"",
+                            "235" + "05"
+                    ));
         }
 
         @GetMapping("/test/duplicate-sql")

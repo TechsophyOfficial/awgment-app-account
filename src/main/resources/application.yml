@@ -59,7 +59,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
 
 springdoc:
   api-docs:
@@ -88,6 +88,7 @@ awgment:
     oidc-read-timeout-ms: ${AWGMENT_SECURITY_OIDC_READ_TIMEOUT_MS:8000}
     dev-docs-enabled: ${AWGMENT_OPENAPI_ENABLED:false}
     service-account-clients: ${AWGMENT_SERVICE_ACCOUNT_CLIENTS:awgment-service-client}
+    max-json-body-size: ${AWGMENT_SECURITY_MAX_JSON_BODY_SIZE:256KB}
   keycloak:
     admin:
       server-url: ${AWGMENT_KEYCLOAK_ADMIN_URL:${AWGMENT_KEYCLOAK_INTERNAL_URL:${AWGMENT_KEYCLOAK_URL:http://localhost:8080}}}
@@ -98,3 +99,16 @@ awgment:
       password: ${AWGMENT_KEYCLOAK_ADMIN_PASSWORD:}
       connect-timeout-ms: ${AWGMENT_KEYCLOAK_CONNECT_TIMEOUT_MS:5000}
       read-timeout-ms: ${AWGMENT_KEYCLOAK_READ_TIMEOUT_MS:8000}
+  outbox:
+    worker-enabled: ${AWGMENT_OUTBOX_WORKER_ENABLED:true}
+    poll-interval-ms: ${AWGMENT_OUTBOX_POLL_INTERVAL_MS:2000}
+    lease-ttl-seconds: ${AWGMENT_OUTBOX_LEASE_TTL_SECONDS:60}
+    verification-delay-seconds: ${AWGMENT_OUTBOX_VERIFICATION_DELAY_SECONDS:15}
+    sync-revoke-timeout-ms: ${AWGMENT_OUTBOX_SYNC_REVOKE_TIMEOUT_MS:5000}
+    max-retries: ${AWGMENT_OUTBOX_MAX_RETRIES:5}
+    batch-size: ${AWGMENT_OUTBOX_BATCH_SIZE:20}
+    base-backoff-seconds: ${AWGMENT_OUTBOX_BASE_BACKOFF_SECONDS:5}
+    max-backoff-seconds: ${AWGMENT_OUTBOX_MAX_BACKOFF_SECONDS:300}
+    # Phase 2 scaffolding default: stamps DISPATCHED without SMTP send until Phase 4A delivery lands
+    action-email-delivery-enabled: ${AWGMENT_OUTBOX_ACTION_EMAIL_DELIVERY_ENABLED:false}
+    worker-id: ${AWGMENT_OUTBOX_WORKER_ID:}

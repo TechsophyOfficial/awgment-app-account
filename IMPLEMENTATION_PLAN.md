@@ -82,12 +82,12 @@ flowchart LR
 ### Phase 2 — Core User Profiles, Self-Service & Coalesced Outbox Engine (`9` UCs)
 * **Use Cases:** `UC-USER-01`, `UC-USER-02`, `UC-USER-03`, `UC-USER-04`, `UC-USER-05`, `UC-USER-06`, `UC-USER-07`, `UC-SYNC-01`, `UC-SYNC-02`
 * **Tests Written First:**
-  - [ ] `CoalescedOutboxConcurrencyIT` (**Section 10 Scenario 1**): single active reconcile row per aggregate (`UNIQUE` partial index, `dirty` flag), strict `<= 10s` HTTP timeout `<< 60s` lease TTL, `awgment_sync_version` pre-write fencing, and **paused-worker resumption after disable reconciliation** healed by the `15s` forced verification pass.
-  - [ ] `UserRevocationIT` (**Section 10 Scenario 2**): synchronous-first Keycloak `disable+logout` returning `204` on success, `202` + `awgment_revocation_sync_failed_total` metric on KC failure while blocking `awgment-app-account` immediately; self-disable (`403 SELF_ACTION_FORBIDDEN`) and higher-tier target guard (`403`).
-  - [ ] `UserProfileServiceTest` & `UserControllerIT`: partial unique email/username (`WHERE status IN ('ACTIVE', 'DISABLED')`), `@Version` optimistic lock (`409 CONCURRENT_MODIFICATION`), immutable `userName`/`emailId`/`identitySource`/`idpAlias`, indexed JPA search/pagination, `/users/me` strict `sub` lookup, `locale` persistence + Keycloak `locale` outbox sync (Option 1 i18n), and `PUT /users/me` rejecting `department`/`attributes` (`400 IMMUTABLE_FIELD_MODIFICATION`).
-  - [ ] `OutboxControllerIT`: `UC-SYNC-01` inspect & `UC-SYNC-02` retry.
+  - [x] `CoalescedOutboxConcurrencyIT` (**Section 10 Scenario 1**): single active reconcile row per aggregate (`UNIQUE` partial index, `dirty` flag), strict `<= 10s` HTTP timeout `<< 60s` lease TTL, `awgment_sync_version` pre-write fencing, and **paused-worker resumption after disable reconciliation** healed by the `15s` forced verification pass.
+  - [x] `UserRevocationIT` (**Section 10 Scenario 2**): synchronous-first Keycloak `disable+logout` returning `204` on success, `202` + `awgment_revocation_sync_failed_total` metric on KC failure while blocking `awgment-app-account` immediately; self-disable (`403 SELF_ACTION_FORBIDDEN`) and higher-tier target guard (`403`).
+  - [x] `UserProfileServiceTest` & `UserControllerIT`: partial unique email/username (`WHERE status IN ('ACTIVE', 'DISABLED')`), `@Version` optimistic lock (`409 CONCURRENT_MODIFICATION`), immutable `userName`/`emailId`/`identitySource`/`idpAlias`, indexed JPA search/pagination, `/users/me` strict `sub` lookup, `locale` persistence + Keycloak `locale` outbox sync (Option 1 i18n), and `PUT /users/me` rejecting `department`/`attributes` (`400 IMMUTABLE_FIELD_MODIFICATION`).
+  - [x] `OutboxControllerIT`: `UC-SYNC-01` inspect & `UC-SYNC-02` retry.
 * **Implementation:**
-  - [ ] `UserDefinition`, `KeycloakOutboxEvent`, coalesced outbox worker + `KeycloakAdminAdapter` (timeouts, `awgment_sync_version`, zero plaintext passwords), core 4-tier `RoleGovernancePolicy` (direct + composite closure), `UserController`/`UserService`, `SyncOutboxController`.
+  - [x] `UserDefinition`, `KeycloakOutboxEvent`, coalesced outbox worker + `KeycloakAdminAdapter` (timeouts, `awgment_sync_version`, zero plaintext passwords), core 4-tier `RoleGovernancePolicy` (direct + composite closure), `UserController`/`UserService`, `SyncOutboxController`.
 * **Exit Gate:** Section 10 Scenarios 1 & 2 pass; `./gradlew check` green.
 
 ---
@@ -179,11 +179,11 @@ flowchart LR
 | :--- | :---: | :--- |
 | **Phase 0:** Modernization Bootstrap, Pruning & Keycloak 26 Test Harness | — | Completed (`feat/phase-0-bootstrap-keycloak-harness`) |
 | **Phase 1:** Multi-Tenancy, Security Core & Tenant Provisioning | 5 | Completed (`feat/phase-1-multitenancy-tenant-lifecycle`) |
-| **Phase 2:** Core User Profiles, `/me` & Coalesced Outbox | 9 | Not Started |
+| **Phase 2:** Core User Profiles, `/me` & Coalesced Outbox | 9 | Completed (`feat/phase-2-users-coalesced-outbox`) |
 | **Phase 3:** Trusted IdPs, JIT Onboarding & Approvals | 7 | Not Started |
 | **Phase 4A:** Governed Roles & Action Emails | 7 | Not Started |
 | **Phase 4B:** Unified Enterprise Groups | 6 | Not Started |
 | **Phase 5:** Fine-Grained ACL Engine & Delegation | 6 | Not Started |
 | **Phase 6:** Crash-Safe Durable Bulk Queue | 4 | Not Started |
 | **Phase 7:** Production Keycloak 26 Packaging, Full E2E & Developer Guide | — | Not Started |
-| **Total Core Implementation** | **44** | **5 / 44** |
+| **Total Core Implementation** | **44** | **14 / 44** |
