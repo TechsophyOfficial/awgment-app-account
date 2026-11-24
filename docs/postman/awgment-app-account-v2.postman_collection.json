@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "a7f3c8e1-2d4b-4b9a-9f11-8c3e1a000001",
-    "name": "Awgment Account API v2 (Phase 1)",
-    "description": "Postman Collection v2.1 for Awgment Headless Multi-Tenant IAM Service (/accounts/v2). Currently covers Phase 0 (Actuator Probes) and Phase 1 (UC-TENANT-01..04, UC-AUTH-01). Import companion environment docs/postman/awgment-local.postman_environment.json and populate local dev secrets before running.",
+    "name": "Awgment Account API v2 (Phase 2)",
+    "description": "Postman Collection v2.1 for Awgment Headless Multi-Tenant IAM Service (/accounts/v2). Covers Phase 0 (Actuator Probes), Phase 1 (UC-TENANT-01..04, UC-AUTH-01), and Phase 2 (UC-USER-01..07, UC-SYNC-01..02). Import companion environment docs/postman/awgment-local.postman_environment.json and populate local dev secrets before running.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,7 +11,12 @@
     { "key": "platformRealm", "value": "platform" },
     { "key": "tenantRealm", "value": "acme" },
     { "key": "tenantId", "value": "acme" },
-    { "key": "tenantVersion", "value": "0" }
+    { "key": "tenantVersion", "value": "0" },
+    { "key": "userId", "value": "2001" },
+    { "key": "userVersion", "value": "0" },
+    { "key": "outboxId", "value": "3001" },
+    { "key": "sampleUserName", "value": "alice.smith" },
+    { "key": "sampleUserEmail", "value": "" }
   ],
   "item": [
     {
@@ -105,6 +110,51 @@
               "path": ["realms", "{{tenantRealm}}", "protocol", "openid-connect", "token"]
             },
             "description": "Fetches a tenant-scoped JWT from {{tenantRealm}} and stores it in {{accessToken}}."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Tenant Approver Token (acme realm)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Access token returned', function () {",
+                  "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.environment.set('approverToken', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password", "type": "text" },
+                { "key": "client_id", "value": "{{tenantClientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{tenantClientSecret}}", "type": "text" },
+                { "key": "username", "value": "{{approverUsername}}", "type": "text" },
+                { "key": "password", "value": "{{approverPassword}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{tenantRealm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{tenantRealm}}", "protocol", "openid-connect", "token"]
+            },
+            "description": "Fetches a Tier 1 awgment-account-admin JWT from {{tenantRealm}} and stores it in {{approverToken}}."
           },
           "response": []
         }
@@ -612,6 +662,640 @@
               "code": 401,
               "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
               "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-token\",\n  \"title\": \"Authentication Required\",\n  \"status\": 401,\n  \"detail\": \"Authentication is required to access this resource.\",\n  \"instance\": \"/accounts/v2/tenants\",\n  \"errorCode\": \"INVALID_TOKEN\",\n  \"timestamp\": \"2026-11-23T05:16:00Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Users (UC-USER-01..07)",
+      "description": "Tenant-scoped user profile lifecycle and /users/me self-service endpoints (/accounts/v2/users/**).",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{accessToken}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "UC-USER-01a - Provision New User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User provisioned with 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('User is ACTIVE and queued for Keycloak sync', function () {",
+                  "    pm.expect(body.status).to.eql('ACTIVE');",
+                  "    pm.expect(body.id).to.be.a('number');",
+                  "});",
+                  "if (body.id !== undefined) { pm.environment.set('userId', String(body.id)); }",
+                  "if (body.version !== undefined) { pm.environment.set('userVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"{{sampleUserName}}\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"mobileNumber\": \"+1-555-0100\",\n  \"department\": \"Engineering\",\n  \"locale\": \"en\",\n  \"timezone\": \"UTC\",\n  \"attributes\": {\n    \"region\": \"apac\"\n  },\n  \"identitySource\": \"KEYCLOAK_LOCAL\",\n  \"roles\": [\"awgment-user\"],\n  \"groups\": []\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users"]
+            },
+            "description": "UC-USER-01 (Create): Normalizes username/email, enforces 4-tier RoleGovernancePolicy, persists tp_user, upserts coalesced RECONCILE_USER (+ SEND_ACTION_EMAIL for local users), and dispatches post-commit."
+          },
+          "response": [
+            {
+              "name": "201 Created - User Active",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users" }
+              },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 2001,\n  \"userName\": \"alice.smith\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"mobileNumber\": \"+1-555-0100\",\n  \"department\": \"Engineering\",\n  \"locale\": \"en\",\n  \"timezone\": \"UTC\",\n  \"selfServicePreferences\": {},\n  \"attributes\": { \"region\": \"apac\" },\n  \"identitySource\": \"KEYCLOAK_LOCAL\",\n  \"provisioningMode\": \"DIRECT_OPERATOR\",\n  \"status\": \"ACTIVE\",\n  \"desiredRoles\": [\"awgment-user\"],\n  \"desiredGroups\": [],\n  \"syncStatus\": \"PENDING_SYNC\",\n  \"version\": 0,\n  \"createdAt\": \"2026-11-24T05:00:00Z\",\n  \"updatedAt\": \"2026-11-24T05:00:00Z\"\n}"
+            },
+            {
+              "name": "403 Forbidden - ROLE_ESCALATION_FORBIDDEN",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users" }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/role-escalation-forbidden\",\n  \"title\": \"Role Escalation Forbidden\",\n  \"status\": 403,\n  \"detail\": \"Cannot assign protected TIER_1_APPROVER role 'awgment-account-admin'.\",\n  \"instance\": \"/accounts/v2/users\",\n  \"errorCode\": \"ROLE_ESCALATION_FORBIDDEN\",\n  \"timestamp\": \"2026-11-24T05:00:00Z\"\n}"
+            },
+            {
+              "name": "409 Conflict - EMAIL_ALREADY_CLAIMED",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/email-already-claimed\",\n  \"title\": \"Email Already Claimed\",\n  \"status\": 409,\n  \"detail\": \"An active or disabled user already claims this email address.\",\n  \"instance\": \"/accounts/v2/users\",\n  \"errorCode\": \"EMAIL_ALREADY_CLAIMED\",\n  \"timestamp\": \"2026-11-24T05:00:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-01b - Update User Profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User updated with 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.version !== undefined) { pm.environment.set('userVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"department\": \"Security\",\n  \"locale\": \"fr\",\n  \"timezone\": \"Europe/Paris\",\n  \"attributes\": {\n    \"region\": \"emea\"\n  },\n  \"version\": {{userVersion}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users", "{{userId}}"]
+            },
+            "description": "UC-USER-01 (Update): Validates optimistic lock @Version, enforces higher-tier target protection across desired + live Keycloak roles, updates admin fields, and increments sync_version."
+          },
+          "response": [
+            {
+              "name": "200 OK - User Updated",
+              "originalRequest": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 2001,\n  \"userName\": \"alice.smith\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"department\": \"Security\",\n  \"locale\": \"fr\",\n  \"timezone\": \"Europe/Paris\",\n  \"attributes\": { \"region\": \"emea\" },\n  \"identitySource\": \"KEYCLOAK_LOCAL\",\n  \"provisioningMode\": \"DIRECT_OPERATOR\",\n  \"status\": \"ACTIVE\",\n  \"syncStatus\": \"PENDING_SYNC\",\n  \"version\": 1,\n  \"updatedAt\": \"2026-11-24T05:05:00Z\"\n}"
+            },
+            {
+              "name": "400 Bad Request - IMMUTABLE_FIELD_MODIFICATION",
+              "originalRequest": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/immutable-field-modification\",\n  \"title\": \"Immutable Field Modification\",\n  \"status\": 400,\n  \"detail\": \"Field 'emailId' is not permitted or is immutable.\",\n  \"instance\": \"/accounts/v2/users/2001\",\n  \"errorCode\": \"IMMUTABLE_FIELD_MODIFICATION\",\n  \"timestamp\": \"2026-11-24T05:05:00Z\"\n}"
+            },
+            {
+              "name": "409 Conflict - CONCURRENT_MODIFICATION",
+              "originalRequest": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/concurrent-modification\",\n  \"title\": \"Concurrent Modification\",\n  \"status\": 409,\n  \"detail\": \"Resource was modified concurrently. Please reload and retry.\",\n  \"instance\": \"/accounts/v2/users/2001\",\n  \"errorCode\": \"CONCURRENT_MODIFICATION\",\n  \"timestamp\": \"2026-11-24T05:05:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-02 - Get User by ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get user returns 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('User ID matches', function () {",
+                  "    pm.expect(body.id).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}?onlyMandatoryFields=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users", "{{userId}}"],
+              "query": [
+                { "key": "onlyMandatoryFields", "value": "false", "description": "Set true to return mandatory fields only" }
+              ]
+            },
+            "description": "UC-USER-02: Fetches a user profile by canonical Snowflake ID, supporting onlyMandatoryFields projection."
+          },
+          "response": [
+            {
+              "name": "200 OK - Mandatory Fields Only",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}?onlyMandatoryFields=true" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 2001,\n  \"userName\": \"alice.smith\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"locale\": \"fr\",\n  \"identitySource\": \"KEYCLOAK_LOCAL\",\n  \"status\": \"ACTIVE\",\n  \"syncStatus\": \"SYNCED\",\n  \"version\": 1\n}"
+            },
+            {
+              "name": "404 Not Found - RESOURCE_NOT_FOUND",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/resource-not-found\",\n  \"title\": \"Resource Not Found\",\n  \"status\": 404,\n  \"detail\": \"User '2001' was not found.\",\n  \"instance\": \"/accounts/v2/users/2001\",\n  \"errorCode\": \"RESOURCE_NOT_FOUND\",\n  \"timestamp\": \"2026-11-24T05:06:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-03 - Search & Filter Users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Search users returns 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Response is paginated', function () {",
+                  "    pm.expect(body.content).to.be.an('array');",
+                  "    pm.expect(body.totalElements).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users?page=0&size=20&sort=createdAt,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users"],
+              "query": [
+                { "key": "q", "value": "alice", "description": "Case-insensitive prefix match on userName/emailId/firstName/lastName", "disabled": true },
+                { "key": "status", "value": "ACTIVE", "description": "PENDING_APPROVAL | ACTIVE | REJECTED | DISABLED", "disabled": true },
+                { "key": "identitySource", "value": "KEYCLOAK_LOCAL", "description": "KEYCLOAK_LOCAL | EXTERNAL_IDP", "disabled": true },
+                { "key": "idpAlias", "value": "entra-acme", "disabled": true },
+                { "key": "department", "value": "Engineering", "disabled": true },
+                { "key": "loginId", "value": "system", "disabled": true },
+                { "key": "onlyMandatoryFields", "value": "false", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20", "description": "Page size (1..200)" },
+                { "key": "sort", "value": "createdAt,desc" }
+              ]
+            },
+            "description": "UC-USER-03: Searches tenant users with indexed JPA Specifications; conceals user_name='system' unless verified service account or loginId=system."
+          },
+          "response": [
+            {
+              "name": "200 OK - Paginated Users",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users?page=0&size=20&sort=createdAt,desc" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"content\": [\n    {\n      \"id\": 2001,\n      \"userName\": \"alice.smith\",\n      \"emailId\": \"{{sampleUserEmail}}\",\n      \"firstName\": \"Alice\",\n      \"lastName\": \"Smith\",\n      \"department\": \"Security\",\n      \"locale\": \"fr\",\n      \"identitySource\": \"KEYCLOAK_LOCAL\",\n      \"provisioningMode\": \"DIRECT_OPERATOR\",\n      \"status\": \"ACTIVE\",\n      \"syncStatus\": \"SYNCED\",\n      \"version\": 1\n    }\n  ],\n  \"page\": 0,\n  \"size\": 20,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-04 - Deactivate (Soft-Delete) User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Deactivate returns 204 No Content or 202 Accepted', function () {",
+                  "    pm.expect([202, 204]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users", "{{userId}}"]
+            },
+            "description": "UC-USER-04: Commits DISABLED + RECONCILE_USER in PostgreSQL and attempts synchronous Keycloak disable+logout within 5s (204 on success, 202 PENDING_SYNC if Keycloak is unavailable)."
+          },
+          "response": [
+            {
+              "name": "204 No Content - Synchronously Revoked",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "No Content",
+              "code": 204,
+              "header": [],
+              "body": ""
+            },
+            {
+              "name": "202 Accepted - Deferred to Outbox",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"DISABLED\",\n  \"syncStatus\": \"PENDING_SYNC\"\n}"
+            },
+            {
+              "name": "403 Forbidden - SELF_ACTION_FORBIDDEN",
+              "originalRequest": {
+                "method": "DELETE",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}" }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/self-action-forbidden\",\n  \"title\": \"Self Action Forbidden\",\n  \"status\": 403,\n  \"detail\": \"Users are not permitted to disable their own account.\",\n  \"instance\": \"/accounts/v2/users/2001\",\n  \"errorCode\": \"SELF_ACTION_FORBIDDEN\",\n  \"timestamp\": \"2026-11-24T05:10:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-05 - Reactivate Disabled User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('User reactivated with 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().status).to.eql('ACTIVE');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{approverToken}}", "type": "string" }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}/reactivate",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users", "{{userId}}", "reactivate"]
+            },
+            "description": "UC-USER-05: Transitions a DISABLED user back to ACTIVE and enqueues RECONCILE_USER. Requires awgment-account-admin authority."
+          },
+          "response": [
+            {
+              "name": "200 OK - Reactivated",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}/reactivate" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 2001,\n  \"userName\": \"alice.smith\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"status\": \"ACTIVE\",\n  \"syncStatus\": \"PENDING_SYNC\",\n  \"version\": 2\n}"
+            },
+            {
+              "name": "409 Conflict - INVALID_STATE_TRANSITION",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/{{userId}}/reactivate" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-state-transition\",\n  \"title\": \"Invalid State Transition\",\n  \"status\": 409,\n  \"detail\": \"User '2001' cannot be reactivated from status ACTIVE.\",\n  \"instance\": \"/accounts/v2/users/2001/reactivate\",\n  \"errorCode\": \"INVALID_STATE_TRANSITION\",\n  \"timestamp\": \"2026-11-24T05:12:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-06 - View Own Profile (/users/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Get own profile returns 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.version !== undefined) { pm.environment.set('userVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users", "me"]
+            },
+            "description": "UC-USER-06: Resolves caller strictly by jwt.sub and requires ACTIVE status (returns 403 ACCESS_DISABLED/PENDING_APPROVAL/REJECTED otherwise)."
+          },
+          "response": [
+            {
+              "name": "200 OK - Own Profile",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/me" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 2001,\n  \"userName\": \"alice.smith\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"firstName\": \"Alice\",\n  \"lastName\": \"Smith\",\n  \"department\": \"Security\",\n  \"locale\": \"fr\",\n  \"selfServicePreferences\": { \"theme\": \"dark\" },\n  \"status\": \"ACTIVE\",\n  \"syncStatus\": \"SYNCED\",\n  \"version\": 2\n}"
+            },
+            {
+              "name": "403 Forbidden - ACCESS_DISABLED",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/me" }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/access-disabled\",\n  \"title\": \"Access Disabled\",\n  \"status\": 403,\n  \"detail\": \"User account is disabled.\",\n  \"instance\": \"/accounts/v2/users/me\",\n  \"errorCode\": \"ACCESS_DISABLED\",\n  \"timestamp\": \"2026-11-24T05:13:00Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-USER-07 - Self-Service Update (/users/me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Self-service profile updated with 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "if (body.version !== undefined) { pm.environment.set('userVersion', String(body.version)); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"+1-555-0199\",\n  \"locale\": \"ja\",\n  \"timezone\": \"Asia/Tokyo\",\n  \"selfServicePreferences\": {\n    \"theme\": \"dark\",\n    \"density\": \"compact\"\n  },\n  \"version\": {{userVersion}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "users", "me"]
+            },
+            "description": "UC-USER-07: Updates non-ACL self-service fields only (rejects department/attributes/status/roles/groups with 400 IMMUTABLE_FIELD_MODIFICATION). Syncs locale/name changes to Keycloak."
+          },
+          "response": [
+            {
+              "name": "200 OK - Self-Service Updated",
+              "originalRequest": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/me" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 2001,\n  \"userName\": \"alice.smith\",\n  \"emailId\": \"{{sampleUserEmail}}\",\n  \"mobileNumber\": \"+1-555-0199\",\n  \"locale\": \"ja\",\n  \"timezone\": \"Asia/Tokyo\",\n  \"selfServicePreferences\": { \"theme\": \"dark\", \"density\": \"compact\" },\n  \"status\": \"ACTIVE\",\n  \"syncStatus\": \"PENDING_SYNC\",\n  \"version\": 3\n}"
+            },
+            {
+              "name": "400 Bad Request - IMMUTABLE_FIELD_MODIFICATION",
+              "originalRequest": {
+                "method": "PUT",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/users/me" }
+              },
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/immutable-field-modification\",\n  \"title\": \"Immutable Field Modification\",\n  \"status\": 400,\n  \"detail\": \"Field 'department' is not permitted or is immutable.\",\n  \"instance\": \"/accounts/v2/users/me\",\n  \"errorCode\": \"IMMUTABLE_FIELD_MODIFICATION\",\n  \"timestamp\": \"2026-11-24T05:14:00Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 - Sync Outbox (UC-SYNC-01..02)",
+      "description": "Coalesced outbox inspection and failure retry endpoints (/accounts/v2/sync/outbox/**).",
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          { "key": "token", "value": "{{accessToken}}", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "UC-SYNC-01 - List Outbox Events",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('List outbox events returns 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Outbox response is paginated', function () {",
+                  "    pm.expect(body.content).to.be.an('array');",
+                  "});",
+                  "if (body.content && body.content.length > 0 && body.content[0].id !== undefined) {",
+                  "    pm.environment.set('outboxId', String(body.content[0].id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/sync/outbox?page=0&size=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "sync", "outbox"],
+              "query": [
+                { "key": "status", "value": "FAILED", "description": "PENDING | IN_PROGRESS | COMPLETED | DISPATCHED | CANCELLED | FAILED", "disabled": true },
+                { "key": "aggregateType", "value": "USER", "description": "USER | GROUP", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "50", "description": "Page size (1..100)" }
+              ]
+            },
+            "description": "UC-SYNC-01: Returns paginated visibility into coalesced reconciliation and email outbox jobs."
+          },
+          "response": [
+            {
+              "name": "200 OK - Paginated Outbox Events",
+              "originalRequest": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/sync/outbox?page=0&size=50" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"content\": [\n    {\n      \"id\": 3001,\n      \"jobType\": \"RECONCILE_USER\",\n      \"aggregateType\": \"USER\",\n      \"aggregateId\": 2001,\n      \"targetVersion\": 1,\n      \"dirty\": false,\n      \"ambiguousDelivery\": false,\n      \"status\": \"FAILED\",\n      \"retryCount\": 5,\n      \"nextRetryAt\": \"2026-11-24T05:15:00Z\",\n      \"lastError\": \"Keycloak timeout\",\n      \"createdOn\": \"2026-11-24T05:00:00Z\",\n      \"updatedOn\": \"2026-11-24T05:15:00Z\"\n    }\n  ],\n  \"page\": 0,\n  \"size\": 50,\n  \"totalElements\": 1,\n  \"totalPages\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "UC-SYNC-02 - Retry Failed Outbox Job",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Retry outbox job returns 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const body = pm.response.json();",
+                  "pm.test('Job status reset from FAILED', function () {",
+                  "    pm.expect(body.status).to.not.eql('FAILED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/accounts/v2/sync/outbox/{{outboxId}}/retry",
+              "host": ["{{baseUrl}}"],
+              "path": ["accounts", "v2", "sync", "outbox", "{{outboxId}}", "retry"]
+            },
+            "description": "UC-SYNC-02: Resets a FAILED RECONCILE_* job to PENDING and triggers immediate reconciliation. Rejects ambiguous SEND_ACTION_EMAIL rows with 409 INVALID_STATE_TRANSITION."
+          },
+          "response": [
+            {
+              "name": "200 OK - Outbox Job Retried",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/sync/outbox/{{outboxId}}/retry" }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 3001,\n  \"jobType\": \"RECONCILE_USER\",\n  \"aggregateType\": \"USER\",\n  \"aggregateId\": 2001,\n  \"targetVersion\": 1,\n  \"dirty\": false,\n  \"ambiguousDelivery\": false,\n  \"status\": \"PENDING\",\n  \"retryCount\": 0,\n  \"nextRetryAt\": \"2026-11-24T05:16:00Z\",\n  \"createdOn\": \"2026-11-24T05:00:00Z\",\n  \"updatedOn\": \"2026-11-24T05:16:00Z\"\n}"
+            },
+            {
+              "name": "409 Conflict - INVALID_STATE_TRANSITION",
+              "originalRequest": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/accounts/v2/sync/outbox/{{outboxId}}/retry" }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "header": [{ "key": "Content-Type", "value": "application/problem+json" }],
+              "body": "{\n  \"type\": \"https://awgment.dev/errors/invalid-state-transition\",\n  \"title\": \"Invalid State Transition\",\n  \"status\": 409,\n  \"detail\": \"Ambiguous SEND_ACTION_EMAIL delivery cannot be retried via outbox; use resend-invite explicitly.\",\n  \"instance\": \"/accounts/v2/sync/outbox/3001/retry\",\n  \"errorCode\": \"INVALID_STATE_TRANSITION\",\n  \"timestamp\": \"2026-11-24T05:16:00Z\"\n}"
             }
           ]
         }

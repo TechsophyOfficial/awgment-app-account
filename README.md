@@ -80,6 +80,16 @@ All runtime settings are configured in [src/main/resources/application.yml](./sr
 | `AWGMENT_KEYCLOAK_ADMIN_PASSWORD` | *(none; `local` profile only)* | Conditional | Admin password when using `password` grant (dev default exists only in `local` profile; inject via secret manager in production). |
 | `AWGMENT_KEYCLOAK_CONNECT_TIMEOUT_MS` | `5000` | No | Bounded HTTP connect timeout (ms, min `100`) for Keycloak Admin REST calls. |
 | `AWGMENT_KEYCLOAK_READ_TIMEOUT_MS` | `8000` | No | Bounded HTTP read timeout (ms, min `100`) for Keycloak Admin REST calls. |
+| `AWGMENT_OUTBOX_WORKER_ENABLED` | `true` | No | Enables the scheduled coalesced outbox poller (`CoalescedOutboxWorker`). |
+| `AWGMENT_OUTBOX_POLL_INTERVAL_MS` | `2000` | No | Fixed delay (ms, min `100`) between outbox polling passes across `ACTIVE` tenants. |
+| `AWGMENT_OUTBOX_LEASE_TTL_SECONDS` | `60` | No | Distributed lease duration (seconds, min `5`, strictly `>>` Keycloak HTTP timeout) before an `IN_PROGRESS` job is reclaimable. |
+| `AWGMENT_OUTBOX_VERIFICATION_DELAY_SECONDS` | `15` | No | Forced verification reconcile delay (seconds, min `1`) scheduled after reclaiming an expired lease. |
+| `AWGMENT_OUTBOX_SYNC_REVOKE_TIMEOUT_MS` | `5000` | No | Bounded synchronous Keycloak revocation deadline (ms, `500..10000`) on `DELETE /accounts/v2/users/{id}`. |
+| `AWGMENT_OUTBOX_MAX_RETRIES` | `5` | No | Maximum retry attempts (min `1`) before an outbox row transitions to `FAILED`. |
+| `AWGMENT_OUTBOX_BATCH_SIZE` | `20` | No | Maximum outbox rows claimed per tenant poll (`1..200`). |
+| `AWGMENT_OUTBOX_BASE_BACKOFF_SECONDS` | `5` | No | Initial exponential retry backoff delay (seconds, min `1`). |
+| `AWGMENT_OUTBOX_MAX_BACKOFF_SECONDS` | `300` | No | Maximum exponential retry backoff delay (seconds, min `5`). |
+| `AWGMENT_OUTBOX_WORKER_ID` | *(hostname/UUID)* | No | Optional worker identifier stamped onto `tp_keycloak_outbox.locked_by` (truncated to 100 chars). |
 | `AWGMENT_OPENAPI_ENABLED` | `false` | No | Exposes `/v3/api-docs` & `/swagger-ui.html`. **Must remain `false` in production.** |
 
 ### Implemented Phase 1 Endpoints (`/accounts/v2/tenants/**`)
@@ -92,6 +102,23 @@ All tenant management endpoints strictly require a valid bearer JWT issued by `A
 | `UC-TENANT-02` | `POST /accounts/v2/tenants/{tenantId}/retry-provisioning` | Idempotently resumes a `PROVISIONING_FAILED` tenant (`200 OK`; `409 INVALID_STATE_TRANSITION` for other states). |
 | `UC-TENANT-03` | `GET /accounts/v2/tenants` | Paginated tenant listing with optional `status` filter, bounded `page >= 0` & `size` (`1..100`), and allowlisted `sort` fields (`tenantId`, `displayName`, `status`, `createdAt`, `updatedAt`). |
 | `UC-TENANT-04` | `PATCH /accounts/v2/tenants/{tenantId}/status` | Optimistic-locked (`version`) platform-wide suspension (`ACTIVE -> SUSPENDED`, disabling the Keycloak realm & evicting caches) or reactivation (`SUSPENDED -> ACTIVE`, executing pending Flyway migrations & Section 3 realm verification before admitting traffic). |
+
+### Implemented Phase 2 Endpoints (`/accounts/v2/users/**` & `/accounts/v2/sync/outbox/**`)
+
+Tenant user and outbox endpoints require an `ACTIVE` tenant JWT (`iss` prefix-validated, `aud = AWGMENT_EXPECTED_AUDIENCE`), run inside schema-isolated `tenant_<id>` connections, and enforce 4-tier `RoleGovernancePolicy` with recursive composite-role closure.
+
+| Use Case | Method & Path | Description |
+| :--- | :--- | :--- |
+| `UC-USER-01` | `POST /accounts/v2/users` | Operator (`awgment-account-create-or-update` / `awgment-account-all`) user provisioning (`201 Created`): validates `service-account*` ban, active/disabled email & username uniqueness, `tp_trusted_idp` admission for `EXTERNAL_IDP`, 4-tier `RoleGovernancePolicy`, and enqueues coalesced `RECONCILE_USER` (+ `SEND_ACTION_EMAIL` for `KEYCLOAK_LOCAL`). |
+| `UC-USER-01` | `PUT /accounts/v2/users/{id}` | Operator update (`200 OK`) enforcing `@Version` (`409 CONCURRENT_MODIFICATION`), higher-tier target protection across desired + live Keycloak roles, and strict immutability of `userName`/`emailId`/`identitySource`/`idpAlias`/`status`/`roles`/`groups` (`400 IMMUTABLE_FIELD_MODIFICATION`). |
+| `UC-USER-02` | `GET /accounts/v2/users/{id}` | Fetches user profile (`awgment-account-read` / `all` / `admin`), supporting `onlyMandatoryFields=true`. |
+| `UC-USER-03` | `GET /accounts/v2/users` | Indexed JPA Specification search/filter (`q`, `status`, `identitySource`, `idpAlias`, `department`, `loginId`, `onlyMandatoryFields`, `page >= 0`, `size` `1..200`, allowlisted `sort`); hides `system` user unless verified service account or `loginId=system`. |
+| `UC-USER-04` | `DELETE /accounts/v2/users/{id}` | Deactivates user (`awgment-account-delete` / `all`): guards self-disable (`403 SELF_ACTION_FORBIDDEN`) & higher-tier targets (`403 ROLE_ESCALATION_FORBIDDEN`), commits PostgreSQL `DISABLED` + coalesced `RECONCILE_USER`, and runs synchronous-first Keycloak `disable+logout` (`204 No Content` on success, `202 Accepted` `{ status: "DISABLED", syncStatus: "PENDING_SYNC" }` + `awgment_revocation_sync_failed_total` on failure). |
+| `UC-USER-05` | `POST /accounts/v2/users/{id}/reactivate` | Approver-only (`awgment-account-admin`) transition `DISABLED -> ACTIVE` (`200 OK`; `409 INVALID_STATE_TRANSITION` otherwise) with coalesced `RECONCILE_USER` sync. |
+| `UC-USER-06` | `GET /accounts/v2/users/me` | Self-service profile read (`isAuthenticated()`) resolved strictly by `jwt.sub`; blocks `DISABLED`/`PENDING_APPROVAL`/`REJECTED` (`403 ACCESS_*`). |
+| `UC-USER-07` | `PUT /accounts/v2/users/me` | Self-service non-ACL profile update (`isAuthenticated()`): rejects admin/identity fields (`department`, `attributes`, `status`, `roles`, `groups`) and `EXTERNAL_IDP` name edits (`400 IMMUTABLE_FIELD_MODIFICATION`); syncs `locale`/local name changes to Keycloak. |
+| `UC-SYNC-01` | `GET /accounts/v2/sync/outbox` | Paginated inspection of `tp_keycloak_outbox` (`status`, `aggregateType`, `page >= 0`, `size` `1..100`) for `awgment-account-read` / `all` / `admin`. |
+| `UC-SYNC-02` | `POST /accounts/v2/sync/outbox/{id}/retry` | Resets a `FAILED` `RECONCILE_*` outbox job to `PENDING` (`200 OK`) and triggers immediate dispatch; blocks ambiguous `SEND_ACTION_EMAIL` retries (`409 INVALID_STATE_TRANSITION`). |
 
 ---
 

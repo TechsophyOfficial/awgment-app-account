@@ -51,16 +51,19 @@ class PostmanCollectionContractTest {
                 .isEqualTo("https://schema.getpostman.com/json/collection/v2.1.0/collection.json");
         assertThat(root.path("info").path("name").asText()).isNotBlank();
 
-        // Zero hardcoded JWTs, bearer literals, or dev passwords
+        // Zero hardcoded JWTs, bearer literals, dev passwords, or synthetic emails
         assertThat(rawJson).doesNotContain("eyJhbGci");
         assertThat(rawJson).doesNotContain("PlatformAdminDev!");
         assertThat(rawJson).doesNotContain("OperatorDev!");
+        assertThat(rawJson).doesNotContain("ApproverDev!");
+        assertThat(rawJson).doesNotContain("MemberDev!");
         assertThat(rawJson).doesNotContain("platform-cli-dev-secret");
         assertThat(rawJson).doesNotContain("awgment-web-dev-secret");
+        assertThat(rawJson).doesNotContain("awgment-service-dev-secret");
     }
 
     @Test
-    void postmanCollectionShouldCoverAllPhase1EndpointsWithValidExamplesAndScripts() throws IOException {
+    void postmanCollectionShouldCoverAllPhase1AndPhase2EndpointsWithValidExamplesAndScripts() throws IOException {
         JsonNode root = objectMapper.readTree(Files.readString(COLLECTION_PATH));
         Set<String> endpoints = new HashSet<>();
         validateItemsRecursively(root.path("item"), endpoints);
@@ -71,7 +74,17 @@ class PostmanCollectionContractTest {
                 "POST /accounts/v2/tenants",
                 "POST /accounts/v2/tenants/{{tenantId}}/retry-provisioning",
                 "GET /accounts/v2/tenants",
-                "PATCH /accounts/v2/tenants/{{tenantId}}/status"
+                "PATCH /accounts/v2/tenants/{{tenantId}}/status",
+                "POST /accounts/v2/users",
+                "PUT /accounts/v2/users/{{userId}}",
+                "GET /accounts/v2/users/{{userId}}",
+                "GET /accounts/v2/users",
+                "DELETE /accounts/v2/users/{{userId}}",
+                "POST /accounts/v2/users/{{userId}}/reactivate",
+                "GET /accounts/v2/users/me",
+                "PUT /accounts/v2/users/me",
+                "GET /accounts/v2/sync/outbox",
+                "POST /accounts/v2/sync/outbox/{{outboxId}}/retry"
         );
 
         // Verify saved example parity for 401 INVALID_TOKEN detail & 200 TenantResponse fields
@@ -91,6 +104,18 @@ class PostmanCollectionContractTest {
         JsonNode suspend200Json = objectMapper.readTree(suspend200Body);
         assertThat(suspend200Json.has("displayName")).isTrue();
         assertThat(suspend200Json.path("keycloakContractVerified").asBoolean()).isFalse();
+
+        // Verify saved example parity for Phase 2 Users (202 deactivation) & Sync Outbox
+        JsonNode usersFolder = root.path("item").get(4);
+        String deactivate202Body = usersFolder.path("item").get(4).path("response").get(1).path("body").asText();
+        JsonNode deactivate202Json = objectMapper.readTree(deactivate202Body);
+        assertThat(deactivate202Json.path("status").asText()).isEqualTo("DISABLED");
+        assertThat(deactivate202Json.path("syncStatus").asText()).isEqualTo("PENDING_SYNC");
+
+        JsonNode outboxFolder = root.path("item").get(5);
+        String outbox200Body = outboxFolder.path("item").get(0).path("response").get(0).path("body").asText();
+        JsonNode outbox200Json = objectMapper.readTree(outbox200Body);
+        assertThat(outbox200Json.path("content").get(0).path("jobType").asText()).isEqualTo("RECONCILE_USER");
     }
 
     @Test
@@ -144,7 +169,10 @@ class PostmanCollectionContractTest {
                         .isEmpty();
             }
         }
-        assertThat(keys).contains("baseUrl", "keycloakUrl", "platformToken", "accessToken", "tenantId");
+        assertThat(keys).contains(
+                "baseUrl", "keycloakUrl", "platformToken", "accessToken", "approverToken",
+                "tenantId", "userId", "outboxId"
+        );
     }
 
     private void validateItemsRecursively(JsonNode items, Set<String> endpoints) throws IOException {
