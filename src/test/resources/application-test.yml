@@ -34,3 +34,14 @@ awgment:
       password: admin_test_password
       connect-timeout-ms: 5000
       read-timeout-ms: 8000
+  outbox:
+    worker-enabled: false
+    poll-interval-ms: 2000
+    lease-ttl-seconds: 60
+    verification-delay-seconds: 15
+    sync-revoke-timeout-ms: 5000
+    max-retries: 5
+    batch-size: 20
+    base-backoff-seconds: 5
+    max-backoff-seconds: 300
+    worker-id: ""
